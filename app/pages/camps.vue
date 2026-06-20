@@ -23,18 +23,23 @@ useHead({ title: 'Camps — BurnerMap' })
 </script>
 
 <template>
-  <div>
-    <div class="mb-4 flex items-center justify-between gap-4">
-      <h1 class="text-xl font-bold">Camps</h1>
-      <span class="text-sm text-(--ui-text-muted)">{{ camps?.length ?? 0 }} shown</span>
+  <UContainer class="py-10 sm:py-14">
+    <div class="mb-6">
+      <div class="flex items-end justify-between gap-4">
+        <div>
+          <h1 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">Camps</h1>
+          <p class="mt-1 text-(--ui-text-muted)">Browse and search theme camps placed on the map.</p>
+        </div>
+        <UBadge color="neutral" variant="subtle" class="shrink-0">{{ camps?.length ?? 0 }} shown</UBadge>
+      </div>
     </div>
 
     <UInput
       v-model="q"
       icon="i-lucide-search"
       placeholder="Search camps by name, description, or hometown…"
-      size="lg"
-      class="mb-6 w-full"
+      size="xl"
+      class="mb-8 w-full"
       :loading="status === 'pending'"
     />
 
@@ -66,8 +71,9 @@ useHead({ title: 'Camps — BurnerMap' })
     </div>
 
     <div v-else-if="status !== 'pending'" class="py-16 text-center text-(--ui-text-muted)">
+      <UIcon name="i-lucide-tent" class="mx-auto mb-3 size-10 opacity-40" />
       <p v-if="q">No camps match “{{ q }}”.</p>
       <p v-else>No camps yet. Be the first to drop a pin on the map!</p>
     </div>
-  </div>
+  </UContainer>
 </template>

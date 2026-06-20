@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* Playa design tokens — warm dust palette, modern type. */
+@theme static {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+}
+
+:root {
+  --ui-radius: 0.75rem;
+}
+
+/* Subtle dust-grain backdrop on dark surfaces. */
+.playa-bg {
+  background-color: var(--ui-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in oklab, var(--ui-primary) 14%, transparent), transparent),
+    radial-gradient(ellipse 60% 50% at 90% 110%, color-mix(in oklab, var(--ui-primary) 8%, transparent), transparent);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
