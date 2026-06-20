@@ -25,8 +25,28 @@ function spokeForHour(time: number): [number, number][] {
   return [[inner.lng, inner.lat], [outer.lng, outer.lat]]
 }
 
+// Landmarks (real survey coordinates, [lng, lat]).
+export const centerCampPoint: [number, number] = [-119.21122602690583, 40.78052685763084]
+export const greetersPoint: [number, number] = [-119.220953, 40.773203]
+// Trash-fence pentagon (the city boundary).
+const TRASH_FENCE: [number, number][] = [
+  [-119.233566, 40.782814],
+  [-119.217274, 40.807028],
+  [-119.181931, 40.802722],
+  [-119.176407, 40.775857],
+  [-119.208301, 40.763558],
+  [-119.233566, 40.782814],
+]
+
 export function cityGridGeoJson(): FeatureCollection {
   const features: FeatureCollection['features'] = []
+
+  // trash fence (city boundary)
+  features.push({
+    type: 'Feature',
+    properties: { kind: 'fence' },
+    geometry: { type: 'LineString', coordinates: TRASH_FENCE },
+  })
 
   for (const street of STREETS) {
     features.push({

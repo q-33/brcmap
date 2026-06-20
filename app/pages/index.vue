@@ -168,6 +168,16 @@ const campOptions = computed(() => [
       </div>
     </div>
 
+    <!-- legend (bottom-left) -->
+    <div class="pointer-events-none absolute bottom-4 left-3 hidden rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-xl sm:block">
+      <p class="mb-1 font-display font-semibold">Black Rock City {{ CITY_YEAR }}</p>
+      <ul class="space-y-0.5 text-white/80">
+        <li><span class="mr-1.5 inline-block size-2 rounded-full bg-red-600 align-middle" />The Man · Center Camp</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#1d4ed8" />Camps</li>
+        <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#c25617" />Trash fence</li>
+      </ul>
+    </div>
+
     <!-- GPS readout pill (bottom center) -->
     <div class="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
       <div class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { cityGridGeoJson, manPoint } from '~~/lib/brc/cityGeoJson'
+import { centerCampPoint, cityGridGeoJson, manPoint } from '~~/lib/brc/cityGeoJson'
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
@@ -55,6 +55,14 @@ onMounted(() => {
       return
     // city grid
     map.addSource('grid', { type: 'geojson', data: cityGridGeoJson() })
+    // trash fence (city boundary)
+    map.addLayer({
+      id: 'fence',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'fence'],
+      paint: { 'line-color': '#c25617', 'line-width': 1.5, 'line-dasharray': [3, 3], 'line-opacity': 0.7 },
+    })
     map.addLayer({
       id: 'streets',
       type: 'line',
@@ -84,9 +92,30 @@ onMounted(() => {
       },
       paint: { 'text-color': '#6b3018', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
     })
-    // the Man
-    map.addSource('man', { type: 'geojson', data: { type: 'Point', coordinates: manPoint } })
-    map.addLayer({ id: 'man', type: 'circle', source: 'man', paint: { 'circle-radius': 5, 'circle-color': '#b91c1c' } })
+    // landmarks: the Man + Center Camp
+    map.addSource('landmarks', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: { name: 'The Man' }, geometry: { type: 'Point', coordinates: manPoint } },
+          { type: 'Feature', properties: { name: 'Center Camp' }, geometry: { type: 'Point', coordinates: centerCampPoint } },
+        ],
+      },
+    })
+    map.addLayer({
+      id: 'landmark-dots',
+      type: 'circle',
+      source: 'landmarks',
+      paint: { 'circle-radius': 5, 'circle-color': '#b91c1c', 'circle-stroke-color': '#ece4d2', 'circle-stroke-width': 1.5 },
+    })
+    map.addLayer({
+      id: 'landmark-labels',
+      type: 'symbol',
+      source: 'landmarks',
+      layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, -1.1], 'text-anchor': 'bottom' },
+      paint: { 'text-color': '#6b3018', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
+    })
     // camp pins
     map.addSource('camps', { type: 'geojson', data: campsGeoJson() })
     map.addLayer({
