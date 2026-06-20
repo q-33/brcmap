@@ -3,7 +3,17 @@ import { describeLatLng, formatAddress, latLngToAddress } from '~~/lib/brc/geoco
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
+definePageMeta({ layout: false })
+
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
+
+// optional ?lat&lng to focus a camp coming from the Camps list
+const route = useRoute()
+const focus = computed(() => {
+  const lat = Number(route.query.lat)
+  const lng = Number(route.query.lng)
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+})
 
 // camps -> pins
 const { data: campsData, refresh: refreshCamps } = await useFetch('/api/camps')
@@ -90,13 +100,16 @@ async function dropPin() {
 <template>
   <div class="relative h-dvh w-dvw overflow-hidden">
     <ClientOnly>
-      <PlayaMap :camps="pins" class="absolute inset-0" @position="onPosition" />
+      <PlayaMap :camps="pins" :focus="focus" class="absolute inset-0" @position="onPosition" />
     </ClientOnly>
 
     <!-- top bar -->
     <div class="absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-3">
       <div class="rounded-lg bg-white/90 px-3 py-2 shadow backdrop-blur">
-        <p class="text-sm font-bold">BurnerMap</p>
+        <div class="flex items-center gap-2">
+          <p class="text-sm font-bold">BurnerMap</p>
+          <NuxtLink to="/camps" class="text-xs text-primary underline">Camps</NuxtLink>
+        </div>
         <p class="text-xs text-(--ui-text-muted)">
           {{ readout ?? 'tap the ⌖ to find yourself' }}
         </p>

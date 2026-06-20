@@ -5,7 +5,7 @@ import { cityGridGeoJson, manPoint } from '~~/lib/brc/cityGeoJson'
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
-const props = defineProps<{ camps: CampPin[] }>()
+const props = defineProps<{ camps: CampPin[], focus?: { lat: number, lng: number } | null }>()
 const emit = defineEmits<{ position: [{ lat: number, lng: number }] }>()
 
 const el = ref<HTMLDivElement>()
@@ -104,6 +104,12 @@ watch(() => props.camps, () => {
   const src = map?.getSource('camps') as maplibregl.GeoJSONSource | undefined
   src?.setData(campsGeoJson())
 }, { deep: true })
+
+// fly to a focused camp (from the list's "view on map")
+watch(() => props.focus, (f) => {
+  if (f && map)
+    map.flyTo({ center: [f.lng, f.lat], zoom: 15, speed: 0.8 })
+}, { immediate: true })
 
 onBeforeUnmount(() => map?.remove())
 </script>
