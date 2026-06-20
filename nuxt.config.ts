@@ -1,9 +1,6 @@
 import { pwa } from './config/pwa'
 import { appDescription } from './constants/index'
 
-// const ONE_DAY = 60 * 60 * 24 * 1000
-// const ONE_WEEK = ONE_DAY * 7
-
 export default defineNuxtConfig({
   build: {
     transpile:
@@ -57,9 +54,6 @@ export default defineNuxtConfig({
   css: [
     '@unocss/reset/tailwind.css',
   ],
-  // colorMode: {
-  //   classSuffix: '',
-  // },
   nitro: {
     routeRules: {
       '/api/**': { proxy: `${process.env.USER_BACKEND_URL}/**` },
@@ -72,7 +66,6 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: false,
       routes: ['/'],
-      ignore: ['/hi'],
     },
   },
   components: {
@@ -89,9 +82,6 @@ export default defineNuxtConfig({
   vueuse: {
     ssrHandlers: true,
   },
-  plugins: [
-    // { src: '~/plugins/animejs.ts', mode: 'client' },
-  ],
   app: {
     head: {
       viewport: 'width=device-width,initial-scale=1',

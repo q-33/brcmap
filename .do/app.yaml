@@ -1,0 +1,24 @@
+name: burnermap
+region: sfo
+static_sites:
+  - name: burnermap
+    # Keeps the existing GitHub OAuth connection + auto-deploy on push to main
+    github:
+      repo: q-33/burnermap
+      branch: main
+      deploy_on_push: true
+    build_command: pnpm generate
+    output_dir: .output/public
+    index_document: index.html
+    # SPA fallback so client-side routes (deep links) resolve
+    catchall_document: 200.html
+    envs:
+      # Search disabled: placeholder values let the build's postinstall
+      # (nuxi prepare) and @nuxtjs/algolia setup succeed. Replace with real
+      # keys later to enable search.
+      - key: ALGOLIA_SEARCH_API_KEY
+        scope: BUILD_TIME
+        value: disabled
+      - key: ALGOLIA_APPLICATION_ID
+        scope: BUILD_TIME
+        value: disabled

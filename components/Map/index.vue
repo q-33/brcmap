@@ -11,7 +11,6 @@ import {
   CContainer,
   CNav,
   CNavItem,
-  CNavbar,
 } from '@coreui/vue'
 import { ref } from 'vue'
 import { useCampStore } from '../../stores/camps'
@@ -93,76 +92,44 @@ const clearBlock = function () {
 }
 
 const onEachFeature = function (feature: any, layer: any) {
-  (() => {
-    layer.on('mouseover', () => {
-      layer.setStyle(hoverStyle)
-      const hoverId = feature.properties.id
-    })
-    layer.on('mouseout', () => {
-      if (feature.properties.id !== blockId.value.id)
-        layer.setStyle(defaultStyle)
-    })
-    layer.on('click', () => {
-      console.log('what\'s the id', feature.properties.id)
-      console.log('mapDictionary', campStore.mapDictionary)
-
-      if (campStore.mapDictionary) {
-        const campId = campStore.formatBlockAddress(feature.properties.blockTime, feature.properties.roadLetter, 0, true)
-        console.log('campId', campId)
-        const camps = campStore.mapDictionary[campId]
-
-        console.log('camps', camps)
-        camps.forEach((camp) => {
-          if (camp.locations) {
-            const currentLocation = campStore.getMostRecentCampLocation(camp.locations)
-            console.log('marker for', camp.name)
-            if (currentLocation.gps_latitude && currentLocation.gps_longitude) {
-              L.marker([currentLocation.gps_latitude, currentLocation.gps_longitude], {
-                icon: markerIcon,
-                // YOU CAN'T BE UNDEFINED I HATE YOU AND IT BULDS ANYWAY
-              }).addTo(map.value)
-            }
-          }
-        })
-      }
-
-      selectedCamp.value = campStore.getCampsAtLocation(campStore.getAllCampLocationOptions(feature.properties.blockTime, feature.properties.roadLetter), campStore.mapDictionary)
-      // remove selectedStyle from the previous block
-      if (block.value)
-        block.value.setStyle(defaultStyle)
-      layer.setStyle(selectedStyle)
-      block.value = layer
-      blockId.value = {
-        id: feature.properties.id,
-        blockTime: feature.properties.blockTime,
-        roadLetter: feature.properties.roadLetter,
-      }
-      const newCenter = [(layer._bounds._northEast.lat + layer._bounds._southWest.lat) / 2, (layer._bounds._northEast.lng + layer._bounds._southWest.lng) / 2]
-      map.value.setView(newCenter, 16)
-    })
-
-    const { id } = feature.properties.id
-    console.log('what\'s the id', id)
-    console.log('mapDictionary', campStore.mapDictionary)
-
+  layer.on('mouseover', () => {
+    layer.setStyle(hoverStyle)
+  })
+  layer.on('mouseout', () => {
+    if (feature.properties.id !== blockId.value.id)
+      layer.setStyle(defaultStyle)
+  })
+  layer.on('click', () => {
     if (campStore.mapDictionary) {
-      const camps = campStore.mapDictionary[id]
+      const campId = campStore.formatBlockAddress(feature.properties.blockTime, feature.properties.roadLetter, 0, true)
+      const camps = campStore.mapDictionary[campId]
 
-      console.log('camps', camps)
-      camps.forEach((camp) => {
+      camps?.forEach((camp: any) => {
         if (camp.locations) {
           const currentLocation = campStore.getMostRecentCampLocation(camp.locations)
-          console.log('marker for', camp.name)
           if (currentLocation.gps_latitude && currentLocation.gps_longitude) {
             L.marker([currentLocation.gps_latitude, currentLocation.gps_longitude], {
               icon: markerIcon,
-            // YOU CAN'T BE UNDEFINED I HATE YOU AND IT BULDS ANYWAY
             }).addTo(map.value)
           }
         }
       })
     }
-  })()
+
+    selectedCamp.value = campStore.getCampsAtLocation(campStore.getAllCampLocationOptions(feature.properties.blockTime, feature.properties.roadLetter), campStore.mapDictionary)
+    // remove selectedStyle from the previous block
+    if (block.value)
+      block.value.setStyle(defaultStyle)
+    layer.setStyle(selectedStyle)
+    block.value = layer
+    blockId.value = {
+      id: feature.properties.id,
+      blockTime: feature.properties.blockTime,
+      roadLetter: feature.properties.roadLetter,
+    }
+    const newCenter = [(layer._bounds._northEast.lat + layer._bounds._southWest.lat) / 2, (layer._bounds._northEast.lng + layer._bounds._southWest.lng) / 2]
+    map.value.setView(newCenter, 16)
+  })
 }
 
 function handleZoom(zoom: any) {
@@ -185,30 +152,12 @@ const mapStyle = ({
 })
 
 const polygonOptions = { onEachFeature }
-
-const { result, search } = useAlgoliaSearch('camps') // pass your index name as param
-onMounted(async () => {
-  await search({ query: 'burning globe' })
-})
 </script>
 
 <template>
-  <!-- <pre>
-    {{ result.hits }}
-  </pre> -->
   <CContainer md class="inline w-[60vw]">
     <div class="h-[60vh] w-full md:flex">
       <div style="width: 100vw;" :class="selectedCamp ? 'h-[50vh]' : 'h-[90vh] md:h-[50vh]'">
-        <CNavbar expand="lg" class="inline">
-          <!-- <div>
-            <AisInstantSearch index-name="camps" :search-client="algolia">
-              <AisSearchBox
-                placeholder="search for a camp by name, or a word in the description"
-                show-loading-indicator
-              />
-            </AisInstantSearch>
-          </div> -->
-        </CNavbar>
         <LMap
           :zoom="zoom"
           :center="center"
