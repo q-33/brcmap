@@ -1,5 +1,5 @@
 import { check, doublePrecision, index, integer, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { sql } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 
 // Mirrors db/migrations/0001_init.sql. The raw SQL migration is the source of
 // truth for DDL (PostGIS generated column, triggers); this gives typed queries.
@@ -63,3 +63,17 @@ export const locations = pgTable('locations', {
   index('locations_owner_idx').on(t.ownerId),
   check('locations_one_parent', sql`(camp_id is not null and art_id is null) or (camp_id is null and art_id is not null)`),
 ])
+
+// --- Relations (for db.query.* relational selects) -------------------------
+export const campsRelations = relations(camps, ({ many }) => ({
+  locations: many(locations),
+}))
+
+export const artRelations = relations(art, ({ many }) => ({
+  locations: many(locations),
+}))
+
+export const locationsRelations = relations(locations, ({ one }) => ({
+  camp: one(camps, { fields: [locations.campId], references: [camps.id] }),
+  art: one(art, { fields: [locations.artId], references: [art.id] }),
+}))

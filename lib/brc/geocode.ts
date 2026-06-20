@@ -98,6 +98,8 @@ export function parseAddress(input: string): BrcAddress | null {
     return null
   // either order: "7:30 & E" or "E & 7:30"
   const [a, b] = parts
+  if (!a || !b)
+    return null
   const timeStr = /:/.test(a) ? a : b
   const street = /:/.test(a) ? b : a
   const m = timeStr.match(/^(\d{1,2}):(\d{2})$/)
