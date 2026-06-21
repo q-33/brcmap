@@ -43,8 +43,12 @@ describe('addressToLatLng (forward)', () => {
     const dists = order.map(s => metresBetween(addressToLatLng({ time: 6, street: s })!, MAN))
     for (let i = 1; i < dists.length; i++)
       expect(dists[i]!).toBeGreaterThan(dists[i - 1]!)
-    // tightened inner hole: Esplanade pulled in toward the plan's proportions
-    expect(STREET_RADII.Esplanade!).toBeLessThan(700)
+    // real, to-scale radii (NOT stylised): Esplanade sits ~792 m from the Man so
+    // geocoding matches the device's real GPS. Guards against re-introducing the
+    // compression that drifted reverse-geocoding by 1-2 streets.
+    expect(STREET_RADII.Esplanade!).toBeGreaterThan(750)
+    expect(STREET_RADII.Esplanade!).toBeLessThan(850)
+    expect(STREET_RADII.K!).toBeGreaterThan(1700)
   })
 })
 

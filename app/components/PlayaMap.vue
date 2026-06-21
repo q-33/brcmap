@@ -10,7 +10,7 @@ import { centerCampPoint, cityGridGeoJson, manPoint } from '~~/lib/brc/cityGeoJs
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
 const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null }>()
-const emit = defineEmits<{ position: [{ lat: number, lng: number }] }>()
+const emit = defineEmits<{ position: [{ lat: number, lng: number, accuracy?: number }] }>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
 let map: MlMap | undefined
@@ -62,7 +62,7 @@ onMounted(async () => {
   })
   map.addControl(geolocate, 'top-right')
   geolocate.on('geolocate', (e: any) => {
-    emit('position', { lat: e.coords.latitude, lng: e.coords.longitude })
+    emit('position', { lat: e.coords.latitude, lng: e.coords.longitude, accuracy: e.coords.accuracy })
   })
 
   map.on('load', () => {

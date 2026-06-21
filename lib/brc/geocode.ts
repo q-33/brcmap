@@ -18,15 +18,36 @@ export interface BrcAddress {
   street: string
 }
 
-// --- Fitted constants (2023) -------------------------------------------------
-export const MAN: LatLng = { lat: 40.786394, lng: -119.203492 }
+// --- The Golden Spike: the city's calibration point --------------------------
+// Each year the Bureau of Land Management survey crew drives a "golden spike"
+// into the playa at the exact center of Black Rock City — the base of the Man.
+// Every address in this file is computed relative to it, so this ONE coordinate
+// re-snaps the entire city (geocoding AND the drawn map) when updated.
+//
+// 2026's spike has not been surveyed/published yet. `GOLDEN_SPIKE` is the
+// standing reference (the 2023-fitted Man position). The moment Burning Man
+// publishes the real 2026 coordinate, set GOLDEN_SPIKE_2026 below to it — that
+// single line re-aligns the whole map. Nothing else needs to change.
+export const GOLDEN_SPIKE_2026: LatLng | null = null
+const FALLBACK_CENTER: LatLng = { lat: 40.786394, lng: -119.203492 }
+
+/** Whether the real 2026 golden spike has been set (vs. the fallback estimate). */
+export const GOLDEN_SPIKE_KNOWN = GOLDEN_SPIKE_2026 != null
+
+// The active city center. `MAN` is kept as the historical alias used throughout.
+export const GOLDEN_SPIKE: LatLng = GOLDEN_SPIKE_2026 ?? FALLBACK_CENTER
+export const MAN: LatLng = GOLDEN_SPIKE
 
 // bearing(deg, clockwise from north) = BEARING_INTERCEPT + BEARING_PER_HOUR * time
 const BEARING_INTERCEPT = 40.253
 const BEARING_PER_HOUR = 29.98
 
-// Fitted centroid radius (metres) per street, innermost -> outermost.
-const RAW_RADII: Record<string, number> = {
+// Fitted centroid radius (metres) per street, innermost -> outermost. These are
+// the real, to-scale distances from the Man — the single source of truth for
+// both geocoding (address <-> GPS) and drawing the city. They must NOT be
+// stylised/compressed: doing so makes camp pins disagree with the device's real
+// GPS dot and misreports the street by 1-2 rings in the inner city.
+export const STREET_RADII: Record<string, number> = {
   Esplanade: 792.2,
   A: 880.9,
   B: 980.4,
@@ -40,18 +61,6 @@ const RAW_RADII: Record<string, number> = {
   J: 1721.0,
   K: 1778.9,
 }
-
-// The official plan compresses the deep-playa centre so the camp band looks
-// thicker. Pull the inner streets in (Esplanade → INNER_TARGET) while keeping
-// the outer ring fixed, remapping the rest proportionally, to match that look.
-const INNER_TARGET = 600
-const ESP_RAW = RAW_RADII.Esplanade!
-const K_RAW = RAW_RADII.K!
-const tighten = (r: number) => INNER_TARGET + ((r - ESP_RAW) * (K_RAW - INNER_TARGET)) / (K_RAW - ESP_RAW)
-
-export const STREET_RADII: Record<string, number> = Object.fromEntries(
-  Object.entries(RAW_RADII).map(([k, v]) => [k, tighten(v)]),
-)
 
 // city occupies roughly the 2:00–10:00 arc
 export const CITY_TIME_MIN = 2

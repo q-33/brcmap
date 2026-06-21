@@ -37,9 +37,15 @@ const artPins = computed<CampPin[]>(() => toPins(artData.value))
 
 // live GPS readout
 const position = ref<{ lat: number, lng: number }>()
+const accuracy = ref<number>() // metres, from the GPS fix
 const readout = computed(() => position.value ? describeLatLng(position.value) : null)
-function onPosition(p: { lat: number, lng: number }) {
-  position.value = p
+// A fix worse than this (metres) is too rough to trust the snapped street.
+const ACCURACY_WARN_M = 75
+const accuracyLabel = computed(() => accuracy.value != null ? `±${Math.round(accuracy.value)} m` : null)
+const accuracyRough = computed(() => accuracy.value != null && accuracy.value > ACCURACY_WARN_M)
+function onPosition(p: { lat: number, lng: number, accuracy?: number }) {
+  position.value = { lat: p.lat, lng: p.lng }
+  accuracy.value = p.accuracy
 }
 
 // auth form
@@ -202,6 +208,9 @@ const itemOptions = computed(() => [
         <span :class="position ? 'font-medium' : 'text-white/60'">
           {{ readout ?? 'Tap the ⌖ to find yourself on the playa' }}
         </span>
+        <span v-if="accuracyLabel" class="text-xs" :class="accuracyRough ? 'text-amber-300' : 'text-white/50'">
+          {{ accuracyLabel }}
+        </span>
       </div>
     </div>
 
@@ -229,6 +238,11 @@ const itemOptions = computed(() => [
         <form class="space-y-3" @submit.prevent="dropPin">
           <p class="text-sm">
             Location: <b>{{ currentAddressNamed ?? '—' }}</b>
+            <span v-if="accuracyLabel" class="text-(--ui-text-muted)"> · GPS {{ accuracyLabel }}</span>
+          </p>
+          <p v-if="accuracyRough" class="flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+            <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" />
+            Rough GPS fix — the street may be off. Move to open sky and re-locate, or double-check before saving.
           </p>
           <USelect
             v-if="myItems.length"
