@@ -43,8 +43,15 @@ onMounted(async () => {
     },
     center: manPoint,
     zoom: 13.4,
+    // Orient like the official BRC plan: 12:00 (the opening) up, 6:00 down.
+    // The city's 12:00 axis sits at compass bearing ~40°.
+    bearing: 40,
+    // Lock the orientation so pan/zoom can't rotate it off the plan layout.
+    dragRotate: false,
+    pitchWithRotate: false,
     attributionControl: false,
   })
+  map.touchZoomRotate.disableRotation()
 
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
   const geolocate = new maplibregl.GeolocateControl({
@@ -93,7 +100,6 @@ onMounted(async () => {
       layout: {
         'text-field': ['get', 'name'],
         'text-size': 11,
-        'text-rotate': -32,
         'text-allow-overlap': false,
       },
       paint: { 'text-color': '#6b3018', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
