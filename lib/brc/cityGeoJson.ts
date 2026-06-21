@@ -116,10 +116,11 @@ export function cityGridGeoJson(): FeatureCollection {
 
   const fmtTime = (t: number) => `${Math.floor(t)}:${String(Math.round((t % 1) * 60)).padStart(2, '0')}`
   for (let t = CITY_TIME_MIN; t <= CITY_TIME_MAX + 1e-9; t += 0.5) {
-    push('radial-line', {
-      type: 'LineString',
-      coordinates: [radialPoint(t, STREET_RADII.Esplanade!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat),
-    }, { name: fmtTime(t) })
+    const name = fmtTime(t)
+    // Two segments per radial — an inner (Esplanade → H) and an outer (H → K) —
+    // so the clock-time label appears mid-city AND repeats further out near K.
+    push('radial-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.Esplanade!), radialPoint(t, STREET_RADII.H!)].map(toLngLat) }, { name })
+    push('radial-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.H!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat) }, { name })
   }
 
   // 4. Cardinal avenues through the Man, the 12:00 promenade + end circle, Man circle
