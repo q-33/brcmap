@@ -9,7 +9,7 @@ const { label } = useManCountdown()
       class="flex items-center justify-center gap-2 bg-primary px-4 py-1.5 text-center text-sm font-semibold text-white"
     >
       <UIcon name="i-lucide-flame" class="size-4" />
-      <span class="font-display uppercase tracking-wide">🔥 {{ label }}</span>
+      <span class="font-display uppercase tracking-wide">{{ label }}</span>
     </div>
   </Transition>
 </template>
