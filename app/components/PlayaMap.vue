@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
-import { cityGridGeoJson, getCenterCampPoint, getManPoint } from '~~/lib/brc/cityGeoJson'
+import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
@@ -203,6 +203,52 @@ onMounted(async () => {
       source: 'landmarks',
       layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, -1.1], 'text-anchor': 'bottom' },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
+    })
+    // civic landmarks: airport, medical, ESD, DPW, Rangers, services… colour-coded
+    const civicColor = [
+      'match', ['get', 'category'],
+      'medical', '#dc2626',
+      'safety', '#2563eb',
+      'transport', '#d97706',
+      'services', '#0e7490',
+      'sacred', '#7c3aed',
+      /* other */ '#334155',
+    ] as any
+    map.addSource('civic', { type: 'geojson', data: civicLandmarksGeoJson() })
+    map.addLayer({
+      id: 'civic-dots',
+      type: 'circle',
+      source: 'civic',
+      paint: {
+        'circle-radius': 5,
+        'circle-color': civicColor,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5,
+      },
+    })
+    map.addLayer({
+      id: 'civic-labels',
+      type: 'symbol',
+      source: 'civic',
+      minzoom: 13,
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-size': 10,
+        'text-offset': [0, 0.9],
+        'text-anchor': 'top',
+        'text-max-width': 7,
+      },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
+    })
+    map.on('click', 'civic-dots', (e) => {
+      const f = e.features?.[0]
+      if (f && map) {
+        const note = f.properties?.note ? `<br>${f.properties.note}` : ''
+        new maplibregl.Popup()
+          .setLngLat((f.geometry as any).coordinates)
+          .setHTML(`<b>${f.properties?.name}</b>${note}`)
+          .addTo(map)
+      }
     })
     // art pins (violet) — drawn under camp pins
     map.addSource('art', { type: 'geojson', data: pinsGeoJson(props.artPins ?? []) })

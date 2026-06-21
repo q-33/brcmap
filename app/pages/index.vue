@@ -198,6 +198,11 @@ const itemOptions = computed(() => [
         <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#d6336c" />Camps</li>
         <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#7c3aed" />Art</li>
         <li><span class="mr-1.5 inline-block size-2 rounded-full bg-white align-middle" />The Man · Center Camp</li>
+        <li class="!mt-1.5 border-t border-white/10 pt-1.5 font-medium text-white/60">Services</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#dc2626" />Medical</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#2563eb" />Rangers · safety</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#0e7490" />Ice · info · DPW</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#d97706" />Airport · gate · fuel</li>
         <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
       </ul>
     </div>

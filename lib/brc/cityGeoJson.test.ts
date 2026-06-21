@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cityGridGeoJson, getManPoint } from './cityGeoJson'
+import { CIVIC_LANDMARKS, cityGridGeoJson, civicLandmarksGeoJson, getManPoint } from './cityGeoJson'
 
 describe('cityGridGeoJson', () => {
   const fc = cityGridGeoJson()
@@ -25,5 +25,18 @@ describe('cityGridGeoJson', () => {
     const man = getManPoint()
     expect(man[0]).toBeCloseTo(-119.2035, 2)
     expect(man[1]).toBeCloseTo(40.7864, 2)
+  })
+})
+
+describe('civicLandmarksGeoJson', () => {
+  it('emits a point per landmark with finite coords and a category', () => {
+    const fc = civicLandmarksGeoJson()
+    expect(fc.features.length).toBe(CIVIC_LANDMARKS.length)
+    expect(fc.features.length).toBeGreaterThan(8)
+    for (const f of fc.features) {
+      const [lng, lat] = (f.geometry as any).coordinates
+      expect(Number.isFinite(lng) && Number.isFinite(lat)).toBe(true)
+      expect(['medical', 'safety', 'transport', 'services', 'sacred']).toContain(f.properties?.category)
+    }
   })
 })

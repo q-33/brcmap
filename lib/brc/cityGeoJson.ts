@@ -1,4 +1,5 @@
 import type { Feature, FeatureCollection } from 'geojson'
+import type { BrcAddress } from './geocode'
 import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
 
 // Render Black Rock City to match the official BRC 2026 plan: individual blue
@@ -131,4 +132,59 @@ export function cityGridGeoJson(): FeatureCollection {
 
 export function getManPoint(): [number, number] {
   return [MAN.lng, MAN.lat]
+}
+
+// --- Civic landmarks ---------------------------------------------------------
+// Official infrastructure shown on the map. Each is located by a BRC address
+// (clock + street, geocoded), a clock + distance from the Man (off-grid items
+// like the airport/temple), or a fixed lat/lng. Category drives the marker
+// colour + legend grouping. Placements move slightly year to year — sourced
+// from the official BRC Map & Guide / city plan.
+export type CivicCategory = 'medical' | 'safety' | 'transport' | 'services' | 'sacred'
+
+type CivicAt = BrcAddress | { time: number, radiusM: number } | { lng: number, lat: number }
+export interface CivicLandmark { name: string, category: CivicCategory, at: CivicAt, note?: string }
+
+function civicCoord(at: CivicAt): [number, number] | null {
+  if ('street' in at) {
+    const p = addressToLatLng(at)
+    return p ? [p.lng, p.lat] : null
+  }
+  if ('radiusM' in at)
+    return toLngLat(radialPoint(at.time, at.radiusM))
+  return [at.lng, at.lat]
+}
+
+// Sourced from the official 2026 Survival Guide → On-Playa Resources and the BRC
+// city plan. On-grid items use their clock+street address (stable year to year);
+// off-grid items (airport, DPW, Greeters, fuel) use a clock bearing + approximate
+// distance from the Man. The outer street K sits ~1779 m out, for reference.
+const K_M = STREET_RADII[OUTER]!
+export const CIVIC_LANDMARKS: CivicLandmark[] = [
+  // Medical (red)
+  { name: 'Rampart Hospital', category: 'medical', at: { time: 5.25, street: 'Esplanade' }, note: 'Main field hospital · ESD station' },
+  { name: 'First Aid · 3:00', category: 'medical', at: { time: 3, street: 'C' }, note: 'Medical + Ranger Outpost (Berlin)' },
+  { name: 'First Aid · 9:00', category: 'medical', at: { time: 9, street: 'C' }, note: 'Medical + Ranger Outpost (Tokyo)' },
+  // Safety (blue)
+  { name: 'Ranger HQ', category: 'safety', at: { time: 6.5, street: 'Esplanade' }, note: 'Black Rock Rangers headquarters' },
+  // Services (teal)
+  { name: 'Center Camp', category: 'services', at: { time: 6.25, street: 'B' }, note: 'Center Camp Plaza · Arctica ice (main)' },
+  { name: 'Playa Info', category: 'services', at: { time: 5.75, street: 'Esplanade' }, note: 'Info + Lost & Found' },
+  { name: 'Ice · 3:00', category: 'services', at: { time: 3, street: 'G' }, note: 'Arctica ice sales' },
+  { name: 'Ice · 9:00', category: 'services', at: { time: 9, street: 'G' }, note: 'Arctica ice sales' },
+  { name: 'DPW Depot', category: 'services', at: { time: 5.5, radiusM: K_M + 205 }, note: 'Dept. of Public Works · just past Kilgore (K)' },
+  // Transport / entry (amber)
+  { name: 'Airport (88NV)', category: 'transport', at: { time: 5, radiusM: 2500 }, note: 'BRC Municipal Airport · outside the fence on 5:00' },
+  { name: 'Greeters', category: 'transport', at: { time: 6, radiusM: 1990 }, note: 'Welcome station + printed city map (entry)' },
+  { name: 'Fuel · Hell Station', category: 'transport', at: { time: 9.5, radiusM: K_M + 110 }, note: 'Participant vehicle fueling · past the outer street' },
+]
+
+export function civicLandmarksGeoJson(): FeatureCollection {
+  const features: Feature[] = []
+  for (const l of CIVIC_LANDMARKS) {
+    const coord = civicCoord(l.at)
+    if (coord)
+      features.push({ type: 'Feature', properties: { kind: 'civic', name: l.name, category: l.category, note: l.note ?? '' }, geometry: { type: 'Point', coordinates: coord } })
+  }
+  return { type: 'FeatureCollection', features }
 }
