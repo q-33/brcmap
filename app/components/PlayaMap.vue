@@ -9,7 +9,22 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean> }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines' }>()
+
+// Swap the filled-block basemap for the Google-style street-line grid.
+function applyBasemap() {
+  if (!map)
+    return
+  const lines = props.basemap === 'lines'
+  const set = (id: string, visible: boolean) => {
+    if (map!.getLayer(id))
+      map!.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none')
+  }
+  set('blocks', !lines)
+  set('blocks-outline', !lines)
+  set('wedges', !lines)
+  set('street-lines', lines)
+}
 
 // Simple on/off layer groups → their MapLibre layer ids.
 const VISIBILITY_GROUPS: Record<string, string[]> = {
@@ -122,6 +137,16 @@ onMounted(async () => {
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'wedge'],
       paint: { 'fill-color': '#dff0fa', 'fill-opacity': 0.5 },
+    })
+    // alternate "streets" basemap — the full grid as thin grey lines (hidden by
+    // default; the basemap toggle swaps it in for the filled blocks).
+    map.addLayer({
+      id: 'street-lines',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'grid-line'],
+      layout: { visibility: 'none' },
+      paint: { 'line-color': '#bdb6a8', 'line-width': 0.7 },
     })
     // trash fence (red dashed pentagon)
     map.addLayer({
@@ -387,11 +412,13 @@ onMounted(async () => {
       }
     })
     applyLayerVisibility()
+    applyBasemap()
   })
 })
 
 // show/hide layer groups from the legend toggles
 watch(() => props.layers, applyLayerVisibility, { deep: true })
+watch(() => props.basemap, applyBasemap)
 
 // keep camp pins in sync
 watch(() => props.camps, () => {

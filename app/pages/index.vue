@@ -49,6 +49,7 @@ const wx = computed(() => weatherData.value?.current ?? null)
 // map layer visibility (the legend doubles as the toggle control)
 const layers = reactive({ camps: true, art: true, toilets: true, medical: true, safety: true, services: true, transport: true })
 const panelOpen = ref(true)
+const basemap = ref<'blocks' | 'lines'>('blocks')
 
 // live GPS readout
 const position = ref<{ lat: number, lng: number }>()
@@ -169,7 +170,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" class="size-full" @position="onPosition" />
+        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" class="size-full" @position="onPosition" />
       </ClientOnly>
     </div>
 
@@ -215,6 +216,10 @@ const itemOptions = computed(() => [
         <UIcon :name="panelOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'" class="ml-auto size-3.5 text-white/60" />
       </button>
       <div v-show="panelOpen" class="space-y-1 px-3 pb-2.5">
+        <div class="flex gap-1 rounded-lg bg-white/5 p-0.5">
+          <button type="button" class="flex-1 rounded-md py-1 text-[11px] font-medium transition" :class="basemap === 'blocks' ? 'bg-primary text-white' : 'text-white/55 hover:text-white'" @click="basemap = 'blocks'">Blocks</button>
+          <button type="button" class="flex-1 rounded-md py-1 text-[11px] font-medium transition" :class="basemap === 'lines' ? 'bg-primary text-white' : 'text-white/55 hover:text-white'" @click="basemap = 'lines'">Streets</button>
+        </div>
         <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.camps && 'opacity-40'" @click="layers.camps = !layers.camps">
           <span class="inline-block size-2 rounded-full" style="background:#d6336c" />Camps
           <UIcon :name="layers.camps ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />

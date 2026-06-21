@@ -123,6 +123,13 @@ export function cityGridGeoJson(): FeatureCollection {
     push('radial-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.H!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat) }, { name })
   }
 
+  // 3c. Full street-grid lines for the alternate "streets" basemap — every ring
+  // street as an arc + every 15-min radial avenue. Drawn only in streets mode.
+  for (const street of STREETS)
+    push('grid-line', { type: 'LineString', coordinates: arcAt(STREET_RADII[street]!, CITY_TIME_MIN, CITY_TIME_MAX) })
+  for (let t = 2.0; t <= 9.75 + 1e-9; t += 0.25)
+    push('grid-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.Esplanade!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat) })
+
   // 4. Cardinal avenues through the Man, the 12:00 promenade + end circle, Man circle
   const radial = (t: number, a: number, b: number) => [radialPoint(t, a), radialPoint(t, b)].map(toLngLat)
   push('avenue', { type: 'LineString', coordinates: radial(9, espRadius, 0).concat(radial(3, 0, espRadius)) })
