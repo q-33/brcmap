@@ -137,7 +137,7 @@ const campOptions = computed(() => [
 </script>
 
 <template>
-  <div class="relative h-dvh w-dvw overflow-hidden">
+  <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
         <PlayaMap :camps="pins" :focus="focus" class="size-full" @position="onPosition" />
@@ -152,6 +152,7 @@ const campOptions = computed(() => [
           <span class="font-display text-sm font-bold uppercase tracking-wide">BurnerMap</span>
         </NuxtLink>
         <UButton to="/camps" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Camps</UButton>
+        <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
         <UButton to="/about" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">About</UButton>
       </div>
 

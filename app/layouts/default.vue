@@ -4,6 +4,7 @@ const { loggedIn, user } = useUserSession()
 const links = [
   { label: 'Map', to: '/', icon: 'i-lucide-map' },
   { label: 'Camps', to: '/camps', icon: 'i-lucide-tent' },
+  { label: 'Events', to: '/events', icon: 'i-lucide-calendar' },
   { label: 'About', to: '/about', icon: 'i-lucide-info' },
 ]
 
@@ -15,7 +16,7 @@ async function logout() {
 </script>
 
 <template>
-  <div class="playa-bg flex min-h-dvh flex-col">
+  <div class="playa-bg flex min-h-full flex-col">
     <header class="sticky top-0 z-20 border-b border-(--ui-border)/60 bg-(--ui-bg)/70 backdrop-blur-xl">
       <UContainer class="flex h-16 items-center justify-between gap-4">
         <NuxtLink to="/" class="group flex items-center gap-2">

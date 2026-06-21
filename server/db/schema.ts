@@ -1,6 +1,18 @@
 import { check, doublePrecision, index, integer, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
+export const events = pgTable('events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
+  campId: uuid('camp_id').notNull().references(() => camps.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  startsAt: timestamp('starts_at', { mode: 'string' }).notNull(),
+  endsAt: timestamp('ends_at', { mode: 'string' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('events_camp_idx').on(t.campId), index('events_starts_idx').on(t.startsAt), index('events_owner_idx').on(t.ownerId)])
+
 // Mirrors db/migrations/0001_init.sql. The raw SQL migration is the source of
 // truth for DDL (PostGIS generated column, triggers); this gives typed queries.
 
@@ -67,6 +79,11 @@ export const locations = pgTable('locations', {
 // --- Relations (for db.query.* relational selects) -------------------------
 export const campsRelations = relations(camps, ({ many }) => ({
   locations: many(locations),
+  events: many(events),
+}))
+
+export const eventsRelations = relations(events, ({ one }) => ({
+  camp: one(camps, { fields: [events.campId], references: [camps.id] }),
 }))
 
 export const artRelations = relations(art, ({ many }) => ({
