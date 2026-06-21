@@ -46,6 +46,10 @@ const gateRoadColor = computed(() => gateData.value?.inbound ? gateColor(gateDat
 const { data: weatherData } = await useFetch<{ current: { temperature_2m: number, weather_code: number, wind_gusts_10m: number } | null }>('/api/weather')
 const wx = computed(() => weatherData.value?.current ?? null)
 
+// map layer visibility (the legend doubles as the toggle control)
+const layers = reactive({ camps: true, art: true, services: true, toilets: true })
+const panelOpen = ref(true)
+
 // live GPS readout
 const position = ref<{ lat: number, lng: number }>()
 const accuracy = ref<number>() // metres, from the GPS fix
@@ -165,7 +169,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" class="size-full" @position="onPosition" />
+        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" class="size-full" @position="onPosition" />
       </ClientOnly>
     </div>
 
@@ -204,22 +208,41 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- legend (bottom-left) -->
-    <div class="pointer-events-none absolute bottom-4 left-3 hidden rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-xl sm:block">
-      <p class="mb-1 font-display font-semibold">Black Rock City {{ CITY_YEAR }}</p>
-      <ul class="space-y-0.5 text-white/80">
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#27a3df" />Camp blocks</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#d6336c" />Camps</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#7c3aed" />Art</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full bg-white align-middle" />The Man · Center Camp</li>
-        <li class="!mt-1.5 border-t border-white/10 pt-1.5 font-medium text-white/60">Services</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#dc2626" />Medical</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#2563eb" />Rangers · safety</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#0e7490" />Ice · info · DPW</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#d97706" />Airport · gate · fuel</li>
-        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#3f6212" />Porta-potties</li>
-        <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
-      </ul>
+    <!-- layers panel (doubles as the legend) -->
+    <div class="pointer-events-auto absolute bottom-4 left-3 w-44 overflow-hidden rounded-xl border border-white/10 bg-[#26211a]/85 text-xs text-white shadow-lg backdrop-blur-xl">
+      <button type="button" class="flex w-full items-center gap-1.5 px-3 py-2 font-display font-semibold" @click="panelOpen = !panelOpen">
+        <UIcon name="i-lucide-layers" class="size-3.5 text-primary" />Layers
+        <UIcon :name="panelOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'" class="ml-auto size-3.5 text-white/60" />
+      </button>
+      <div v-show="panelOpen" class="space-y-1 px-3 pb-2.5">
+        <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.camps && 'opacity-40'" @click="layers.camps = !layers.camps">
+          <span class="inline-block size-2 rounded-full" style="background:#d6336c" />Camps
+          <UIcon :name="layers.camps ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
+        </button>
+        <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.art && 'opacity-40'" @click="layers.art = !layers.art">
+          <span class="inline-block size-2 rounded-full" style="background:#7c3aed" />Art
+          <UIcon :name="layers.art ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
+        </button>
+        <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.toilets && 'opacity-40'" @click="layers.toilets = !layers.toilets">
+          <span class="inline-block size-2 rounded-full" style="background:#3f6212" />Porta-potties
+          <UIcon :name="layers.toilets ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
+        </button>
+        <button type="button" class="flex w-full items-center gap-1.5 border-t border-white/10 pt-1.5 font-medium" :class="!layers.services && 'opacity-40'" @click="layers.services = !layers.services">
+          Services
+          <UIcon :name="layers.services ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
+        </button>
+        <ul class="space-y-0.5 pl-0.5 text-white/70" :class="!layers.services && 'opacity-40'">
+          <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#dc2626" />Medical</li>
+          <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#2563eb" />Rangers · safety</li>
+          <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#0e7490" />Ice · info · DPW</li>
+          <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#d97706" />Airport · gate · fuel</li>
+        </ul>
+        <ul class="space-y-0.5 border-t border-white/10 pt-1.5 text-white/50">
+          <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#27a3df" />Camp blocks</li>
+          <li><span class="mr-1.5 inline-block size-2 rounded-full bg-white align-middle" />The Man · Center Camp</li>
+          <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
+        </ul>
+      </div>
     </div>
 
     <!-- weather pill (top-left, below the bar) -->

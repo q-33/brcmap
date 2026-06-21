@@ -9,7 +9,26 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean> }>()
+
+// Toggleable layer groups → their MapLibre layer ids.
+const LAYER_GROUPS: Record<string, string[]> = {
+  camps: ['camps', 'camp-labels'],
+  art: ['art', 'art-labels'],
+  services: ['civic-dots', 'civic-labels'],
+  toilets: ['toilets'],
+}
+function applyLayerVisibility() {
+  if (!map)
+    return
+  for (const [key, ids] of Object.entries(LAYER_GROUPS)) {
+    const visible = props.layers?.[key] !== false
+    for (const id of ids) {
+      if (map.getLayer(id))
+        map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none')
+    }
+  }
+}
 const emit = defineEmits<{ position: [{ lat: number, lng: number, accuracy?: number }] }>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
@@ -326,8 +345,12 @@ onMounted(async () => {
           .addTo(map)
       }
     })
+    applyLayerVisibility()
   })
 })
+
+// show/hide layer groups from the legend toggles
+watch(() => props.layers, applyLayerVisibility, { deep: true })
 
 // keep camp pins in sync
 watch(() => props.camps, () => {
