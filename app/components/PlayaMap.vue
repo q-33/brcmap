@@ -120,7 +120,9 @@ onMounted(async () => {
       id: 'blocks',
       type: 'fill',
       source: 'grid',
-      filter: ['==', ['get', 'kind'], 'block'],
+      // only the placed-camp blocks are filled blue; the walk-in fringe (camp=0)
+      // is outline-only, giving the official tapered-horseshoe shape.
+      filter: ['all', ['==', ['get', 'kind'], 'block'], ['==', ['get', 'camp'], 1]],
       paint: { 'fill-color': '#5aa9d8', 'fill-opacity': 0.62 },
     })
     map.addLayer({
@@ -136,7 +138,9 @@ onMounted(async () => {
       type: 'fill',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'wedge'],
-      paint: { 'fill-color': '#dff0fa', 'fill-opacity': 0.5 },
+      // open-sand promenade corridors (the "spokes") — lighten the camps along
+      // the major avenues toward the background colour.
+      paint: { 'fill-color': '#f6f2ea', 'fill-opacity': 0.82 },
     })
     // alternate "streets" basemap — the full grid as thin grey lines (hidden by
     // default; the basemap toggle swaps it in for the filled blocks).

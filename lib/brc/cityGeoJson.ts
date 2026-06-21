@@ -21,7 +21,9 @@ function arcAt(radiusM: number, tMin: number, tMax: number): [number, number][] 
 
 // One city block: an annular-sector cell between two streets and two radials,
 // inset by half a street width on each side to leave the white street channels.
-function block(rIn: number, rOut: number, t0: number, t1: number): Feature {
+// `camp` = 1 for the solid-blue placed-camp area, 0 for the outline-only walk-in
+// fringe at the outer corners (matching the official plan's tapered horseshoe).
+function block(rIn: number, rOut: number, t0: number, t1: number, camp: number): Feature {
   const ring: [number, number][] = []
   const steps = 4
   for (let s = 0; s <= steps; s++)
@@ -29,7 +31,7 @@ function block(rIn: number, rOut: number, t0: number, t1: number): Feature {
   for (let s = 0; s <= steps; s++)
     ring.push(toLngLat(radialPoint(t1 - ((t1 - t0) * s) / steps, rOut)))
   ring.push(ring[0]!)
-  return { type: 'Feature', properties: { kind: 'block' }, geometry: { type: 'Polygon', coordinates: [ring] } }
+  return { type: 'Feature', properties: { kind: 'block', camp }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
 // Center Camp geometry, from the official surveyed plaza polygon (GIS): the
@@ -69,7 +71,12 @@ export function cityGridGeoJson(): FeatureCollection {
   const espRadius = STREET_RADII.Esplanade!
   const kRadius = STREET_RADII[OUTER]!
 
-  // 1. City BLOCKS — blue cells, Esplanade→K, 2:00–10:00, 15-min columns.
+  // 1. City BLOCKS — the full grid Esplanade→K, 2:00–10:00, 15-min columns. The
+  // blue camp FILL is a tapered horseshoe: full depth (→K) near 6:00, shallow
+  // (→Eternal) at the 2:00/10:00 ends. The outer-corner blocks beyond that depth
+  // are the walk-in fringe (outline only). Matches the official 2026 plan.
+  const NBANDS = STREETS.length - 2 // outermost filled band index (J–K = 10)
+  const campDepth = (t: number) => Math.max(3, Math.min(NBANDS, Math.round(NBANDS - 6 * ((Math.abs(t - 6) / 4) ** 2))))
   const colMin = 2.0
   const colMax = 9.75
   for (let i = 0; i < STREETS.length - 1; i++) {
@@ -83,17 +90,18 @@ export function cityGridGeoJson(): FeatureCollection {
       const t0 = j + tGap
       const t1 = j + 0.25 - tGap
       if (t1 > t0)
-        features.push(block(rIn, rOut, t0, t1))
+        features.push(block(rIn, rOut, t0, t1, i <= campDepth(j + 0.125) ? 1 : 0))
     }
   }
 
-  // 1b. Light-blue promenade wedges along the major avenues (decorative, as on plan)
+  // 1b. White promenade "spoke" wedges along the major avenues — open corridors
+  // radiating through the camps, as on the plan.
   for (const t of [3, 4.5, 6, 7.5, 9]) {
     const ring: [number, number][] = []
-    ring.push(toLngLat(radialPoint(t - 0.08, espRadius)))
+    ring.push(toLngLat(radialPoint(t - 0.06, espRadius)))
     for (let s = 0; s <= 6; s++)
-      ring.push(toLngLat(radialPoint(t - 0.55 + (1.1 * s) / 6, kRadius)))
-    ring.push(toLngLat(radialPoint(t + 0.08, espRadius)))
+      ring.push(toLngLat(radialPoint(t - 0.28 + (0.56 * s) / 6, kRadius)))
+    ring.push(toLngLat(radialPoint(t + 0.06, espRadius)))
     ring.push(ring[0]!)
     push('wedge', { type: 'Polygon', coordinates: [ring] })
   }
