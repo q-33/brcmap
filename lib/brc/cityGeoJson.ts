@@ -121,21 +121,41 @@ export function cityGridGeoJson(): FeatureCollection {
   push('avenue', { type: 'LineString', coordinates: radial(6, 0, CANOPY_M - CENTER_CAMP_R) })
   push('gate-road', { type: 'LineString', coordinates: radial(6, CANOPY_M + CENTER_CAMP_R, 2350) })
 
-  // 6. Portals: Center Camp (Rod's Ring Road) + the 3:00/9:00 and 4:30/7:30 plazas
-  const portals: { name: string, center: [number, number], radiusM: number }[] = [
-    { name: 'Center Camp', center: getCenterCampPoint(), radiusM: CENTER_CAMP_R },
-    { name: '3:00 Plaza', center: toLngLat(radialPoint(3, STREET_RADII.D!)), radiusM: 78 },
-    { name: '9:00 Plaza', center: toLngLat(radialPoint(9, STREET_RADII.D!)), radiusM: 78 },
-    { name: '4:30 Plaza', center: toLngLat(radialPoint(4.5, STREET_RADII.G!)), radiusM: 76 },
-    { name: '7:30 Plaza', center: toLngLat(radialPoint(7.5, STREET_RADII.G!)), radiusM: 76 },
+  // 6. Portals — open plaza circles that mask the blocks underneath.
+  //  • Center Camp (Rod's Ring Road) at 6:00, opening onto the Esplanade.
+  //  • Inner ring on Bradbury (B): 3:00, 4:30, 7:30, 9:00 (3:00 & 9:00 are the
+  //    big "keyhole" plazas).
+  //  • Mid-city ring on Gibson (G): 3:00, 4:30, 6:00, 7:30, 9:00.
+  // Per the official 2026 measurements (plazas centred at 3,215 ft / 4,825 ft).
+  const bRing = STREET_RADII.B!
+  const gRing = STREET_RADII.G!
+  const plazas: { time: number, ringM: number, radiusM: number, label?: string }[] = [
+    // Bradbury (B) ring — labelled
+    { time: 3, ringM: bRing, radiusM: 92, label: '3:00 Plaza' },
+    { time: 9, ringM: bRing, radiusM: 92, label: '9:00 Plaza' },
+    { time: 4.5, ringM: bRing, radiusM: 66, label: '4:30 Plaza' },
+    { time: 7.5, ringM: bRing, radiusM: 66, label: '7:30 Plaza' },
+    // Gibson (G) mid-city ring — unlabelled to avoid duplicate clock labels
+    { time: 3, ringM: gRing, radiusM: 74 },
+    { time: 9, ringM: gRing, radiusM: 74 },
+    { time: 4.5, ringM: gRing, radiusM: 70 },
+    { time: 6, ringM: gRing, radiusM: 70 },
+    { time: 7.5, ringM: gRing, radiusM: 70 },
   ]
-  for (const p of portals) {
-    const ring = circleRing({ lat: p.center[1], lng: p.center[0] }, p.radiusM)
-    // a filled circle that masks the blocks/grid underneath → an open plaza
-    push('portal-fill', { type: 'Polygon', coordinates: [ring] }, { name: p.name })
-    push('portal', { type: 'LineString', coordinates: ring }, { name: p.name })
-    if (p.name !== 'Center Camp')
-      push('portal-label', { type: 'Point', coordinates: p.center }, { name: p.name })
+
+  // Center Camp first (its own radius/centre).
+  const cc = getCenterCampPoint()
+  const ccRing = circleRing({ lat: cc[1], lng: cc[0] }, CENTER_CAMP_R)
+  push('portal-fill', { type: 'Polygon', coordinates: [ccRing] }, { name: 'Center Camp' })
+  push('portal', { type: 'LineString', coordinates: ccRing }, { name: 'Center Camp' })
+
+  for (const p of plazas) {
+    const c = radialPoint(p.time, p.ringM)
+    const ring = circleRing(c, p.radiusM)
+    push('portal-fill', { type: 'Polygon', coordinates: [ring] }, { name: p.label ?? '' })
+    push('portal', { type: 'LineString', coordinates: ring }, { name: p.label ?? '' })
+    if (p.label)
+      push('portal-label', { type: 'Point', coordinates: [c.lng, c.lat] }, { name: p.label })
   }
 
   // 7. Walk-in camping (right side): orange boundary arc + two labels
