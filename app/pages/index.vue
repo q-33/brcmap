@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { GateStatus } from '~~/lib/gate'
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, latLngToAddress, parseAddress } from '~~/lib/brc/geocode'
+import { gateColor } from '~~/lib/gate'
 
 function namedAddress(s: string | null | undefined): string {
   if (!s)
@@ -34,6 +36,10 @@ const { data: campsData, refresh: refreshCamps } = await useFetch('/api/camps')
 const { data: artData, refresh: refreshArt } = await useFetch('/api/art')
 const pins = computed<CampPin[]>(() => toPins(campsData.value))
 const artPins = computed<CampPin[]>(() => toPins(artData.value))
+
+// live Gate Road condition → colour the gate road + a status dot
+const { data: gateData } = await useFetch<{ inbound: { status: GateStatus } | null }>('/api/gate')
+const gateRoadColor = computed(() => gateData.value?.inbound ? gateColor(gateData.value.inbound.status) : undefined)
 
 // live GPS readout
 const position = ref<{ lat: number, lng: number }>()
@@ -154,7 +160,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" class="size-full" @position="onPosition" />
+        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" class="size-full" @position="onPosition" />
       </ClientOnly>
     </div>
 
@@ -168,6 +174,9 @@ const itemOptions = computed(() => [
         <UButton to="/camps" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Camps</UButton>
         <UButton to="/art" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Art</UButton>
         <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
+        <UButton to="/gate" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">
+          <span v-if="gateRoadColor" class="mr-1 inline-block size-2 rounded-full align-middle" :style="{ background: gateRoadColor }" />Gate
+        </UButton>
         <UButton to="/guide" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Guide</UButton>
         <UButton to="/about" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">About</UButton>
       </div>
@@ -203,6 +212,7 @@ const itemOptions = computed(() => [
         <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#2563eb" />Rangers · safety</li>
         <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#0e7490" />Ice · info · DPW</li>
         <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#d97706" />Airport · gate · fuel</li>
+        <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#3f6212" />Porta-potties</li>
         <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
       </ul>
     </div>

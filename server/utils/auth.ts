@@ -7,11 +7,21 @@ export interface SessionUser {
   id: string
   email: string
   displayName: string | null
+  role: string
 }
 
 export async function requireUser(event: H3Event): Promise<SessionUser> {
   const { user } = await requireUserSession(event)
   return user as unknown as SessionUser
+}
+
+// Require a GPE (Gate, Perimeter & Exodus) crew member or an admin — the roles
+// allowed to post Gate Road conditions.
+export async function requireGpe(event: H3Event): Promise<SessionUser> {
+  const user = await requireUser(event)
+  if (user.role !== 'gpe' && user.role !== 'admin')
+    throw createError({ statusCode: 403, statusMessage: 'GPE access required' })
+  return user
 }
 
 // Like requireUser, but returns null instead of throwing when not logged in.

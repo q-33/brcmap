@@ -22,9 +22,22 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name'),
   playaName: text('playa_name'),
+  // 'user' (default) | 'gpe' (can post gate conditions) | 'admin'
+  role: text('role').notNull().default('user'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// Gate Road traffic conditions, append-only; newest row per direction is current.
+export const gateConditions = pgTable('gate_conditions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  direction: text('direction').notNull(), // 'inbound' | 'exodus'
+  status: text('status').notNull(), // open|light|moderate|heavy|hold|closed
+  waitLabel: text('wait_label'),
+  note: text('note'),
+  updatedById: uuid('updated_by_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('gate_conditions_dir_idx').on(t.direction, t.createdAt)])
 
 export const camps = pgTable('camps', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -116,6 +129,10 @@ export const artRelations = relations(art, ({ many }) => ({
 export const artContributionsRelations = relations(artContributions, ({ one }) => ({
   art: one(art, { fields: [artContributions.artId], references: [art.id] }),
   contributor: one(users, { fields: [artContributions.contributorId], references: [users.id] }),
+}))
+
+export const gateConditionsRelations = relations(gateConditions, ({ one }) => ({
+  updatedBy: one(users, { fields: [gateConditions.updatedById], references: [users.id] }),
 }))
 
 export const locationsRelations = relations(locations, ({ one }) => ({

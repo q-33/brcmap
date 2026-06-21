@@ -60,6 +60,14 @@ export const eventSchema = z.object({
   message: 'End time must be after the start time',
 })
 
+// A GPE-posted Gate Road condition for one direction.
+export const gateConditionSchema = z.object({
+  direction: z.enum(['inbound', 'exodus']),
+  status: z.enum(['open', 'light', 'moderate', 'heavy', 'hold', 'closed']),
+  waitLabel: z.string().trim().max(40).optional().or(z.literal('')),
+  note: z.string().trim().max(280).optional().or(z.literal('')),
+})
+
 // A location is marked by its BRC address; coordinates are geocoded server-side.
 export const locationSchema = z.object({
   campId: z.string().uuid().optional(),

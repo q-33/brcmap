@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const [user] = await db
     .insert(users)
     .values({ email: email.toLowerCase(), passwordHash, displayName: displayName ?? null })
-    .returning({ id: users.id, email: users.email, displayName: users.displayName })
+    .returning({ id: users.id, email: users.email, displayName: users.displayName, role: users.role })
 
   await setUserSession(event, { user })
   return { user }

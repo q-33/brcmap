@@ -234,3 +234,34 @@ export function civicLandmarksGeoJson(): FeatureCollection {
   }
   return { type: 'FeatureCollection', features }
 }
+
+// --- Porta-potties -----------------------------------------------------------
+// Approximate locations. The 2026 toilet placements aren't published yet, so
+// these are the 45 OFFICIAL 2025 toilet banks (bm-innovate GIS), held as offsets
+// (Δlng, Δlat) from the golden spike and re-centred onto the current Man — a
+// good approximation that snaps with the spike. Replace with 2026 GIS when out.
+const TOILET_OFFSETS: [number, number][] = [
+  [-0.008808, 0.011851], [-0.006415, 0.008708], [-0.009458, 0.007672], [-0.013249, 0.010267],
+  [-0.01545, 0.0069], [-0.011288, 0.005107], [-0.012638, 0.002713], [-0.017256, 0.003645],
+  [-0.013139, 0.000133], [-0.018917, 0.000133], [-0.017339, -0.003394], [-0.012734, -0.002458],
+  [-0.011464, -0.004872], [-0.015594, -0.006682], [-0.013259, -0.010246], [-0.009397, -0.006559],
+  [-0.008929, -0.005816], [-0.007829, -0.006683], [-0.006429, -0.008699], [-0.008809, -0.011838],
+  [-0.004483, -0.013164], [-0.00324, -0.009673], [0.000156, -0.014363], [0.000156, -0.009971],
+  [0.003541, -0.009599], [0.004777, -0.013099], [0.009076, -0.01171], [0.00669, -0.008573],
+  [0.013472, -0.010065], [0.010092, -0.007109], [0.011438, -0.004872], [0.015567, -0.006682],
+  [-0.003812, 0.012617], [-0.002228, 0.008258], [-0.00341, 0.002859], [0.001973, 0.000005],
+  [0.003741, -0.002576], [0.01676, -0.002796], [0.010955, -0.001746], [0.008873, 0.004475],
+  [0.006379, 0.014555], [0.004294, 0.016944], [0.001186, 0.015311], [0.01167, 0.014491],
+  [0.019079, 0.008895],
+]
+
+export function toiletsGeoJson(): FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: TOILET_OFFSETS.map(([dlng, dlat]) => ({
+      type: 'Feature',
+      properties: { kind: 'toilet' },
+      geometry: { type: 'Point', coordinates: [MAN.lng + dlng, MAN.lat + dlat] },
+    })),
+  }
+}

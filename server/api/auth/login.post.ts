@@ -12,8 +12,7 @@ export default defineEventHandler(async (event) => {
   if (!user || !ok)
     throw createError({ statusCode: 401, statusMessage: 'Invalid email or password' })
 
-  await setUserSession(event, {
-    user: { id: user.id, email: user.email, displayName: user.displayName },
-  })
-  return { user: { id: user.id, email: user.email, displayName: user.displayName } }
+  const sessionUser = { id: user.id, email: user.email, displayName: user.displayName, role: user.role }
+  await setUserSession(event, { user: sessionUser })
+  return { user: sessionUser }
 })

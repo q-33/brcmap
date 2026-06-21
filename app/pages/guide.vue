@@ -67,6 +67,28 @@ const properties = [
       </div>
     </section>
 
+    <!-- Rod's Ring Road -->
+    <section class="mt-12">
+      <h2 class="font-display text-xl font-semibold text-primary">Rod's Ring Road</h2>
+      <div class="mt-3 space-y-4 text-(--ui-text-toned) leading-relaxed">
+        <p>
+          The road that circles Center Camp at 6:00 is <strong class="text-(--ui-text)">Rod's Ring
+          Road</strong>, named for <strong class="text-(--ui-text)">Rod Garrett (1936–2011)</strong>,
+          Black Rock City's site architect. Garrett attended his first burn in 1995 and became the
+          city's chief designer in 1997.
+        </p>
+        <p>
+          He's the hand behind almost everything the city's shape rests on: the radial clockwork plan,
+          the Esplanade and the 2:00–10:00 arc, the great tensometric Center Camp Café canopy, and the
+          Man bases from 2001 to 2011. The ring road around Center Camp carries his name.
+        </p>
+        <p>
+          Garrett died in August 2011; as the Man burned that year, a box holding his ashes sat beside
+          it. The geometry you navigate today — and this map — is still his.
+        </p>
+      </div>
+    </section>
+
     <!-- Street names -->
     <section class="mt-12">
       <h2 class="font-display text-xl font-semibold text-primary">{{ CITY_YEAR }} streets</h2>

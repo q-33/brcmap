@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
-import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint } from '~~/lib/brc/cityGeoJson'
+import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
@@ -9,7 +9,7 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string }>()
 const emit = defineEmits<{ position: [{ lat: number, lng: number, accuracy?: number }] }>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
@@ -118,7 +118,7 @@ onMounted(async () => {
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'gate-road'],
-      paint: { 'line-color': '#1c2733', 'line-width': 1.6 },
+      paint: { 'line-color': props.gateColor ?? '#1c2733', 'line-width': props.gateColor ? 3 : 1.6 },
     })
     map.addLayer({
       id: 'gate-road-label',
@@ -218,6 +218,19 @@ onMounted(async () => {
       source: 'landmarks',
       layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, -1.1], 'text-anchor': 'bottom' },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
+    })
+    // porta-potties (approx., from 2025 GIS) — small utility markers under everything
+    map.addSource('toilets', { type: 'geojson', data: toiletsGeoJson() })
+    map.addLayer({
+      id: 'toilets',
+      type: 'circle',
+      source: 'toilets',
+      minzoom: 13,
+      paint: { 'circle-radius': 3, 'circle-color': '#3f6212', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1 },
+    })
+    map.on('click', 'toilets', (e) => {
+      if (map)
+        new maplibregl.Popup().setLngLat((e.features?.[0]?.geometry as any).coordinates).setHTML('<b>Porta-potties</b><br>approx. (2025 placement)').addTo(map)
     })
     // civic landmarks: airport, medical, ESD, DPW, Rangers, services… colour-coded
     const civicColor = [
@@ -327,6 +340,14 @@ watch(() => props.artPins, () => {
   const src = map?.getSource('art') as GeoJSONSource | undefined
   src?.setData(pinsGeoJson(props.artPins ?? []))
 }, { deep: true })
+
+// recolor the gate road when the live Gate Road condition changes
+watch(() => props.gateColor, (c) => {
+  if (!map?.getLayer('gate-road'))
+    return
+  map.setPaintProperty('gate-road', 'line-color', c ?? '#1c2733')
+  map.setPaintProperty('gate-road', 'line-width', c ? 3 : 1.6)
+})
 
 // fly to a focused camp (from the list's "view on map")
 watch(() => props.focus, (f) => {
