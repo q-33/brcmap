@@ -4,13 +4,17 @@ import { cityGridGeoJson, manPoint } from './cityGeoJson'
 describe('cityGridGeoJson', () => {
   const fc = cityGridGeoJson()
 
-  it('produces street arcs, clock spokes, and named street labels', () => {
+  it('produces street arcs, radial blocks, the camping band, and named labels', () => {
     const streets = fc.features.filter(f => f.properties?.kind === 'street')
-    const spokes = fc.features.filter(f => f.properties?.kind === 'spoke')
+    const radials = fc.features.filter(f => f.properties?.kind === 'radial')
     const labels = fc.features.filter(f => f.properties?.kind === 'street-label')
+    const camping = fc.features.filter(f => f.properties?.kind === 'camping')
+    const portals = fc.features.filter(f => f.properties?.kind === 'portal')
     expect(streets.length).toBe(12) // Esplanade + A..K
-    expect(spokes.length).toBeGreaterThan(10)
+    expect(radials.length).toBeGreaterThan(20) // every 15 min, 2:00–10:00
     expect(labels.length).toBe(12)
+    expect(camping.length).toBe(1)
+    expect(portals.length).toBe(5) // Center Camp + 3:00/9:00/4:30/7:30
     expect(labels.find(l => l.properties?.letter === 'E')?.properties?.name).toBe('Eternal')
   })
 

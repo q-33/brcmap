@@ -68,6 +68,14 @@ onMounted(async () => {
     if (!map)
       return
     map.addSource('grid', { type: 'geojson', data: cityGridGeoJson() })
+    // blue camping band (placed-camp blocks), as on the official plan
+    map.addLayer({
+      id: 'camping',
+      type: 'fill',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'camping'],
+      paint: { 'fill-color': '#1f9fda', 'fill-opacity': 0.26 },
+    })
     // trash fence (city boundary)
     map.addLayer({
       id: 'fence',
@@ -76,19 +84,29 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'fence'],
       paint: { 'line-color': '#c25617', 'line-width': 1.5, 'line-dasharray': [3, 3], 'line-opacity': 0.7 },
     })
+    // 15-min radial block streets (thin)
+    map.addLayer({
+      id: 'radials',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'radial'],
+      paint: { 'line-color': '#8a7d60', 'line-width': 0.6, 'line-opacity': 0.85 },
+    })
+    // concentric streets
     map.addLayer({
       id: 'streets',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'street'],
-      paint: { 'line-color': '#7a6f57', 'line-width': 1.5 },
+      paint: { 'line-color': '#5f5640', 'line-width': 1.3 },
     })
+    // cardinal avenues + 12:00 promenade + the Man's circle
     map.addLayer({
-      id: 'spokes',
+      id: 'avenues',
       type: 'line',
       source: 'grid',
-      filter: ['==', ['get', 'kind'], 'spoke'],
-      paint: { 'line-color': '#a89a78', 'line-width': 0.8 },
+      filter: ['==', ['get', 'kind'], 'avenue'],
+      paint: { 'line-color': '#5f5640', 'line-width': 1.2 },
     })
     // 6:00 gate road
     map.addLayer({
@@ -96,7 +114,7 @@ onMounted(async () => {
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'gate-road'],
-      paint: { 'line-color': '#6b5f47', 'line-width': 2 },
+      paint: { 'line-color': '#5f5640', 'line-width': 1.8 },
     })
     // portals: Center Camp / Rod's Ring Road + the 3:00, 9:00, 4:30 & 7:30 plazas
     map.addLayer({
@@ -104,7 +122,24 @@ onMounted(async () => {
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'portal'],
-      paint: { 'line-color': '#6b5f47', 'line-width': 1.6 },
+      paint: { 'line-color': '#5f5640', 'line-width': 1.6 },
+    })
+    // walk-in camping boundary (orange dashed, right side)
+    map.addLayer({
+      id: 'walkin-boundary',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'walkin-boundary'],
+      paint: { 'line-color': '#e08a2b', 'line-width': 1.4, 'line-dasharray': [4, 2] },
+    })
+    map.addLayer({
+      id: 'walkin-labels',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'walkin-label'],
+      minzoom: 13,
+      layout: { 'text-field': ['get', 'name'], 'text-size': 10, 'text-max-width': 6 },
+      paint: { 'text-color': '#b06a16', 'text-halo-color': '#ece4d2', 'text-halo-width': 1.5 },
     })
     map.addLayer({
       id: 'portal-labels',
