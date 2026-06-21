@@ -21,5 +21,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // server-only secret, read from DATABASE_URL env (.env / DO secret)
     databaseUrl: process.env.DATABASE_URL,
+    public: {
+      // The surveyed golden spike as "lat,lng" (NUXT_PUBLIC_GOLDEN_SPIKE). Set
+      // this DO env var when Burning Man publishes the 2026 coordinate and the
+      // whole city re-snaps on restart — no code change or rebuild needed.
+      goldenSpike: process.env.NUXT_PUBLIC_GOLDEN_SPIKE ?? '',
+    },
   },
 })

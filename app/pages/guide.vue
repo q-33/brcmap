@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { CITY_YEAR, GOLDEN_SPIKE_KNOWN, STREET_NAMES } from '~~/lib/brc/geocode'
+import { CITY_YEAR, STREET_NAMES, goldenSpikeKnown } from '~~/lib/brc/geocode'
 
 useHead({ title: 'City Guide — BurnerMap' })
+
+// Resolved at setup; the golden-spike plugin calibrates before page render.
+const spikeKnown = goldenSpikeKnown()
 
 const streets = Object.entries(STREET_NAMES).filter(([k]) => k !== 'Esplanade')
 
@@ -100,7 +103,7 @@ const properties = [
           <UIcon name="i-lucide-target" class="mt-0.5 size-5 shrink-0 text-primary" />
           <p class="text-sm text-(--ui-text-muted)">
             BurnerMap is built the same way: every address is computed from that single center point.
-            <template v-if="GOLDEN_SPIKE_KNOWN">
+            <template v-if="spikeKnown">
               The 2026 golden spike has been set, so the map is snapped to this year’s real survey.
             </template>
             <template v-else>

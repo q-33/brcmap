@@ -5,11 +5,15 @@ import {
   STREET_RADII,
   STREET_NAMES,
   addressToLatLng,
+  calibrateCityCenter,
   describeLatLng,
   formatAddress,
   formatAddressNamed,
+  getCityCenter,
+  goldenSpikeKnown,
   latLngToAddress,
   parseAddress,
+  parseLatLng,
   streetName,
 } from './geocode'
 
@@ -101,5 +105,28 @@ describe('describeLatLng', () => {
   it('gives a human readout with the themed street name', () => {
     const ll = addressToLatLng({ time: 7.5, street: 'E' })!
     expect(describeLatLng(ll)).toBe('near 7:30 & Eternal')
+  })
+})
+
+describe('golden spike calibration', () => {
+  it('parses "lat,lng" and rejects junk', () => {
+    expect(parseLatLng('40.78,-119.20')).toEqual({ lat: 40.78, lng: -119.2 })
+    expect(parseLatLng('  40.5 , -119.1 ')).toEqual({ lat: 40.5, lng: -119.1 })
+    expect(parseLatLng('')).toBeNull()
+    expect(parseLatLng('nope')).toBeNull()
+    expect(parseLatLng('200,0')).toBeNull() // out of range
+  })
+
+  it('re-anchors the whole city to a new center', () => {
+    const before = addressToLatLng({ time: 6, street: 'E' })!
+    const newCenter = { lat: 41, lng: -119 }
+    calibrateCityCenter(newCenter)
+    expect(goldenSpikeKnown()).toBe(true)
+    expect(getCityCenter()).toEqual(newCenter)
+    // the same address now resolves to a different absolute point
+    const after = addressToLatLng({ time: 6, street: 'E' })!
+    expect(Math.abs(after.lat - before.lat)).toBeGreaterThan(0.1)
+    // restore the default so other tests in this file are unaffected
+    calibrateCityCenter({ lat: 40.786394, lng: -119.203492 }, false)
   })
 })

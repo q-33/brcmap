@@ -28,15 +28,52 @@ export interface BrcAddress {
 // standing reference (the 2023-fitted Man position). The moment Burning Man
 // publishes the real 2026 coordinate, set GOLDEN_SPIKE_2026 below to it — that
 // single line re-aligns the whole map. Nothing else needs to change.
+// Optional compile-time pin for the 2026 spike. Leave null to use the runtime
+// override (NUXT_PUBLIC_GOLDEN_SPIKE env) or, failing that, the fallback estimate.
 export const GOLDEN_SPIKE_2026: LatLng | null = null
 const FALLBACK_CENTER: LatLng = { lat: 40.786394, lng: -119.203492 }
 
-/** Whether the real 2026 golden spike has been set (vs. the fallback estimate). */
-export const GOLDEN_SPIKE_KNOWN = GOLDEN_SPIKE_2026 != null
+// The active city center (the golden spike). Exported as a `let` so a runtime
+// calibration via calibrateCityCenter() propagates to every importer through ES
+// module live bindings — all geocoding and the drawn city read it at call time.
+// `MAN` is the name used throughout the codebase.
+export let MAN: LatLng = GOLDEN_SPIKE_2026 ?? FALLBACK_CENTER
 
-// The active city center. `MAN` is kept as the historical alias used throughout.
-export const GOLDEN_SPIKE: LatLng = GOLDEN_SPIKE_2026 ?? FALLBACK_CENTER
-export const MAN: LatLng = GOLDEN_SPIKE
+// True once anchored to a real surveyed spike (compile-time const or runtime
+// override) rather than the fallback estimate.
+let _spikeKnown = GOLDEN_SPIKE_2026 != null
+
+/** Whether the city is anchored to a real surveyed golden spike. */
+export function goldenSpikeKnown(): boolean {
+  return _spikeKnown
+}
+
+/** The active city center / golden spike. */
+export function getCityCenter(): LatLng {
+  return MAN
+}
+
+/**
+ * Re-anchor the entire city (geocoding + the drawn map) to a surveyed golden
+ * spike. Call once at startup; everything downstream reads MAN live.
+ */
+export function calibrateCityCenter(center: LatLng, known = true): void {
+  MAN = center
+  _spikeKnown = known
+}
+
+/** Parse a "lat,lng" string (e.g. NUXT_PUBLIC_GOLDEN_SPIKE) to a LatLng, or null. */
+export function parseLatLng(s: string | null | undefined): LatLng | null {
+  if (!s)
+    return null
+  const parts = s.split(',').map(p => Number(p.trim()))
+  if (parts.length !== 2)
+    return null
+  const [lat, lng] = parts as [number, number]
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+    return null
+  return { lat, lng }
+}
 
 // bearing(deg, clockwise from north) = BEARING_INTERCEPT + BEARING_PER_HOUR * time
 const BEARING_INTERCEPT = 40.253

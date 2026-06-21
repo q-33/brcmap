@@ -31,9 +31,12 @@ function block(rIn: number, rOut: number, t0: number, t1: number): Feature {
   return { type: 'Feature', properties: { kind: 'block' }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
-// Center Camp sits on the 6:00 axis (the gate road), centred between A and B —
-// tracks the (tightened) streets so it stays put relative to the grid.
-export const centerCampPoint: [number, number] = toLngLat(radialPoint(6, (STREET_RADII.A! + STREET_RADII.B!) / 2))
+// Center Camp sits on the 6:00 axis (the gate road), centred between A and B.
+// A getter (not a module-load const) so it re-derives after the golden spike is
+// calibrated at runtime.
+export function getCenterCampPoint(): [number, number] {
+  return toLngLat(radialPoint(6, (STREET_RADII.A! + STREET_RADII.B!) / 2))
+}
 export const greetersPoint: [number, number] = [-119.220953, 40.773203]
 const TRASH_FENCE: [number, number][] = [
   [-119.233566, 40.782814],
@@ -103,7 +106,7 @@ export function cityGridGeoJson(): FeatureCollection {
 
   // 6. Portals: Center Camp (Rod's Ring Road) + the 3:00/9:00 and 4:30/7:30 plazas
   const portals: { name: string, center: [number, number], radiusM: number }[] = [
-    { name: 'Center Camp', center: centerCampPoint, radiusM: 100 },
+    { name: 'Center Camp', center: getCenterCampPoint(), radiusM: 100 },
     { name: '3:00 Plaza', center: toLngLat(radialPoint(3, STREET_RADII.D!)), radiusM: 78 },
     { name: '9:00 Plaza', center: toLngLat(radialPoint(9, STREET_RADII.D!)), radiusM: 78 },
     { name: '4:30 Plaza', center: toLngLat(radialPoint(4.5, STREET_RADII.G!)), radiusM: 76 },
@@ -126,4 +129,6 @@ export function cityGridGeoJson(): FeatureCollection {
   return { type: 'FeatureCollection', features }
 }
 
-export const manPoint: [number, number] = [MAN.lng, MAN.lat]
+export function getManPoint(): [number, number] {
+  return [MAN.lng, MAN.lat]
+}

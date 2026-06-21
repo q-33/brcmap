@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap } from 'maplibre-gl'
-import { centerCampPoint, cityGridGeoJson, manPoint } from '~~/lib/brc/cityGeoJson'
+import { cityGridGeoJson, getCenterCampPoint, getManPoint } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
@@ -32,6 +32,10 @@ onMounted(async () => {
     return
   const maplibregl = (await import('maplibre-gl')).default
 
+  // resolve once, after the golden-spike plugin has calibrated the city center
+  const man = getManPoint()
+  const centerCamp = getCenterCampPoint()
+
   map = new maplibregl.Map({
     container: el.value,
     // tile-free style: the playa is featureless, so we draw only the city grid
@@ -42,7 +46,7 @@ onMounted(async () => {
       layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f6f2ea' } }],
     },
     // frame on a point between the Man and Center Camp so the city fills the view
-    center: [(manPoint[0] + centerCampPoint[0]) / 2, (manPoint[1] + centerCampPoint[1]) / 2],
+    center: [(man[0] + centerCamp[0]) / 2, (man[1] + centerCamp[1]) / 2],
     zoom: 13.65,
     // Orient like the official BRC plan: 12:00 (the opening) up, 6:00 down.
     // The city's 12:00 axis sits at compass bearing ~40°.
@@ -182,8 +186,8 @@ onMounted(async () => {
       data: {
         type: 'FeatureCollection',
         features: [
-          { type: 'Feature', properties: { name: 'The Man' }, geometry: { type: 'Point', coordinates: manPoint } },
-          { type: 'Feature', properties: { name: 'Center Camp' }, geometry: { type: 'Point', coordinates: centerCampPoint } },
+          { type: 'Feature', properties: { name: 'The Man' }, geometry: { type: 'Point', coordinates: man } },
+          { type: 'Feature', properties: { name: 'Center Camp' }, geometry: { type: 'Point', coordinates: centerCamp } },
         ],
       },
     })

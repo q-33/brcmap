@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cityGridGeoJson, manPoint } from './cityGeoJson'
+import { cityGridGeoJson, getManPoint } from './cityGeoJson'
 
 describe('cityGridGeoJson', () => {
   const fc = cityGridGeoJson()
@@ -22,7 +22,8 @@ describe('cityGridGeoJson', () => {
   })
 
   it('centers near the Man', () => {
-    expect(manPoint[0]).toBeCloseTo(-119.2035, 2)
-    expect(manPoint[1]).toBeCloseTo(40.7864, 2)
+    const man = getManPoint()
+    expect(man[0]).toBeCloseTo(-119.2035, 2)
+    expect(man[1]).toBeCloseTo(40.7864, 2)
   })
 })
