@@ -101,11 +101,25 @@ export function cityGridGeoJson(): FeatureCollection {
   // 2. Trash fence (red dashed pentagon)
   push('fence', { type: 'LineString', coordinates: trashFence() })
 
-  // 3. Named-street labels (upper-left, as on the plan)
+  // 3. Named-street labels (upper-left, as on the plan — overview only)
   for (const street of STREETS) {
     const label = addressToLatLng({ time: 9.78, street })
     if (label)
       push('street-label', { type: 'Point', coordinates: [label.lng, label.lat] }, { name: streetName(street) })
+  }
+
+  // 3b. Road-label guide lines (invisible) — labels run ALONG the roads at high
+  // zoom. Ring lines carry the lettered-street name; radial lines carry the clock
+  // time of each numbered avenue.
+  for (const street of STREETS)
+    push('ring-line', { type: 'LineString', coordinates: arcAt(STREET_RADII[street]!, CITY_TIME_MIN, CITY_TIME_MAX) }, { name: streetName(street) })
+
+  const fmtTime = (t: number) => `${Math.floor(t)}:${String(Math.round((t % 1) * 60)).padStart(2, '0')}`
+  for (let t = CITY_TIME_MIN; t <= CITY_TIME_MAX + 1e-9; t += 0.5) {
+    push('radial-line', {
+      type: 'LineString',
+      coordinates: [radialPoint(t, STREET_RADII.Esplanade!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat),
+    }, { name: fmtTime(t) })
   }
 
   // 4. Cardinal avenues through the Man, the 12:00 promenade + end circle, Man circle

@@ -204,13 +204,15 @@ onMounted(async () => {
       layout: { 'text-field': ['get', 'name'], 'text-size': 10 },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
     })
-    // 2026 themed street names (upper-left, as on the plan)
+    // 2026 themed street names (upper-left, as on the plan) — overview only;
+    // hands off to the along-road labels once you zoom in.
     map.addLayer({
       id: 'street-labels',
       type: 'symbol',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'street-label'],
       minzoom: 12.8,
+      maxzoom: 14,
       layout: {
         'text-field': ['get', 'name'],
         'text-size': 9.5,
@@ -221,6 +223,37 @@ onMounted(async () => {
         'text-anchor': 'left',
       },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.4 },
+    })
+    // Lettered ring-road names, curving ALONG each circular street (zoom in).
+    map.addLayer({
+      id: 'ring-labels',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'ring-line'],
+      minzoom: 13.8,
+      layout: {
+        'text-field': ['get', 'name'],
+        'symbol-placement': 'line',
+        'symbol-spacing': 360,
+        'text-size': 10,
+        'text-letter-spacing': 0.04,
+      },
+      paint: { 'text-color': '#42627c', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.8 },
+    })
+    // Numbered radial-avenue times, running ALONG each radial (zoom in).
+    map.addLayer({
+      id: 'radial-labels',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'radial-line'],
+      minzoom: 13.8,
+      layout: {
+        'text-field': ['get', 'name'],
+        'symbol-placement': 'line',
+        'symbol-spacing': 280,
+        'text-size': 10,
+      },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.8 },
     })
     // landmarks: the Man + Center Camp
     map.addSource('landmarks', {
