@@ -1,21 +1,6 @@
 import type { Feature, FeatureCollection } from 'geojson'
 import type { BrcAddress } from './geocode'
 import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
-import { STREET_LINE_OFFSETS } from './streetLines'
-
-// The real surveyed street network (official GIS centerlines), re-centred onto
-// the golden spike. This is the authoritative street geometry — radials + arcs,
-// with the true taper. Used for the line basemap.
-export function streetLinesGeoJson(): FeatureCollection {
-  return {
-    type: 'FeatureCollection',
-    features: STREET_LINE_OFFSETS.map(line => ({
-      type: 'Feature',
-      properties: { kind: 'street' },
-      geometry: { type: 'LineString', coordinates: line.map(p => [MAN.lng + p[0]!, MAN.lat + p[1]!]) },
-    })),
-  }
-}
 
 // Render Black Rock City to match the official BRC 2026 plan: individual blue
 // camp blocks separated by white street channels, on a near-white ground.
@@ -134,6 +119,15 @@ export function cityGridGeoJson(): FeatureCollection {
     push('radial-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.Esplanade!), radialPoint(t, STREET_RADII.H!)].map(toLngLat) }, { name })
     push('radial-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.H!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat) }, { name })
   }
+
+  // 3c. The street grid for the line basemap — the real 2026 network: a ring road
+  // at each lettered street (full 2:00–10:00 arc) + a radial avenue every 15 min
+  // (Esplanade→Kundalini). Radii + bearing validated against the official 2026
+  // plan (street labels match to ±5 m).
+  for (const street of STREETS)
+    push('grid-line', { type: 'LineString', coordinates: arcAt(STREET_RADII[street]!, CITY_TIME_MIN, CITY_TIME_MAX) })
+  for (let t = CITY_TIME_MIN; t <= CITY_TIME_MAX - 0.25 + 1e-9; t += 0.25)
+    push('grid-line', { type: 'LineString', coordinates: [radialPoint(t, STREET_RADII.Esplanade!), radialPoint(t, STREET_RADII[OUTER]!)].map(toLngLat) })
 
 
   // 4. Cardinal avenues through the Man, the 12:00 promenade + end circle, Man circle
