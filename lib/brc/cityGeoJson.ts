@@ -6,6 +6,8 @@ import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circl
 
 const STREETS = Object.keys(STREET_RADII)
 
+const toLngLat = (p: { lat: number, lng: number }): [number, number] => [p.lng, p.lat]
+
 function arcForStreet(street: string): [number, number][] {
   const pts: [number, number][] = []
   // sample every ~6 minutes of clock across the populated arc
@@ -73,11 +75,21 @@ export function cityGridGeoJson(): FeatureCollection {
     })
   }
 
-  // Portals: Center Camp (Rod's Ring Road) at 6:00, and the 3:00 & 9:00 plazas.
+  // 6:00 gate road — the avenue running out from the city toward the gate.
+  features.push({
+    type: 'Feature',
+    properties: { kind: 'gate-road' },
+    geometry: { type: 'LineString', coordinates: [radialPoint(6, 700), radialPoint(6, 2350)].map(toLngLat) },
+  })
+
+  // Portals: Center Camp (Rod's Ring Road) at 6:00, the 3:00 & 9:00 plazas (inner),
+  // and the 4:30 & 7:30 plazas (outer, at the G ring).
   const portals: { name: string, center: [number, number], radiusM: number }[] = [
     { name: 'Center Camp', center: centerCampPoint, radiusM: 105 },
-    { name: '3:00 Plaza', center: ((p: { lat: number, lng: number }) => [p.lng, p.lat] as [number, number])(radialPoint(3, 1100)), radiusM: 80 },
-    { name: '9:00 Plaza', center: ((p: { lat: number, lng: number }) => [p.lng, p.lat] as [number, number])(radialPoint(9, 1100)), radiusM: 80 },
+    { name: '3:00 Plaza', center: toLngLat(radialPoint(3, 1100)), radiusM: 80 },
+    { name: '9:00 Plaza', center: toLngLat(radialPoint(9, 1100)), radiusM: 80 },
+    { name: '4:30 Plaza', center: toLngLat(radialPoint(4.5, 1486)), radiusM: 78 },
+    { name: '7:30 Plaza', center: toLngLat(radialPoint(7.5, 1486)), radiusM: 78 },
   ]
   for (const p of portals) {
     features.push({

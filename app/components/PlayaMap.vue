@@ -90,7 +90,15 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'spoke'],
       paint: { 'line-color': '#a89a78', 'line-width': 0.8 },
     })
-    // portals: Center Camp / Rod's Ring Road + the 3:00 & 9:00 plazas
+    // 6:00 gate road
+    map.addLayer({
+      id: 'gate-road',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'gate-road'],
+      paint: { 'line-color': '#6b5f47', 'line-width': 2 },
+    })
+    // portals: Center Camp / Rod's Ring Road + the 3:00, 9:00, 4:30 & 7:30 plazas
     map.addLayer({
       id: 'portals',
       type: 'line',
