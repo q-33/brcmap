@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   ])
 
   return {
-    camps: campRows.map(c => ({ id: c.id, name: c.name, year: c.year, owner: c.owner?.email ?? null, locations: c.locations.length })),
+    camps: campRows.map(c => ({ id: c.id, name: c.name, year: c.year, owner: c.owner?.email ?? null, locations: c.locations.length, hidden: c.hidden })),
     art: artRows.map(a => ({
       id: a.id,
       name: a.name,
@@ -38,6 +38,7 @@ export default defineEventHandler(async (event) => {
       locations: a.locations.length,
       contributions: a.contributions.length,
       pending: a.contributions.filter(x => x.status === 'pending').length,
+      hidden: a.hidden,
     })),
     events: eventRows.map(e => ({ id: e.id, title: e.title, camp: e.camp?.name ?? null, startsAt: e.startsAt })),
   }

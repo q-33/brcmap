@@ -201,24 +201,34 @@ const K_M = STREET_RADII[OUTER]!
 // zone and flagged approximate.
 const DPW_ZONE_M = (STREET_RADII.F! + STREET_RADII.G!) / 2
 export const CIVIC_LANDMARKS: CivicLandmark[] = [
-  // Medical (red)
+  // Medical / care (red)
   { name: 'Rampart Hospital', category: 'medical', at: { time: 5.25, street: 'Esplanade' }, note: 'Main field hospital · ESD station' },
   { name: 'First Aid · 3:00', category: 'medical', at: { time: 3, street: 'C' }, note: 'Medical + Ranger Outpost (Berlin)' },
   { name: 'First Aid · 9:00', category: 'medical', at: { time: 9, street: 'C' }, note: 'Medical + Ranger Outpost (Tokyo)' },
+  { name: 'The Haven', category: 'medical', at: { time: 6.5, radiusM: (STREET_RADII.Esplanade! + STREET_RADII.A!) / 2 }, note: 'Sanctuary — free emotional & psychedelic peer support (The Haven by Zendo)' },
   // Safety (blue)
   { name: 'Ranger HQ', category: 'safety', at: { time: 6.5, street: 'Esplanade' }, note: 'Black Rock Rangers headquarters' },
+  { name: 'Law Enforcement', category: 'safety', at: { time: 5.08, street: 'Esplanade' }, note: 'Law enforcement substation · by Rampart at 5:15 & Esplanade' },
   { name: 'GPE', category: 'safety', at: { time: 5.75, street: 'E' }, note: 'Gate, Perimeter & Exodus (The Black Hole) · also runs Gate Road outposts (approx.)' },
   // Services (teal)
   { name: 'Center Camp', category: 'services', at: { time: 6.25, street: 'B' }, note: 'Center Camp Plaza · Arctica ice (main)' },
-  { name: 'Playa Info', category: 'services', at: { time: 5.75, street: 'Esplanade' }, note: 'Info + Lost & Found' },
+  { name: 'Playa Info', category: 'services', at: { time: 5.75, street: 'Esplanade' }, note: 'Info · Lost & Found · Placement HQ · BMIR 94.5 · V-Spot volunteers' },
+  { name: 'ARTery', category: 'services', at: { time: 6.25, street: 'Esplanade' }, note: 'Art HQ · registration, lighting & fire-safety sign-off' },
+  { name: 'Media Mecca', category: 'services', at: { time: 6.36, street: 'Esplanade' }, note: 'Press & media HQ · next to the ARTery' },
+  { name: 'Recycle Camp', category: 'services', at: { time: 5.58, street: 'Esplanade' }, note: 'Aluminum-can recycling & education' },
+  { name: 'Burn Gardens', category: 'services', at: { time: 5.5, street: 'Esplanade' }, note: 'Scrap-wood donation & MOOP Map HQ' },
   { name: 'Ice · 3:00', category: 'services', at: { time: 3, street: 'G' }, note: 'Arctica ice sales' },
   { name: 'Ice · 9:00', category: 'services', at: { time: 9, street: 'G' }, note: 'Arctica ice sales' },
+  { name: 'Ice · bulk', category: 'services', at: { time: 6.25, street: 'K' }, note: 'Arctica large-order / bulk ice outpost' },
+  { name: 'Lamplighters', category: 'services', at: { time: 6, radiusM: 1200 }, note: 'Lamplighter village · lights the promenades nightly (approx., moves yearly)' },
+  { name: 'Mobility Camp', category: 'services', at: { time: 7.5, radiusM: STREET_RADII.A! }, note: 'Accessibility / ADA mobility services (approx., moves yearly)' },
   { name: 'DPW Depot', category: 'services', at: { time: 5.5, radiusM: K_M + 205 }, note: 'Dept. of Public Works · just past Kilgore (K)' },
   { name: 'Commissary', category: 'services', at: { time: 5.35, radiusM: DPW_ZONE_M }, note: 'DPW staff dining · staff zone, ~5:30 & F–G (approx.)' },
   { name: 'DPW Ghetto', category: 'services', at: { time: 5.7, radiusM: DPW_ZONE_M }, note: 'DPW crew camp · staff zone, ~5:45 & F–G (approx.)' },
   // Transport / entry (amber)
   { name: 'Airport (88NV)', category: 'transport', at: { lng: -119.2107394, lat: 40.7618388 }, note: 'BRC Municipal Airport · off 5:00, outside the fence' },
   { name: 'Greeters', category: 'transport', at: { time: 6, radiusM: 2044 }, note: 'Welcome station + printed city map · 6,705 ft out on 6:00' },
+  { name: 'Burner Express', category: 'transport', at: { time: 6, street: 'J' }, note: 'Burner Express bus depot (approx., moves yearly)' },
   { name: 'Fuel · Hell Station', category: 'transport', at: { time: 9.5, radiusM: K_M + 110 }, note: 'Participant vehicle fueling · past the outer street' },
   // Sacred (purple). 2026 Temple geometry publishes early July; this is the
   // 12:00 deep-playa axis at an approximate distance until then.

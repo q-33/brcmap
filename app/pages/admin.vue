@@ -1,8 +1,8 @@
 <script setup lang="ts">
 interface AdminUser { id: string, email: string, displayName: string | null, role: string, createdAt: string }
 interface Content {
-  camps: { id: string, name: string, year: number, owner: string | null, locations: number }[]
-  art: { id: string, name: string, year: number, owner: string | null, locations: number, contributions: number, pending: number }[]
+  camps: { id: string, name: string, year: number, owner: string | null, locations: number, hidden: boolean }[]
+  art: { id: string, name: string, year: number, owner: string | null, locations: number, contributions: number, pending: number, hidden: boolean }[]
   events: { id: string, title: string, camp: string | null, startsAt: string }[]
 }
 
@@ -33,6 +33,20 @@ async function setRole(u: AdminUser, role: string) {
   }
   catch (e: any) {
     msg.value = e?.data?.statusMessage ?? 'Could not update role'
+  }
+  finally {
+    busy.value = ''
+  }
+}
+
+async function toggleHidden(type: 'camps' | 'art', id: string, hidden: boolean) {
+  busy.value = id
+  try {
+    await $fetch(`/api/admin/${type}/${id}`, { method: 'PATCH', body: { hidden } })
+    await refreshContent()
+  }
+  catch (e: any) {
+    msg.value = e?.data?.statusMessage ?? 'Could not update'
   }
   finally {
     busy.value = ''
@@ -119,25 +133,33 @@ useHead({ title: 'Admin — BurnerMap' })
         <div class="divide-y divide-(--ui-border) overflow-hidden rounded-xl border border-(--ui-border)">
           <!-- camps -->
           <template v-if="tab === 'camps'">
-            <div v-for="c in content?.camps" :key="c.id" class="flex items-center gap-3 px-3 py-2">
+            <div v-for="c in content?.camps" :key="c.id" class="flex items-center gap-3 px-3 py-2" :class="c.hidden && 'opacity-55'">
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium">{{ c.name }} <span class="text-(--ui-text-muted)">· {{ c.year }}</span></p>
+                <p class="truncate text-sm font-medium">
+                  {{ c.name }} <span class="text-(--ui-text-muted)">· {{ c.year }}</span>
+                  <UBadge v-if="c.hidden" color="neutral" variant="subtle" size="xs" class="ml-1">hidden</UBadge>
+                </p>
                 <p class="truncate text-xs text-(--ui-text-muted)">{{ c.owner ?? 'no owner' }} · {{ c.locations }} location(s)</p>
               </div>
+              <UButton :color="c.hidden ? 'primary' : 'neutral'" variant="ghost" size="xs" :icon="c.hidden ? 'i-lucide-eye' : 'i-lucide-eye-off'" :loading="busy === c.id" @click="toggleHidden('camps', c.id, !c.hidden)">{{ c.hidden ? 'Show' : 'Hide' }}</UButton>
               <UButton color="error" variant="ghost" size="xs" icon="i-lucide-trash-2" :loading="busy === c.id" @click="del('camps', c.id, c.name)">Delete</UButton>
             </div>
             <p v-if="!content?.camps?.length" class="px-3 py-6 text-center text-sm text-(--ui-text-muted)">No camps.</p>
           </template>
           <!-- art -->
           <template v-else-if="tab === 'art'">
-            <div v-for="a in content?.art" :key="a.id" class="flex items-center gap-3 px-3 py-2">
+            <div v-for="a in content?.art" :key="a.id" class="flex items-center gap-3 px-3 py-2" :class="a.hidden && 'opacity-55'">
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium">{{ a.name }} <span class="text-(--ui-text-muted)">· {{ a.year }}</span></p>
+                <p class="truncate text-sm font-medium">
+                  {{ a.name }} <span class="text-(--ui-text-muted)">· {{ a.year }}</span>
+                  <UBadge v-if="a.hidden" color="neutral" variant="subtle" size="xs" class="ml-1">hidden</UBadge>
+                </p>
                 <p class="truncate text-xs text-(--ui-text-muted)">
                   {{ a.owner ?? 'no owner' }} · {{ a.contributions }} contribution(s)<span v-if="a.pending"> · {{ a.pending }} pending</span>
                 </p>
               </div>
               <UButton :to="`/art/${a.id}`" variant="ghost" size="xs" icon="i-lucide-external-link">Open</UButton>
+              <UButton :color="a.hidden ? 'primary' : 'neutral'" variant="ghost" size="xs" :icon="a.hidden ? 'i-lucide-eye' : 'i-lucide-eye-off'" :loading="busy === a.id" @click="toggleHidden('art', a.id, !a.hidden)">{{ a.hidden ? 'Show' : 'Hide' }}</UButton>
               <UButton color="error" variant="ghost" size="xs" icon="i-lucide-trash-2" :loading="busy === a.id" @click="del('art', a.id, a.name)">Delete</UButton>
             </div>
             <p v-if="!content?.art?.length" class="px-3 py-6 text-center text-sm text-(--ui-text-muted)">No art.</p>

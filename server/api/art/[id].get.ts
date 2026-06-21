@@ -27,6 +27,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Art not found' })
 
   const isOwner = !!viewer && viewer.id === row.ownerId
+  // Hidden art is visible only to its owner or an admin.
+  if (row.hidden && !isOwner && viewer?.role !== 'admin')
+    throw createError({ statusCode: 404, statusMessage: 'Art not found' })
   const contributions = (row.contributions ?? []).filter(c => isOwner || c.status === 'published')
 
   return { ...row, isOwner, contributions }

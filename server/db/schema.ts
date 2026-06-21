@@ -1,4 +1,4 @@
-import { check, doublePrecision, index, integer, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, doublePrecision, index, integer, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
 export const events = pgTable('events', {
@@ -49,6 +49,7 @@ export const camps = pgTable('camps', {
   url: text('url'),
   contactEmail: text('contact_email'),
   hometown: text('hometown'),
+  hidden: boolean('hidden').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('camps_owner_idx').on(t.ownerId), index('camps_year_idx').on(t.year)])
@@ -65,6 +66,7 @@ export const art = pgTable('art', {
   hometown: text('hometown'),
   // An open call: a prompt asking the community to contribute. Null = no call.
   call: text('call'),
+  hidden: boolean('hidden').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('art_owner_idx').on(t.ownerId), index('art_year_idx').on(t.year)])
