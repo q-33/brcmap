@@ -5,8 +5,10 @@ useHead({ title: 'About — BurnerMap' })
 
 const streets = Object.entries(STREET_NAMES).filter(([k]) => k !== 'Esplanade')
 
-const team = ['Crockett! (Vince Ferhino — Soon To Be Infamous)', 'Pee Pee La Poo (Trashistan)']
+const team = ['Admin']
 const alumni = [
+  'Crockett! (Vince Ferhino — Soon To Be Infamous)',
+  'Pee Pee La Poo (Trashistan)',
   'Hammer Time (Kevin Bond — Black Rock Observatory)',
   'DhammaSeeker (Wade Harrell — Pretty Pickle)',
   'Blue Skies (Mike McGee — Northwest Mist)',
