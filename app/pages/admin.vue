@@ -42,7 +42,11 @@ const tabs = computed(() => [
   { key: 'recent', label: 'Recent', n: undefined },
   { key: 'audit', label: 'Audit', n: undefined },
 ] as const)
-const tab = ref<'queue' | 'reports' | 'people' | 'content' | 'recent' | 'audit'>('queue')
+type Tab = 'queue' | 'reports' | 'people' | 'content' | 'recent' | 'audit'
+const route = useRoute()
+const validTabs: Tab[] = ['queue', 'reports', 'people', 'content', 'recent', 'audit']
+const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'queue')
+watch(() => route.query.tab, (t) => { if (validTabs.includes(t as Tab)) tab.value = t as Tab })
 const ctab = ref<'camps' | 'art' | 'events'>('camps')
 
 const q = ref('')

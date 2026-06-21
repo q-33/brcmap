@@ -16,7 +16,27 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
-const { hasFeature, refreshMe } = useMe()
+const { hasFeature, refreshMe, isAdmin, isGpe } = useMe()
+
+// account dropdown — quick links to the admin/GPE tools + log out
+const userMenu = computed(() => {
+  const groups: any[] = [[{ label: user.value?.displayName || user.value?.email || 'Account', type: 'label' as const }]]
+  const tools: any[] = []
+  if (isGpe.value)
+    tools.push({ label: 'Gate conditions', icon: 'i-lucide-traffic-cone', to: '/gate' })
+  if (isAdmin.value)
+    tools.push(
+      { label: 'Admin dashboard', icon: 'i-lucide-shield', to: '/admin' },
+      { label: 'Review queue', icon: 'i-lucide-inbox', to: { path: '/admin', query: { tab: 'queue' } } },
+      { label: 'Reports', icon: 'i-lucide-flag', to: { path: '/admin', query: { tab: 'reports' } } },
+      { label: 'People & roles', icon: 'i-lucide-users', to: { path: '/admin', query: { tab: 'people' } } },
+      { label: 'Audit log', icon: 'i-lucide-scroll-text', to: { path: '/admin', query: { tab: 'audit' } } },
+    )
+  if (tools.length)
+    groups.push(tools)
+  groups.push([{ label: 'Log out', icon: 'i-lucide-log-out', color: 'error' as const, onSelect: logout }])
+  return groups
+})
 
 // optional ?lat&lng to focus a camp coming from the Camps list
 const route = useRoute()
@@ -217,9 +237,11 @@ const itemOptions = computed(() => [
           <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" :disabled="!position && !canManualAddress" @click="openDrop('art')">
             Drop art
           </UButton>
-          <UButton size="sm" color="neutral" variant="solid" class="bg-[#26211a]/85 text-white backdrop-blur-xl" icon="i-lucide-user" @click="logout">
-            <span class="hidden sm:inline">{{ user?.displayName || 'Log out' }}</span>
-          </UButton>
+          <UDropdownMenu :items="userMenu" :content="{ align: 'end', sideOffset: 6 }">
+            <UButton size="sm" color="neutral" variant="solid" class="bg-[#26211a]/85 text-white backdrop-blur-xl" icon="i-lucide-user" trailing-icon="i-lucide-chevron-down">
+              <span class="hidden max-w-28 truncate sm:inline">{{ user?.displayName || 'Account' }}</span>
+            </UButton>
+          </UDropdownMenu>
         </template>
         <UButton v-else size="sm" color="primary" @click="authOpen = true">
           Log in

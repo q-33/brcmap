@@ -452,3 +452,10 @@ onBeforeUnmount(() => map?.remove())
 <template>
   <div ref="mapEl" class="size-full" />
 </template>
+
+<style scoped>
+/* Keep the zoom / locate controls clear of the floating top bar (Drop / account). */
+:deep(.maplibregl-ctrl-top-right) {
+  margin-top: 3.25rem;
+}
+</style>
