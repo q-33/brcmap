@@ -90,6 +90,23 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'spoke'],
       paint: { 'line-color': '#a89a78', 'line-width': 0.8 },
     })
+    // portals: Center Camp / Rod's Ring Road + the 3:00 & 9:00 plazas
+    map.addLayer({
+      id: 'portals',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'portal'],
+      paint: { 'line-color': '#6b5f47', 'line-width': 1.6 },
+    })
+    map.addLayer({
+      id: 'portal-labels',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'portal-label'],
+      minzoom: 13.2,
+      layout: { 'text-field': ['get', 'name'], 'text-size': 10 },
+      paint: { 'text-color': '#5c5340', 'text-halo-color': '#d8c9a3', 'text-halo-width': 1.5 },
+    })
     // 2026 themed street names along the arcs
     map.addLayer({
       id: 'street-labels',

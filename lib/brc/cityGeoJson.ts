@@ -1,5 +1,5 @@
 import type { FeatureCollection } from 'geojson'
-import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, streetName } from './geocode'
+import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
 
 // Draw Black Rock City as GeoJSON purely from the parametric geocoder — no map
 // tiles required. Lettered streets become arcs; clock hours become radial spokes.
@@ -71,6 +71,28 @@ export function cityGridGeoJson(): FeatureCollection {
       properties: { kind: 'spoke', time: h },
       geometry: { type: 'LineString', coordinates: spokeForHour(h) },
     })
+  }
+
+  // Portals: Center Camp (Rod's Ring Road) at 6:00, and the 3:00 & 9:00 plazas.
+  const portals: { name: string, center: [number, number], radiusM: number }[] = [
+    { name: 'Center Camp', center: centerCampPoint, radiusM: 105 },
+    { name: '3:00 Plaza', center: ((p: { lat: number, lng: number }) => [p.lng, p.lat] as [number, number])(radialPoint(3, 1100)), radiusM: 80 },
+    { name: '9:00 Plaza', center: ((p: { lat: number, lng: number }) => [p.lng, p.lat] as [number, number])(radialPoint(9, 1100)), radiusM: 80 },
+  ]
+  for (const p of portals) {
+    features.push({
+      type: 'Feature',
+      properties: { kind: 'portal', name: p.name },
+      geometry: { type: 'LineString', coordinates: circleRing({ lat: p.center[1], lng: p.center[0] }, p.radiusM) },
+    })
+    // label the 3:00/9:00 plazas; Center Camp already has its own landmark label.
+    if (p.name !== 'Center Camp') {
+      features.push({
+        type: 'Feature',
+        properties: { kind: 'portal-label', name: p.name },
+        geometry: { type: 'Point', coordinates: p.center },
+      })
+    }
   }
 
   return { type: 'FeatureCollection', features }

@@ -79,13 +79,32 @@ export function addressToLatLng({ time, street }: BrcAddress): LatLng | null {
   const radius = STREET_RADII[street]
   if (radius == null)
     return null
+  return radialPoint(time, radius)
+}
+
+/** A point at a given clock time and radius (metres) from the Man. */
+export function radialPoint(time: number, radiusM: number): LatLng {
   const bearing = toRad(BEARING_INTERCEPT + BEARING_PER_HOUR * time)
-  const x = radius * Math.sin(bearing) // east (m)
-  const y = radius * Math.cos(bearing) // north (m)
+  const x = radiusM * Math.sin(bearing) // east (m)
+  const y = radiusM * Math.cos(bearing) // north (m)
   return {
     lat: MAN.lat + y / M_PER_DEG_LAT,
     lng: MAN.lng + x / mPerDegLng(MAN.lat),
   }
+}
+
+/** A geographic circle (closed ring of [lng, lat]) of radius metres around a center. */
+export function circleRing(center: LatLng, radiusM: number, steps = 64): [number, number][] {
+  const ring: [number, number][] = []
+  const mLng = mPerDegLng(center.lat)
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI
+    ring.push([
+      center.lng + (radiusM * Math.sin(a)) / mLng,
+      center.lat + (radiusM * Math.cos(a)) / M_PER_DEG_LAT,
+    ])
+  }
+  return ring
 }
 
 // --- Reverse: lat/lng -> nearest address ------------------------------------
