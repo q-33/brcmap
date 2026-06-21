@@ -6,6 +6,7 @@ const links = [
   { label: 'Camps', to: '/camps', icon: 'i-lucide-tent' },
   { label: 'Art', to: '/art', icon: 'i-lucide-palette' },
   { label: 'Events', to: '/events', icon: 'i-lucide-calendar' },
+  { label: 'Guide', to: '/guide', icon: 'i-lucide-compass' },
   { label: 'About', to: '/about', icon: 'i-lucide-info' },
 ]
 
