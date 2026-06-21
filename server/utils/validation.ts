@@ -27,6 +27,25 @@ export const artSchema = z.object({
   website: z.string().url().optional().or(z.literal('')),
   contactEmail: z.string().email().optional().or(z.literal('')),
   hometown: z.string().max(200).optional(),
+  // Optional "open call" prompt asking the community to contribute.
+  call: z.string().max(2000).optional(),
+})
+
+// Owners set or clear an artwork's open call.
+export const artCallSchema = z.object({
+  call: z.string().max(2000).optional().or(z.literal('')),
+})
+
+// A community contribution to an artwork's open call (logged-in users only).
+export const artContributionSchema = z.object({
+  body: z.string().trim().min(1).max(2000),
+  language: z.string().trim().max(80).optional().or(z.literal('')),
+  mediaUrl: z.string().url().max(500).optional().or(z.literal('')),
+})
+
+// Owner moderation: publish or hide a submitted contribution.
+export const artContributionModerateSchema = z.object({
+  status: z.enum(['published', 'hidden', 'pending']),
 })
 
 // Events: a camp announces a planned event. starts/ends are playa wall-clock

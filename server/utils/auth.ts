@@ -13,3 +13,10 @@ export async function requireUser(event: H3Event): Promise<SessionUser> {
   const { user } = await requireUserSession(event)
   return user as unknown as SessionUser
 }
+
+// Like requireUser, but returns null instead of throwing when not logged in.
+// For endpoints whose response varies by viewer (e.g. owner sees pending items).
+export async function getOptionalUser(event: H3Event): Promise<SessionUser | null> {
+  const { user } = await getUserSession(event)
+  return (user as unknown as SessionUser) ?? null
+}

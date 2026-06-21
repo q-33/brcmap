@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
       website: body.website || null,
       contactEmail: body.contactEmail || null,
       hometown: body.hometown,
+      call: body.call || null,
     })
     .returning()
   return created

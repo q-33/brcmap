@@ -50,9 +50,31 @@ export const art = pgTable('art', {
   url: text('url'),
   contactEmail: text('contact_email'),
   hometown: text('hometown'),
+  // An open call: a prompt asking the community to contribute. Null = no call.
+  call: text('call'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('art_owner_idx').on(t.ownerId), index('art_year_idx').on(t.year)])
+
+// Community contributions to an artwork's open call (e.g. translations).
+// status: 'pending' (awaiting owner approval) | 'published' | 'hidden'.
+export const artContributions = pgTable('art_contributions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  artId: uuid('art_id').notNull().references(() => art.id, { onDelete: 'cascade' }),
+  contributorId: uuid('contributor_id').references(() => users.id, { onDelete: 'set null' }),
+  authorName: text('author_name'),
+  body: text('body').notNull(),
+  language: text('language'),
+  mediaUrl: text('media_url'),
+  status: text('status').notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('art_contributions_art_idx').on(t.artId),
+  index('art_contributions_status_idx').on(t.artId, t.status),
+  index('art_contributions_author_idx').on(t.contributorId),
+  check('art_contributions_status_chk', sql`status in ('pending', 'published', 'hidden')`),
+])
 
 export const locations = pgTable('locations', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -88,6 +110,12 @@ export const eventsRelations = relations(events, ({ one }) => ({
 
 export const artRelations = relations(art, ({ many }) => ({
   locations: many(locations),
+  contributions: many(artContributions),
+}))
+
+export const artContributionsRelations = relations(artContributions, ({ one }) => ({
+  art: one(art, { fields: [artContributions.artId], references: [art.id] }),
+  contributor: one(users, { fields: [artContributions.contributorId], references: [users.id] }),
 }))
 
 export const locationsRelations = relations(locations, ({ one }) => ({

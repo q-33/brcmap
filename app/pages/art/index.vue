@@ -11,7 +11,7 @@ function namedAddress(s: string | null | undefined): string | null {
 }
 
 interface Loc { addressString: string | null, gpsLatitude: number | null, gpsLongitude: number | null, createdAt: string }
-interface Art { id: string, name: string, year: number, description: string | null, hometown: string | null, locations: Loc[] }
+interface Art { id: string, name: string, year: number, description: string | null, hometown: string | null, call: string | null, locations: Loc[] }
 
 const q = ref('')
 const debounced = refDebounced(q, 250)
@@ -22,10 +22,6 @@ const { data: artworks, status } = await useFetch<Art[]>('/api/art', {
 
 function currentLocation(a: Art): Loc | undefined {
   return [...a.locations].sort((x, y) => +new Date(y.createdAt) - +new Date(x.createdAt))[0]
-}
-function mapped(a: Art) {
-  const l = currentLocation(a)
-  return l && l.gpsLatitude != null && l.gpsLongitude != null ? l : undefined
 }
 
 useHead({ title: 'Art — BurnerMap' })
@@ -53,7 +49,7 @@ useHead({ title: 'Art — BurnerMap' })
     />
 
     <div v-if="artworks && artworks.length" class="grid gap-3 sm:grid-cols-2">
-      <UCard v-for="a in artworks" :key="a.id">
+      <UCard v-for="a in artworks" :key="a.id" :to="`/art/${a.id}`" class="transition hover:ring-2 hover:ring-primary/30">
         <div class="flex items-start justify-between gap-2">
           <div>
             <h2 class="font-semibold">{{ a.name }}</h2>
@@ -66,16 +62,7 @@ useHead({ title: 'Art — BurnerMap' })
         </div>
         <p v-if="a.description" class="mt-2 line-clamp-3 text-sm text-(--ui-text-muted)">{{ a.description }}</p>
         <p v-if="a.hometown" class="mt-1 text-xs text-(--ui-text-muted)">🏠 {{ a.hometown }}</p>
-        <template v-if="mapped(a)" #footer>
-          <UButton
-            :to="`/?lat=${mapped(a)!.gpsLatitude}&lng=${mapped(a)!.gpsLongitude}`"
-            size="xs"
-            variant="link"
-            class="px-0"
-          >
-            View on map →
-          </UButton>
-        </template>
+        <UBadge v-if="a.call" color="primary" variant="subtle" size="xs" class="mt-2" icon="i-lucide-megaphone">Open call</UBadge>
       </UCard>
     </div>
 
