@@ -28,6 +28,39 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Per-user feature flags (early access to upcoming features).
+export const userFeatures = pgTable('user_features', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  feature: text('feature').notNull(),
+  grantedById: uuid('granted_by_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('user_features_user_idx').on(t.userId)])
+
+// User-submitted reports / flags on a camp or artwork.
+export const contentReports = pgTable('content_reports', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  contentType: text('content_type').notNull(), // 'camp' | 'art'
+  contentId: uuid('content_id').notNull(),
+  reporterId: uuid('reporter_id').references(() => users.id, { onDelete: 'set null' }),
+  reason: text('reason'),
+  status: text('status').notNull().default('open'), // open | resolved | dismissed
+  resolvedById: uuid('resolved_by_id').references(() => users.id, { onDelete: 'set null' }),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('content_reports_status_idx').on(t.status, t.createdAt)])
+
+// Moderation / admin audit log.
+export const auditLog = pgTable('audit_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+  action: text('action').notNull(),
+  targetType: text('target_type'),
+  targetId: text('target_id'),
+  detail: text('detail'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('audit_log_created_idx').on(t.createdAt)])
+
 // Gate Road traffic conditions, append-only; newest row per direction is current.
 export const gateConditions = pgTable('gate_conditions', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -133,6 +166,14 @@ export const artRelations = relations(art, ({ many, one }) => ({
 export const artContributionsRelations = relations(artContributions, ({ one }) => ({
   art: one(art, { fields: [artContributions.artId], references: [art.id] }),
   contributor: one(users, { fields: [artContributions.contributorId], references: [users.id] }),
+}))
+
+export const contentReportsRelations = relations(contentReports, ({ one }) => ({
+  reporter: one(users, { fields: [contentReports.reporterId], references: [users.id] }),
+}))
+
+export const auditLogRelations = relations(auditLog, ({ one }) => ({
+  actor: one(users, { fields: [auditLog.actorId], references: [users.id] }),
 }))
 
 export const gateConditionsRelations = relations(gateConditions, ({ one }) => ({

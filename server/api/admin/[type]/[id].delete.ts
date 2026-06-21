@@ -6,7 +6,7 @@ import { art, camps, events } from '../../../db/schema'
 const TABLES = { camps, art, events } as const
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  const admin = await requireAdmin(event)
   const type = getRouterParam(event, 'type') as keyof typeof TABLES
   const id = getRouterParam(event, 'id')
   if (!id || !(type in TABLES))
@@ -17,5 +17,6 @@ export default defineEventHandler(async (event) => {
   const [deleted] = await db.delete(table).where(eq(table.id, id)).returning({ id: table.id })
   if (!deleted)
     throw createError({ statusCode: 404, statusMessage: 'Not found' })
+  await audit(admin.id, 'content.delete', { targetType: type, targetId: id })
   return { ok: true, id: deleted.id }
 })

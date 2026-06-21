@@ -15,7 +15,10 @@ export default defineEventHandler(async (event) => {
     .insert(users)
     .values({ email: email.toLowerCase(), passwordHash, displayName: displayName ?? null })
     .returning({ id: users.id, email: users.email, displayName: users.displayName, role: users.role })
+  if (!user)
+    throw createError({ statusCode: 500, statusMessage: 'Could not create account' })
 
-  await setUserSession(event, { user })
+  const sessionUser = { id: user.id, email: user.email, displayName: user.displayName, role: user.role, features: [] as string[] }
+  await setUserSession(event, { user: sessionUser })
   return { user }
 })

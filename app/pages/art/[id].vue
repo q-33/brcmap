@@ -104,6 +104,24 @@ async function saveCall() {
   }
 }
 
+// --- report / flag ----------------------------------------------------------
+const reportOpen = ref(false)
+const reportReason = ref('')
+const reportBusy = ref(false)
+const reported = ref(false)
+async function submitReport() {
+  reportBusy.value = true
+  try {
+    await $fetch('/api/reports', { method: 'POST', body: { contentType: 'art', contentId: id.value, reason: reportReason.value } })
+    reported.value = true
+    reportOpen.value = false
+    reportReason.value = ''
+  }
+  finally {
+    reportBusy.value = false
+  }
+}
+
 useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art — BurnerMap' }))
 </script>
 
@@ -128,7 +146,19 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
       <div class="mt-3 flex flex-wrap gap-3">
         <UButton v-if="art.website" :to="art.website" target="_blank" size="xs" variant="subtle" icon="i-lucide-link">Website</UButton>
         <UButton v-if="mapped" :to="`/?lat=${mapped.gpsLatitude}&lng=${mapped.gpsLongitude}`" size="xs" variant="subtle" icon="i-lucide-map-pin">View on map</UButton>
+        <UButton v-if="loggedIn && !reported" size="xs" variant="ghost" color="neutral" icon="i-lucide-flag" @click="reportOpen = true">Report</UButton>
+        <span v-if="reported" class="text-xs text-(--ui-text-muted)">Reported — thanks, a moderator will review.</span>
       </div>
+
+      <UModal v-model:open="reportOpen" title="Report this artwork">
+        <template #body>
+          <form class="space-y-3" @submit.prevent="submitReport">
+            <p class="text-sm text-(--ui-text-muted)">Flag this for a moderator. What's the issue?</p>
+            <UTextarea v-model="reportReason" :rows="3" class="w-full" placeholder="Reason (optional)" />
+            <UButton type="submit" block color="error" :loading="reportBusy">Submit report</UButton>
+          </form>
+        </template>
+      </UModal>
 
       <!-- open call -->
       <UCard class="mt-8 border-primary/30 bg-primary/5">

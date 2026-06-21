@@ -115,6 +115,23 @@ const currentAddress = computed(() =>
 const currentAddressNamed = computed(() =>
   position.value ? formatAddressNamed(latLngToAddress(position.value)) : null,
 )
+
+// Manual address entry (gated by the 'manual-address' feature flag): type a BRC
+// address instead of relying on GPS — e.g. to mark a camp before arriving.
+const canManualAddress = computed(() => {
+  const u = user.value as any
+  return u?.role === 'admin' || (u?.features ?? []).includes('manual-address')
+})
+const manualAddress = ref('')
+const manualParsed = computed(() => parseAddress(manualAddress.value.trim()))
+const usingManual = computed(() => canManualAddress.value && manualAddress.value.trim() !== '')
+const effectiveAddress = computed(() =>
+  usingManual.value ? (manualParsed.value ? formatAddress(manualParsed.value) : null) : currentAddress.value,
+)
+const effectiveAddressNamed = computed(() =>
+  usingManual.value ? (manualParsed.value ? formatAddressNamed(manualParsed.value) : null) : currentAddressNamed.value,
+)
+
 const creatingNew = computed(() => selectedId.value === '')
 const myItems = computed<MyItem[]>(() => (dropKind.value === 'camp' ? myCamps.value : myArt.value) ?? [])
 
@@ -126,12 +143,13 @@ async function openDrop(kind: DropKind) {
     await refreshMineArt()
   selectedId.value = myItems.value?.[0]?.id ?? ''
   newName.value = ''
+  manualAddress.value = ''
   dropError.value = ''
   dropOpen.value = true
 }
 
 async function dropPin() {
-  if (!position.value || !currentAddress.value)
+  if (!effectiveAddress.value)
     return
   dropBusy.value = true
   dropError.value = ''
@@ -145,8 +163,8 @@ async function dropPin() {
       id = created.id
     }
     const locBody = dropKind.value === 'camp'
-      ? { campId: id, addressString: currentAddress.value }
-      : { artId: id, addressString: currentAddress.value }
+      ? { campId: id, addressString: effectiveAddress.value }
+      : { artId: id, addressString: effectiveAddress.value }
     await $fetch('/api/locations', { method: 'POST', body: locBody })
     await Promise.all([refreshCamps(), refreshArt(), refreshMineCamps(), refreshMineArt()])
     dropOpen.value = false
@@ -193,10 +211,10 @@ const itemOptions = computed(() => [
 
       <div class="pointer-events-auto flex items-center gap-2">
         <template v-if="loggedIn">
-          <UButton size="sm" color="primary" icon="i-lucide-map-pin" :disabled="!position" @click="openDrop('camp')">
+          <UButton size="sm" color="primary" icon="i-lucide-map-pin" :disabled="!position && !canManualAddress" @click="openDrop('camp')">
             Drop camp
           </UButton>
-          <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" :disabled="!position" @click="openDrop('art')">
+          <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" :disabled="!position && !canManualAddress" @click="openDrop('art')">
             Drop art
           </UButton>
           <UButton size="sm" color="neutral" variant="solid" class="bg-[#26211a]/85 text-white backdrop-blur-xl" icon="i-lucide-user" @click="logout">
@@ -310,13 +328,18 @@ const itemOptions = computed(() => [
       <template #body>
         <form class="space-y-3" @submit.prevent="dropPin">
           <p class="text-sm">
-            Location: <b>{{ currentAddressNamed ?? '—' }}</b>
-            <span v-if="accuracyLabel" class="text-(--ui-text-muted)"> · GPS {{ accuracyLabel }}</span>
+            Location: <b>{{ effectiveAddressNamed ?? '—' }}</b>
+            <span v-if="!usingManual && accuracyLabel" class="text-(--ui-text-muted)"> · GPS {{ accuracyLabel }}</span>
+            <span v-else-if="usingManual" class="text-(--ui-text-muted)"> · typed</span>
           </p>
-          <p v-if="accuracyRough" class="flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          <p v-if="!usingManual && accuracyRough" class="flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
             <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" />
             Rough GPS fix — the street may be off. Move to open sky and re-locate, or double-check before saving.
           </p>
+          <div v-if="canManualAddress">
+            <UInput v-model="manualAddress" placeholder="Or type an address — e.g. 7:30 & E" class="w-full" />
+            <p v-if="manualAddress.trim() && !manualParsed" class="mt-1 text-xs text-red-600">Use “time & street”, e.g. 7:30 & E</p>
+          </div>
           <USelect
             v-if="myItems.length"
             v-model="selectedId"
@@ -330,7 +353,7 @@ const itemOptions = computed(() => [
             class="w-full"
           />
           <p v-if="dropError" class="text-sm text-red-600">{{ dropError }}</p>
-          <UButton type="submit" block :loading="dropBusy" :disabled="creatingNew && !newName">
+          <UButton type="submit" block :loading="dropBusy" :disabled="(creatingNew && !newName) || !effectiveAddress">
             {{ creatingNew ? `Create ${dropKind} & drop pin` : `Move my ${dropKind} here` }}
           </UButton>
         </form>

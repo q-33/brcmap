@@ -20,5 +20,6 @@ export default defineEventHandler(async (event) => {
     .returning({ id: users.id, email: users.email, role: users.role })
   if (!updated)
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  await audit(admin.id, 'role.set', { targetType: 'user', targetId: id, detail: role })
   return updated
 })

@@ -8,6 +8,7 @@ export interface SessionUser {
   email: string
   displayName: string | null
   role: string
+  features?: string[]
 }
 
 export async function requireUser(event: H3Event): Promise<SessionUser> {
@@ -29,6 +30,14 @@ export async function requireAdmin(event: H3Event): Promise<SessionUser> {
   const user = await requireUser(event)
   if (user.role !== 'admin')
     throw createError({ statusCode: 403, statusMessage: 'Admin access required' })
+  return user
+}
+
+// Require the user to have a granted feature flag (admins always pass).
+export async function requireFeature(event: H3Event, feature: string): Promise<SessionUser> {
+  const user = await requireUser(event)
+  if (user.role !== 'admin' && !(user.features ?? []).includes(feature))
+    throw createError({ statusCode: 403, statusMessage: 'This feature isn’t enabled for your account' })
   return user
 }
 

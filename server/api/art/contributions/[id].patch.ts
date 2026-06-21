@@ -27,5 +27,6 @@ export default defineEventHandler(async (event) => {
     .set({ status })
     .where(eq(artContributions.id, id))
     .returning({ id: artContributions.id, status: artContributions.status })
+  await audit(user.id, `contribution.${status}`, { targetType: 'contribution', targetId: id })
   return updated
 })
