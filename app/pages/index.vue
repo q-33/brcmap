@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { GateStatus } from '~~/lib/gate'
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, latLngToAddress, parseAddress } from '~~/lib/brc/geocode'
-import { gateColor } from '~~/lib/gate'
+import { GATE_STATUS_META, gateColor } from '~~/lib/gate'
 import { dustRisk, wmo } from '~~/lib/weather'
 
 function namedAddress(s: string | null | undefined): string {
@@ -67,6 +67,7 @@ const artPins = computed<CampPin[]>(() => toPins(artData.value))
 // live Gate Road condition → colour the gate road + a status dot
 const { data: gateData } = await useFetch<{ inbound: { status: GateStatus } | null }>('/api/gate')
 const gateRoadColor = computed(() => gateData.value?.inbound ? gateColor(gateData.value.inbound.status) : undefined)
+const gateStatusLabel = computed(() => gateData.value?.inbound ? GATE_STATUS_META[gateData.value.inbound.status].label : 'No data')
 
 // live weather → a compact pill (temp + gusts + dust) linking to /live
 const { data: weatherData } = await useFetch<{ current: { temperature_2m: number, weather_code: number, wind_gusts_10m: number } | null }>('/api/weather')
@@ -227,9 +228,6 @@ const itemOptions = computed(() => [
         <UButton to="/camps" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Camps</UButton>
         <UButton to="/art" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Art</UButton>
         <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
-        <UButton to="/gate" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">
-          <span v-if="gateRoadColor" class="mr-1 inline-block size-2 rounded-full align-middle" :style="{ background: gateRoadColor }" />Gate
-        </UButton>
         <UButton to="/guide" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Guide</UButton>
       </div>
 
@@ -301,17 +299,28 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- weather pill (top-left, below the bar) -->
-    <NuxtLink
-      v-if="wx"
-      to="/live"
-      class="pointer-events-auto absolute left-3 top-16 flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-    >
-      <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
-      <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
-      <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
-      <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
-    </NuxtLink>
+    <!-- weather + gate widgets (top-left, stacked below the bar) -->
+    <div class="pointer-events-none absolute left-3 top-16 flex flex-col items-start gap-2">
+      <NuxtLink
+        v-if="wx"
+        to="/live"
+        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+      >
+        <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
+        <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
+        <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
+        <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
+      </NuxtLink>
+      <NuxtLink
+        to="/gate"
+        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+      >
+        <UIcon name="i-lucide-traffic-cone" class="size-4 text-primary" />
+        <span class="font-medium">Gate</span>
+        <span class="text-white/60">{{ gateStatusLabel }}</span>
+        <span class="size-2.5 rounded-full ring-1 ring-white/20" :style="{ background: gateRoadColor ?? '#6b7280' }" />
+      </NuxtLink>
+    </div>
 
     <!-- compass rose (map orientation is locked to bearing 45°) -->
     <div class="pointer-events-none absolute bottom-20 right-4 sm:bottom-6">
