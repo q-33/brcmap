@@ -1,11 +1,17 @@
+import { eq } from 'drizzle-orm'
 import { campSchema } from '../../utils/validation'
 import { camps } from '../../db/schema'
 
-// Create a camp owned by the current user. Auth required.
+// Create a camp owned by the current user. Auth required. One camp per user —
+// edit the existing one instead of creating another.
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const body = await readValidatedBody(event, campSchema.parse)
   const db = useDb()
+
+  const [existing] = await db.select({ id: camps.id }).from(camps).where(eq(camps.ownerId, user.id)).limit(1)
+  if (existing)
+    throw createError({ statusCode: 409, statusMessage: 'You already have a camp — edit it instead.' })
 
   const [camp] = await db
     .insert(camps)

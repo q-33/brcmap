@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { GateStatus } from '~~/lib/gate'
-import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, latLngToAddress, parseAddress } from '~~/lib/brc/geocode'
+import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { GATE_STATUS_META, gateColor } from '~~/lib/gate'
 import { dustRisk, wmo } from '~~/lib/weather'
 
@@ -90,10 +90,13 @@ function onPosition(p: { lat: number, lng: number, accuracy?: number }) {
   position.value = { lat: p.lat, lng: p.lng }
   accuracy.value = p.accuracy
 }
-// tapping the map places a pin (no GPS accuracy) — lets you mark a spot off-playa
+// tapping the map (only while a drop is armed) sets the EXACT spot, then opens
+// the confirm sheet. Coordinates are stored as-is — never snapped to a street.
 function onPick(p: { lat: number, lng: number }) {
-  position.value = { lat: p.lat, lng: p.lng }
-  accuracy.value = undefined
+  if (!dropMode.value)
+    return
+  pendingLoc.value = { lat: p.lat, lng: p.lng }
+  dropOpen.value = true
 }
 
 // auth form
@@ -143,44 +146,62 @@ const selectedId = ref<string>('') // '' = create new
 const newName = ref('')
 const dropError = ref('')
 const dropBusy = ref(false)
-const currentAddress = computed(() =>
-  position.value ? formatAddress(latLngToAddress(position.value)) : null,
-)
-const currentAddressNamed = computed(() =>
-  position.value ? formatAddressNamed(latLngToAddress(position.value)) : null,
-)
+// The exact point being placed (from tapping the map). Its label is reverse-
+// derived for display ONLY — the coordinates are stored verbatim, never snapped.
+const dropMode = ref<DropKind | null>(null)
+const pendingLoc = ref<{ lat: number, lng: number } | null>(null)
+const pendingLabel = computed(() => pendingLoc.value ? describeLatLng(pendingLoc.value) : null)
+const myCamp = computed<MyItem | null>(() => (myCamps.value ?? [])[0] ?? null)
 
 // Manual address entry (gated by the 'manual-address' feature flag): type a BRC
-// address instead of relying on GPS — e.g. to mark a camp before arriving.
+// address instead of tapping — e.g. to mark a spot before arriving (snaps to grid).
 const canManualAddress = computed(() => hasFeature('manual-address'))
 const manualAddress = ref('')
 const manualParsed = computed(() => parseAddress(manualAddress.value.trim()))
 const usingManual = computed(() => canManualAddress.value && manualAddress.value.trim() !== '')
-const effectiveAddress = computed(() =>
-  usingManual.value ? (manualParsed.value ? formatAddress(manualParsed.value) : null) : currentAddress.value,
-)
 const effectiveAddressNamed = computed(() =>
-  usingManual.value ? (manualParsed.value ? formatAddressNamed(manualParsed.value) : null) : currentAddressNamed.value,
+  usingManual.value ? (manualParsed.value ? formatAddressNamed(manualParsed.value) : null) : pendingLabel.value,
 )
+const hasLocation = computed(() => (usingManual.value && !!manualParsed.value) || !!pendingLoc.value)
 
 const creatingNew = computed(() => selectedId.value === '')
 const myItems = computed<MyItem[]>(() => (dropKind.value === 'camp' ? myCamps.value : myArt.value) ?? [])
 
-async function openDrop(kind: DropKind) {
+// Arm placement mode: the user then taps the map to set the spot. For a camp the
+// user already owns, this edits (moves) it; you can't create a second camp.
+async function startDrop(kind: DropKind) {
   dropKind.value = kind
-  if (kind === 'camp')
-    await refreshMineCamps()
-  else
-    await refreshMineArt()
-  selectedId.value = myItems.value?.[0]?.id ?? ''
-  newName.value = ''
-  manualAddress.value = ''
   dropError.value = ''
-  dropOpen.value = true
+  pendingLoc.value = null
+  manualAddress.value = ''
+  if (kind === 'camp') {
+    await refreshMineCamps()
+    selectedId.value = myCamp.value?.id ?? ''
+    newName.value = myCamp.value?.name ?? ''
+  }
+  else {
+    await refreshMineArt()
+    selectedId.value = ''
+    newName.value = ''
+  }
+  dropOpen.value = false
+  dropMode.value = kind
+}
+
+function cancelDrop() {
+  dropOpen.value = false
+  dropMode.value = null
+  pendingLoc.value = null
+}
+
+// re-tap to move the pin: keep placement mode armed, just hide the sheet
+function movePin() {
+  dropOpen.value = false
 }
 
 async function dropPin() {
-  if (!effectiveAddress.value)
+  const useManual = usingManual.value && !!manualParsed.value
+  if (!useManual && !pendingLoc.value)
     return
   dropBusy.value = true
   dropError.value = ''
@@ -193,12 +214,13 @@ async function dropPin() {
       })
       id = created.id
     }
-    const locBody = dropKind.value === 'camp'
-      ? { campId: id, addressString: effectiveAddress.value }
-      : { artId: id, addressString: effectiveAddress.value }
+    const parent = dropKind.value === 'camp' ? { campId: id } : { artId: id }
+    const locBody = useManual
+      ? { ...parent, addressString: formatAddress(manualParsed.value!) }
+      : { ...parent, lat: pendingLoc.value!.lat, lng: pendingLoc.value!.lng }
     await $fetch('/api/locations', { method: 'POST', body: locBody })
     await Promise.all([refreshCamps(), refreshArt(), refreshMineCamps(), refreshMineArt()])
-    dropOpen.value = false
+    cancelDrop()
     newName.value = ''
   }
   catch (e: any) {
@@ -219,7 +241,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" class="size-full" @position="onPosition" @pick="onPick" />
+        <PlayaMap :camps="pins" :art-pins="artPins" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode" class="size-full" @position="onPosition" @pick="onPick" />
       </ClientOnly>
     </div>
 
@@ -238,10 +260,10 @@ const itemOptions = computed(() => [
 
       <div class="pointer-events-auto flex items-center gap-2">
         <template v-if="loggedIn">
-          <UButton size="sm" color="primary" icon="i-lucide-map-pin" :disabled="!position && !canManualAddress" @click="openDrop('camp')">
-            Drop camp
+          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" @click="startDrop('camp')">
+            {{ myCamp ? 'Edit my camp' : 'Drop camp' }}
           </UButton>
-          <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" :disabled="!position && !canManualAddress" @click="openDrop('art')">
+          <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" @click="startDrop('art')">
             Drop art
           </UButton>
           <UDropdownMenu :items="userMenu" :content="{ align: 'end', sideOffset: 6 }">
@@ -254,6 +276,13 @@ const itemOptions = computed(() => [
           Log in
         </UButton>
       </div>
+    </div>
+
+    <!-- placement banner: shown while a drop is armed, before/between taps -->
+    <div v-if="dropMode && !dropOpen" class="pointer-events-auto absolute left-1/2 top-16 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
+      <UIcon name="i-lucide-hand-pointer" class="size-4 text-primary" />
+      <span>Tap the map to place your {{ dropKind }}</span>
+      <button type="button" class="text-white/60 underline hover:text-white" @click="cancelDrop">Cancel</button>
     </div>
 
     <!-- layers panel (doubles as the legend) -->
@@ -364,24 +393,16 @@ const itemOptions = computed(() => [
     </UModal>
 
     <!-- drop pin modal -->
-    <UModal v-model:open="dropOpen" :title="`Drop my ${dropKind} here`">
+    <UModal v-model:open="dropOpen" :title="creatingNew ? `Drop my ${dropKind}` : `Move my ${dropKind}`" :dismissible="false">
       <template #body>
         <form class="space-y-3" @submit.prevent="dropPin">
           <p class="text-sm">
             Location: <b>{{ effectiveAddressNamed ?? '—' }}</b>
-            <span v-if="!usingManual && accuracyLabel" class="text-(--ui-text-muted)"> · GPS {{ accuracyLabel }}</span>
-            <span v-else-if="usingManual" class="text-(--ui-text-muted)"> · typed</span>
+            <span class="text-(--ui-text-muted)"> · {{ usingManual ? 'typed' : 'exact pin' }}</span>
           </p>
-          <p v-if="!usingManual && accuracyRough" class="flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-            <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" />
-            Rough GPS fix — the street may be off. Move to open sky and re-locate, or double-check before saving.
-          </p>
-          <div v-if="canManualAddress">
-            <UInput v-model="manualAddress" placeholder="Or type an address — e.g. 7:30 & E" class="w-full" />
-            <p v-if="manualAddress.trim() && !manualParsed" class="mt-1 text-xs text-red-600">Use “time & street”, e.g. 7:30 & E</p>
-          </div>
+          <!-- art only: pick which artwork (you can have several). A camp is one per user. -->
           <USelect
-            v-if="myItems.length"
+            v-if="dropKind === 'art' && myItems.length"
             v-model="selectedId"
             :items="itemOptions"
             class="w-full"
@@ -392,10 +413,18 @@ const itemOptions = computed(() => [
             :placeholder="dropKind === 'camp' ? 'Camp name' : 'Artwork name'"
             class="w-full"
           />
+          <div v-if="canManualAddress">
+            <UInput v-model="manualAddress" placeholder="Or type an address — e.g. 7:30 & E" class="w-full" />
+            <p v-if="manualAddress.trim() && !manualParsed" class="mt-1 text-xs text-red-600">Use “time & street”, e.g. 7:30 & E</p>
+          </div>
           <p v-if="dropError" class="text-sm text-red-600">{{ dropError }}</p>
-          <UButton type="submit" block :loading="dropBusy" :disabled="(creatingNew && !newName) || !effectiveAddress">
-            {{ creatingNew ? `Create ${dropKind} & drop pin` : `Move my ${dropKind} here` }}
-          </UButton>
+          <div class="flex gap-2">
+            <UButton type="submit" class="flex-1" :loading="dropBusy" :disabled="(creatingNew && !newName) || !hasLocation">
+              {{ creatingNew ? `Create ${dropKind} & drop pin` : `Save ${dropKind} here` }}
+            </UButton>
+            <UButton color="neutral" variant="soft" @click="movePin">Move pin</UButton>
+            <UButton color="neutral" variant="ghost" @click="cancelDrop">Cancel</UButton>
+          </div>
         </form>
       </template>
     </UModal>

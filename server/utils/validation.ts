@@ -96,11 +96,16 @@ export const messageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
 })
 
-// A location is marked by its BRC address; coordinates are geocoded server-side.
+// A location is marked either by an exact point (lat/lng, from tapping the map —
+// stored verbatim, no snapping) or by a typed BRC address (geocoded to the grid).
 export const locationSchema = z.object({
   campId: z.string().uuid().optional(),
   artId: z.string().uuid().optional(),
-  addressString: z.string().trim().min(1).max(40), // e.g. "7:30 & E"
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  addressString: z.string().trim().min(1).max(40).optional(), // e.g. "7:30 & E"
 }).refine(d => !!d.campId !== !!d.artId, {
   message: 'Provide exactly one of campId or artId',
+}).refine(d => (d.lat != null && d.lng != null) || !!d.addressString, {
+  message: 'Provide a map point (lat/lng) or an address',
 })

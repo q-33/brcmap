@@ -9,7 +9,7 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 
 interface CampPin { name: string, lat: number, lng: number, address: string }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines' }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean }>()
 
 // Swap between the real street-line geometry (default) and the filled-block plan.
 function applyBasemap() {
@@ -418,12 +418,12 @@ onMounted(async () => {
       }
     })
 
-    // Tap the map to place/move a pin (so you can mark a camp/art spot without a
-    // GPS fix — e.g. off-playa). Clicks that land on an existing marker fall
-    // through to that marker's popup handler instead.
+    // Placement mode: only when the parent has armed a drop (clicked Drop/Edit)
+    // does tapping the map place/move a draggable pin at the EXACT point. Clicks
+    // on an existing marker fall through to that marker's popup instead.
     const interactive = ['camps', 'art', 'toilets', 'civic-dots']
     map.on('click', (e) => {
-      if (!map)
+      if (!map || !props.dropMode)
         return
       const hit = map.queryRenderedFeatures(e.point, { layers: interactive.filter(id => map!.getLayer(id)) })
       if (hit.length)
@@ -441,7 +441,6 @@ onMounted(async () => {
       }
       emit('pick', { lat, lng })
     })
-    map.getCanvas().style.cursor = 'crosshair'
 
     applyLayerVisibility()
     applyBasemap()
@@ -451,6 +450,17 @@ onMounted(async () => {
 // show/hide layer groups from the legend toggles
 watch(() => props.layers, applyLayerVisibility, { deep: true })
 watch(() => props.basemap, applyBasemap)
+
+// placement mode: crosshair cursor while armed; clear the pin when it ends
+watch(() => props.dropMode, (on) => {
+  if (!map)
+    return
+  map.getCanvas().style.cursor = on ? 'crosshair' : ''
+  if (!on) {
+    pickMarker?.remove()
+    pickMarker = undefined
+  }
+})
 
 // keep camp pins in sync
 watch(() => props.camps, () => {
