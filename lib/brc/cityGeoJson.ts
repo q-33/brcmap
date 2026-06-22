@@ -156,9 +156,11 @@ export function cityGridGeoJson(): FeatureCollection {
   // 2. Trash fence (red dashed pentagon)
   push('fence', { type: 'LineString', coordinates: trashFence() })
 
-  // 3. Named-street labels (upper-left, as on the plan — overview only)
+  // 3. Named-street labels (upper-left, as on the plan — overview only). Anchored
+  // just PAST the 10:00 city edge so the names sit in the open playa wedge rather
+  // than overlapping the camp blocks (which now fill out to 10:00).
   for (const street of STREETS) {
-    const label = addressToLatLng({ time: 9.78, street })
+    const label = addressToLatLng({ time: 10.1, street })
     if (label)
       push('street-label', { type: 'Point', coordinates: [label.lng, label.lat] }, { name: streetName(street) })
   }
