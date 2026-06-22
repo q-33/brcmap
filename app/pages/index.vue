@@ -377,11 +377,6 @@ const itemOptions = computed(() => [
       <CompassRose />
     </div>
 
-    <!-- "Message the Admin" chat, just above the compass rose -->
-    <div class="absolute bottom-36 right-4 z-20 sm:bottom-24">
-      <AdminChat />
-    </div>
-
     <!-- GPS readout pill (bottom center) -->
     <div class="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
       <div class="pointer-events-auto items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl" :class="readout ? 'flex' : 'hidden sm:flex'">
