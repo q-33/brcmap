@@ -99,6 +99,10 @@ export function cityGridGeoJson(): FeatureCollection {
   }
   const colMin = 2.0
   const colMax = 9.75
+  // Center Camp keyhole: the open approach between the Esplanade and the plaza,
+  // on either side of the 6:00 promenade, is NOT camps — it's the open throat
+  // that the keyhole opens onto. Skip those inner blocks entirely.
+  const inKeyhole = (i: number, col: number) => i <= 1 && col > 5.5 && col < 6.5
   for (let i = 0; i < STREETS.length - 1; i++) {
     const rIn = STREET_RADII[STREETS[i]!]! + HALF_STREET_M
     const rOut = STREET_RADII[STREETS[i + 1]!]! - HALF_STREET_M
@@ -107,10 +111,13 @@ export function cityGridGeoJson(): FeatureCollection {
     const rMid = (rIn + rOut) / 2
     const tGap = (HALF_STREET_M / rMid) * (6 / Math.PI) // metres → clock-hours at rMid
     for (let j = colMin; j < colMax - 1e-9; j += 0.25) {
+      const col = j + 0.125
+      if (inKeyhole(i, col))
+        continue
       const t0 = j + tGap
       const t1 = j + 0.25 - tGap
       if (t1 > t0)
-        features.push(block(rIn, rOut, t0, t1, i <= campDepth(j + 0.125) ? 1 : 0))
+        features.push(block(rIn, rOut, t0, t1, i <= campDepth(col) ? 1 : 0))
     }
   }
 
@@ -120,6 +127,9 @@ export function cityGridGeoJson(): FeatureCollection {
   // Esplanade and widening outward, clipped to the tapered camp depth so they sit
   // only on the blue. Purely decorative — they give the plan its radiating look.
   for (let t = colMin; t <= colMax + 1e-9; t += 0.25) {
+    // skip the radials over the Center Camp keyhole so the open throat stays clean
+    if (t > 5.5 && t < 6.5)
+      continue
     const depth = campDepth(Math.min(colMax - 0.125, Math.max(colMin + 0.125, t)))
     const rOut = STREET_RADII[STREETS[Math.min(depth + 1, STREETS.length - 1)]!]!
     const rIn = espRadius
