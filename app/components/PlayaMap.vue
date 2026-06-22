@@ -198,6 +198,30 @@ onMounted(async () => {
       },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
     })
+    // Airport Road — 5:00 branch out to the airport
+    map.addLayer({
+      id: 'airport-road',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'airport-road'],
+      layout: { 'line-cap': 'round' },
+      paint: { 'line-color': '#1c2733', 'line-width': 1.4 },
+    })
+    map.addLayer({
+      id: 'airport-road-label',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'airport-road'],
+      minzoom: 12.8,
+      layout: {
+        'text-field': ['get', 'name'],
+        'symbol-placement': 'line',
+        'symbol-spacing': 240,
+        'text-size': 10,
+        'text-letter-spacing': 0.06,
+      },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
+    })
     // portals: open plaza circles. The fill-mask erases the blocks/grid/avenues
     // underneath so the circles read as clear open plazas (no lines through them).
     map.addLayer({

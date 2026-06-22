@@ -192,6 +192,11 @@ export function cityGridGeoJson(): FeatureCollection {
   push('avenue', { type: 'LineString', coordinates: radial(6, 0, CANOPY_M - CENTER_CAMP_R) })
   push('gate-road', { type: 'LineString', coordinates: radial(6, CANOPY_M + CENTER_CAMP_R, 2350) })
 
+  // Airport Road — branches off the 5:00 radial at the outer street and runs out
+  // to the BRC Municipal Airport (88NV), south-east of the city beyond the fence.
+  const AIRPORT: [number, number] = [-119.2107394, 40.7618388]
+  push('airport-road', { type: 'LineString', coordinates: [toLngLat(radialPoint(5, kRadius)), AIRPORT] }, { name: 'Airport Rd' })
+
   // 6. Portals — open plaza circles that mask the blocks underneath.
   //  • Center Camp (Rod's Ring Road) at 6:00, opening onto the Esplanade.
   //  • Inner ring on Bradbury (B): 3:00, 4:30, 7:30, 9:00 (3:00 & 9:00 are the
