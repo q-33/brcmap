@@ -93,8 +93,9 @@ export function cityGridGeoJson(): FeatureCollection {
   const NBANDS = STREETS.length - 2 // outermost filled band index (J–K = 10)
   const campDepth = (t: number) => {
     const d = Math.abs(t - 6)
-    // flat deep core, tapering past ±2.2 h toward the 2:00/10:00 ends
-    const depth = Math.round(9 - 2.5 * Math.max(0, d - 2.2) ** 1.7)
+    // Full depth (→K) across the arc so every radial street runs the whole city;
+    // a short taper only at the 2:00/10:00 tips keeps the horseshoe shape.
+    const depth = Math.round(NBANDS - 7 * Math.max(0, d - 3.25) ** 1.7)
     return Math.max(3, Math.min(NBANDS, depth))
   }
   const colMin = 2.0
