@@ -96,12 +96,14 @@ export function cityGridGeoJson(): FeatureCollection {
   const campDepth = (t: number) => {
     const d = Math.abs(t - 6)
     // Full depth (→K) across the arc so every radial street runs the whole city;
-    // a short taper only at the 2:00/10:00 tips keeps the horseshoe shape.
-    const depth = Math.round(NBANDS - 7 * Math.max(0, d - 3.25) ** 1.7)
+    // past the tips a LINEAR 1-band-per-column diagonal taper keeps the horseshoe
+    // shape. (A power curve here jumped two bands at once, leaving an unfilled
+    // white notch — e.g. H→J skipping I — at the 2:00/10:00 ends.)
+    const depth = Math.round(NBANDS - 4 * Math.max(0, d - 3.1))
     return Math.max(3, Math.min(NBANDS, depth))
   }
   const colMin = 2.0
-  const colMax = 9.75
+  const colMax = 10.0
   // Center Camp keyhole: the open approach between the Esplanade and the plaza,
   // on either side of the 6:00 promenade, is NOT camps — it's the open throat
   // that the keyhole opens onto. Skip those inner blocks entirely.
