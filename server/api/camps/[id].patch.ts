@@ -29,6 +29,10 @@ export default defineEventHandler(async (event) => {
     set.contactEmail = body.contactEmail || null
   if (body.hometown !== undefined)
     set.hometown = body.hometown || null
+  if (body.frontageFt !== undefined)
+    set.frontageFt = body.frontageFt || null
+  if (body.depthFt !== undefined)
+    set.depthFt = body.depthFt || null
 
   const [updated] = await db.update(camps).set(set).where(eq(camps.id, id)).returning()
   return updated

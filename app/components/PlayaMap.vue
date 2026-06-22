@@ -7,7 +7,7 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
 // (.client components break template refs / onMounted DOM access in Nuxt.)
 
-interface CampPin { name: string, lat: number, lng: number, address: string }
+interface CampPin { name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null }
 
 const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean }>()
 
@@ -70,6 +70,38 @@ function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
       geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
     })),
   }
+}
+
+// Rectangular plot footprints for camps that set frontage/depth (feet): a box
+// centred on the pin, frontage along the street (tangential), depth radial.
+function campPlotsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
+  const [manLng, manLat] = getManPoint()
+  const MLAT = 111320
+  const MLNG = MLAT * Math.cos((manLat * Math.PI) / 180)
+  const features: GeoJSON.Feature[] = []
+  for (const c of pins) {
+    const fF = c.frontageFt ?? 0
+    const dF = c.depthFt ?? 0
+    if (fF <= 0 || dF <= 0)
+      continue
+    const E = (c.lng - manLng) * MLNG
+    const N = (c.lat - manLat) * MLAT
+    const r = Math.hypot(E, N) || 1
+    const rad: [number, number] = [E / r, N / r] // outward → depth axis
+    const tan: [number, number] = [-N / r, E / r] // along the street → frontage axis
+    const hf = (fF * 0.3048) / 2 // half-frontage, metres
+    const hd = (dF * 0.3048) / 2 // half-depth, metres
+    const corner = (sf: number, sd: number): [number, number] => [
+      manLng + (E + sf * hf * tan[0] + sd * hd * rad[0]) / MLNG,
+      manLat + (N + sf * hf * tan[1] + sd * hd * rad[1]) / MLAT,
+    ]
+    features.push({
+      type: 'Feature',
+      properties: { name: c.name },
+      geometry: { type: 'Polygon', coordinates: [[corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1), corner(-1, -1)]] },
+    })
+  }
+  return { type: 'FeatureCollection', features }
 }
 
 onMounted(async () => {
@@ -422,6 +454,22 @@ onMounted(async () => {
           .addTo(map)
       }
     })
+    // camp plot footprints (appear as you zoom in) — drawn under the pins
+    map.addSource('camp-plots', { type: 'geojson', data: campPlotsGeoJson(props.camps) })
+    map.addLayer({
+      id: 'camp-plots-fill',
+      type: 'fill',
+      source: 'camp-plots',
+      minzoom: 14.5,
+      paint: { 'fill-color': '#d6336c', 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 16, 0.14] },
+    })
+    map.addLayer({
+      id: 'camp-plots-outline',
+      type: 'line',
+      source: 'camp-plots',
+      minzoom: 14.5,
+      paint: { 'line-color': '#d6336c', 'line-width': 1.2, 'line-dasharray': [2, 1.5], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 16, 0.85] },
+    })
     // camp pins
     map.addSource('camps', { type: 'geojson', data: pinsGeoJson(props.camps) })
     map.addLayer({
@@ -491,10 +539,10 @@ watch(() => props.dropMode, (on) => {
   }
 })
 
-// keep camp pins in sync
+// keep camp pins + plot footprints in sync
 watch(() => props.camps, () => {
-  const src = map?.getSource('camps') as GeoJSONSource | undefined
-  src?.setData(pinsGeoJson(props.camps))
+  ;(map?.getSource('camps') as GeoJSONSource | undefined)?.setData(pinsGeoJson(props.camps))
+  ;(map?.getSource('camp-plots') as GeoJSONSource | undefined)?.setData(campPlotsGeoJson(props.camps))
 }, { deep: true })
 
 // keep art pins in sync

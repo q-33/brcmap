@@ -64,7 +64,7 @@ function toPins(items: any): CampPin[] {
   return (items ?? []).flatMap((c: any) =>
     (c.locations ?? [])
       .filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
-      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString) })),
+      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null })),
   )
 }
 const { data: campsData, refresh: refreshCamps } = await useFetch('/api/camps')
@@ -142,7 +142,7 @@ async function logout() {
 
 // the current user's own camps + art (for picking vs creating)
 type DropKind = 'camp' | 'art'
-interface MyItem { id: string, name: string, description?: string | null, website?: string | null, contactEmail?: string | null, hometown?: string | null }
+interface MyItem { id: string, name: string, description?: string | null, website?: string | null, contactEmail?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null }
 const { data: myCamps, refresh: refreshMineCamps } = await useFetch<MyItem[]>('/api/camps/mine', { immediate: false, default: () => [] })
 const { data: myArt, refresh: refreshMineArt } = await useFetch<MyItem[]>('/api/art/mine', { immediate: false, default: () => [] })
 watch(loggedIn, (v) => { if (v) { refreshMineCamps(); refreshMineArt() } }, { immediate: true })
@@ -241,7 +241,7 @@ async function dropPin() {
 
 // --- camp details (name / description / website / contact) ------------------
 const campEditOpen = ref(false)
-const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '' })
+const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null })
 const campSaveBusy = ref(false)
 const campSaveError = ref('')
 
@@ -254,6 +254,8 @@ function openCampEdit() {
   campForm.website = c.website ?? ''
   campForm.hometown = c.hometown ?? ''
   campForm.contactEmail = c.contactEmail ?? ''
+  campForm.frontageFt = c.frontageFt ?? null
+  campForm.depthFt = c.depthFt ?? null
   campSaveError.value = ''
   campEditOpen.value = true
 }
@@ -499,6 +501,13 @@ const itemOptions = computed(() => [
           <div class="grid grid-cols-2 gap-2">
             <UInput v-model="campForm.hometown" placeholder="Hometown" class="w-full" />
             <UInput v-model="campForm.contactEmail" type="email" placeholder="Contact email" class="w-full" />
+          </div>
+          <div>
+            <p class="mb-1 text-xs text-(--ui-text-muted)">Plot size (optional) — draws a footprint on the map as you zoom in</p>
+            <div class="grid grid-cols-2 gap-2">
+              <UInput v-model.number="campForm.frontageFt" type="number" min="0" placeholder="Frontage (ft)" class="w-full" />
+              <UInput v-model.number="campForm.depthFt" type="number" min="0" placeholder="Depth (ft)" class="w-full" />
+            </div>
           </div>
           <p v-if="campSaveError" class="text-sm text-red-600">{{ campSaveError }}</p>
           <div class="flex gap-2">

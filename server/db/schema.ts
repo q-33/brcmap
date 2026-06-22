@@ -96,6 +96,9 @@ export const camps = pgTable('camps', {
   url: text('url'),
   contactEmail: text('contact_email'),
   hometown: text('hometown'),
+  // optional plot footprint (feet): frontage along the street, depth radial
+  frontageFt: doublePrecision('frontage_ft'),
+  depthFt: doublePrecision('depth_ft'),
   hidden: boolean('hidden').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

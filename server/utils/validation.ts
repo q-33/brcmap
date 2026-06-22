@@ -97,6 +97,8 @@ export const campUpdateSchema = z.object({
   website: z.string().url().optional().or(z.literal('')),
   contactEmail: z.string().email().optional().or(z.literal('')),
   hometown: z.string().max(200).optional().or(z.literal('')),
+  frontageFt: z.number().min(0).max(3000).nullable().optional(),
+  depthFt: z.number().min(0).max(3000).nullable().optional(),
 })
 
 // A direct message to another registered user.
