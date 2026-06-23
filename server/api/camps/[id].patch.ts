@@ -1,9 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { campUpdateSchema } from '../../utils/validation'
 import { camps } from '../../db/schema'
+import { canManageAnyCamp } from '~~/lib/roles'
 
 // Update a camp's details (name, description, website, contact, hometown).
-// Owner-only (admins may also edit). Location/year are handled elsewhere.
+// Owner-only (BM Org + admins may edit any camp). Location/year handled elsewhere.
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const id = getRouterParam(event, 'id')
@@ -15,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const [camp] = await db.select({ ownerId: camps.ownerId }).from(camps).where(eq(camps.id, id)).limit(1)
   if (!camp)
     throw createError({ statusCode: 404, statusMessage: 'Camp not found' })
-  if (camp.ownerId !== user.id && user.role !== 'admin')
+  if (camp.ownerId !== user.id && !canManageAnyCamp(user.role))
     throw createError({ statusCode: 403, statusMessage: 'You do not own that camp' })
 
   const set: Record<string, unknown> = { updatedAt: new Date() }

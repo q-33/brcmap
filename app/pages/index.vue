@@ -16,7 +16,7 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
-const { hasFeature, refreshMe, isAdmin, isGpe, unreadMessages } = useMe()
+const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, canMakeCamp, unreadMessages } = useMe()
 
 // account dropdown — quick links to messages + the admin/GPE tools + log out
 const userMenu = computed(() => {
@@ -29,6 +29,9 @@ const userMenu = computed(() => {
   const tools: any[] = []
   if (isGpe.value)
     tools.push({ label: 'Gate conditions', icon: 'i-lucide-traffic-cone', to: '/gate' })
+  // BM Org can place/move any camp from the Camps list (admins use the dashboard).
+  if (canManageCamps.value && !isAdmin.value)
+    tools.push({ label: 'Place camps', icon: 'i-lucide-map-pin', to: '/camps' })
   if (isAdmin.value)
     tools.push(
       { label: 'Admin dashboard', icon: 'i-lucide-shield', to: '/admin' },
@@ -79,7 +82,7 @@ const artPins = computed<CampPin[]>(() => toPins(artData.value))
 const adminPlaceSaved = ref(false)
 const adminPlaceCamp = computed(() => {
   const id = route.query.adminCamp
-  if (typeof id !== 'string' || !isAdmin.value)
+  if (typeof id !== 'string' || !canManageCamps.value)
     return null
   const c = (campsData.value as any[] | null)?.find(x => x.id === id)
   if (!c)
@@ -374,7 +377,9 @@ const itemOptions = computed(() => [
 
       <div class="pointer-events-auto flex items-center gap-2">
         <template v-if="loggedIn">
-          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="myCamp ? openCampEdit() : startDrop('camp')">
+          <!-- Creating a camp is reserved for Theme Camp Organizers / Org / Admin;
+               anyone who already owns a camp can still edit it. -->
+          <UButton v-if="myCamp || canMakeCamp" size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="myCamp ? openCampEdit() : startDrop('camp')">
             <span class="hidden sm:inline">{{ myCamp ? 'Edit my camp' : 'Drop camp' }}</span>
           </UButton>
           <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" aria-label="Drop art" @click="startDrop('art')">
@@ -399,12 +404,12 @@ const itemOptions = computed(() => [
       <button type="button" class="text-white/60 underline hover:text-white" @click="cancelDrop">Cancel</button>
     </div>
 
-    <!-- admin place/move banner (from /admin → "Place") -->
+    <!-- place/move-any-camp banner (from the Camps list "Place on map", or /admin) -->
     <div v-if="adminPlaceCamp" class="pointer-events-auto absolute left-1/2 top-16 z-10 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
       <UIcon name="i-lucide-shield" class="size-4 shrink-0 text-primary" />
       <span class="truncate">Tap to {{ adminPlaceCamp.lat != null ? 'move' : 'place' }} <b>{{ adminPlaceCamp.name }}</b></span>
       <span v-if="adminPlaceSaved" class="shrink-0 text-green-400">saved&nbsp;✓</span>
-      <NuxtLink to="/admin" class="shrink-0 text-white/60 underline hover:text-white">Done</NuxtLink>
+      <NuxtLink :to="isAdmin ? '/admin' : '/camps'" class="shrink-0 text-white/60 underline hover:text-white">Done</NuxtLink>
     </div>
 
     <!-- lower-left stack: gate status widget above the layers panel -->

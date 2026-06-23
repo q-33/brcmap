@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FEATURES } from '~~/lib/features'
+import { ROLES } from '~~/lib/roles'
 
 interface AdminUser { id: string, email: string, displayName: string | null, role: string, createdAt: string, features: string[] }
 interface AdminCamp {
@@ -57,7 +58,7 @@ const ctab = ref<'camps' | 'art' | 'events'>('camps')
 const q = ref('')
 const filteredUsers = computed(() =>
   (users.value ?? []).filter(u => !q.value || `${u.email} ${u.displayName ?? ''}`.toLowerCase().includes(q.value.toLowerCase())))
-const roleItems = [{ label: 'User', value: 'user' }, { label: 'GPE', value: 'gpe' }, { label: 'Admin', value: 'admin' }]
+const roleItems = ROLES.map(r => ({ label: r.label, value: r.value as string }))
 
 const busy = ref('')
 const msg = ref('')
@@ -259,7 +260,7 @@ useHead({ title: 'Admin — BurnerMap' })
                 <p class="truncate text-sm font-medium">{{ u.displayName || '—' }}<UBadge v-if="u.id === myId" color="primary" variant="subtle" size="xs" class="ml-1">you</UBadge></p>
                 <p class="truncate text-xs text-(--ui-text-muted)">{{ u.email }}</p>
               </div>
-              <USelect :model-value="u.role" :items="roleItems" :disabled="u.id === myId || busy === u.id" size="sm" class="w-28" @update:model-value="(r:string) => setRole(u, r)" />
+              <USelect :model-value="u.role" :items="roleItems" :disabled="u.id === myId || busy === u.id" size="sm" class="w-40" @update:model-value="(r:string) => setRole(u, r)" />
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
               <span class="text-xs text-(--ui-text-muted)">Features:</span>

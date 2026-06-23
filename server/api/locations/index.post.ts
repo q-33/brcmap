@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { locationSchema } from '../../utils/validation'
 import { art, camps, locations } from '../../db/schema'
 import { addressToLatLng, formatAddress, latLngToAddress, parseAddress } from '~~/lib/brc/geocode'
+import { canManageAnyCamp } from '~~/lib/roles'
 
 // Mark a location for a camp/art the user owns. A tapped map point (lat/lng) is
 // stored EXACTLY where placed — the address is only a derived label. A typed BRC
@@ -11,13 +12,14 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, locationSchema.parse)
   const db = useDb()
 
-  // Verify the user owns the parent camp/art — admins may place any.
+  // Verify the user owns the parent camp/art. BM Org + admins may place ANY camp;
+  // the art override stays admin-only.
   const isAdmin = user.role === 'admin'
   if (body.campId) {
     const [c] = await db.select({ ownerId: camps.ownerId }).from(camps).where(eq(camps.id, body.campId)).limit(1)
     if (!c)
       throw createError({ statusCode: 404, statusMessage: 'Camp not found' })
-    if (c.ownerId !== user.id && !isAdmin)
+    if (c.ownerId !== user.id && !canManageAnyCamp(user.role))
       throw createError({ statusCode: 403, statusMessage: 'You do not own that camp' })
   }
   else if (body.artId) {

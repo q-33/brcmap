@@ -22,7 +22,8 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name'),
   playaName: text('playa_name'),
-  // 'user' (default) | 'gpe' (can post gate conditions) | 'admin'
+  // 'user' (default) | 'tco' (theme camp organizer — create/manage own camp) |
+  // 'gpe' (post gate conditions) | 'org' (BM Org — manage any camp + gate) | 'admin'
   role: text('role').notNull().default('user'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
