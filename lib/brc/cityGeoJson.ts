@@ -50,13 +50,17 @@ function block(rIn: number, rOut: number, t0: number, t1: number, camp: number, 
   return { type: 'Feature', properties: { kind: 'block', camp, shade: Math.round(shade * 100) / 100 }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
-// Center Camp geometry, from the official surveyed plaza polygon (GIS): the
-// Center Camp Plaza is a 79 m-radius circle centred on the Café Canopy, 915 m
-// (2,999 ft) from the Man on the 6:00 axis. It does NOT touch the Esplanade —
-// the 6:00 promenade is the keyhole "stem" connecting the open playa out to the
-// round plaza. Rod's Ring Road is that plaza ring.
-const CANOPY_M = 915
-const CENTER_CAMP_R = 79
+// Center Camp geometry, measured directly from the official 2026 plan PDF's
+// vector data: Rod's Ring Road is a ~40 m-radius circle centred on the Café
+// Canopy, 906 m from the Man on the 6:00 axis (the plaza ring + café sit at the
+// junction of four camp plots). The inner camp edge bows toward the Man at 6:00
+// into a blue "keyhole dome" whose apex reaches ~668 m (inside the Esplanade);
+// the camps FILL that dome — it is not an open throat.
+const CANOPY_M = 906
+const CENTER_CAMP_R = 40 // Rod's Ring Road radius (PDF: ~40 m)
+const CAFE_R = 18 // inner café circle
+const DOME_APEX_M = 668 // dome apex (toward the Man), from the PDF
+const DOME_HALF = 0.42 // dome half-width in clock-hours, from the PDF
 
 // A getter (not a module-load const) so it re-derives after the golden spike is
 // calibrated at runtime.
@@ -104,10 +108,11 @@ export function cityGridGeoJson(): FeatureCollection {
   }
   const colMin = 2.0
   const colMax = 10.0
-  // Center Camp keyhole: the open approach between the Esplanade and the plaza,
-  // on either side of the 6:00 promenade, is NOT camps — it's the open throat
-  // that the keyhole opens onto. Skip those inner blocks entirely.
-  const inKeyhole = (i: number, col: number) => i <= 1 && col > 5.5 && col < 6.5
+  // Center Camp: the camps FILL right up to the plaza (the official 2026 plan
+  // shows blue camps around a small Rod's Ring Road donut — the four plots that
+  // border it). Only the plaza circle itself is punched out (below); nothing is
+  // skipped here, so those four bordering plots render.
+  const inKeyhole = (_i: number, _col: number) => false
   // Radial-street density per the official 2026 plan (confirmed against the plan
   // PDF's own vector geometry): the hour & half-hour avenues run full depth, but
   // the quarter-hour avenues (X:15, X:45) exist ONLY from Fulcrum (F) outward.
@@ -234,26 +239,38 @@ export function cityGridGeoJson(): FeatureCollection {
     { time: 7.5, ringM: gRing, radiusM: PR },
   ]
 
-  // Center Camp: an open circular plaza ringed by Rod's Ring Road, with the
-  // keyhole "neck" — an arch protruding toward the Man at 6:00 (the official plan's
-  // upward bump) that the 6:00 promenade enters through.
+  // Center Camp (measured from the official 2026 PDF). The inner camp edge bows
+  // toward the Man at 6:00 into a blue "keyhole dome": a filled lens between the
+  // Esplanade and the dome arch (apex DOME_APEX_M), rendered as a camp block so
+  // it fills blue like the surrounding camps. The small Rod's Ring Road plaza +
+  // café are then punched out at the junction of the four bordering plots.
   const cc = getCenterCampPoint()
   const ccc = { lat: cc[1], lng: cc[0] }
+  const espR = STREET_RADII.Esplanade!
+  const domeSteps = 24
+  const domeRing: [number, number][] = []
+  // Man-side edge: the dome arch, apex toward the Man at 6:00.
+  for (let s = 0; s <= domeSteps; s++) {
+    const f = s / domeSteps
+    const t = 6 - DOME_HALF + 2 * DOME_HALF * f
+    domeRing.push(toLngLat(radialPoint(t, espR - (espR - DOME_APEX_M) * Math.sin(Math.PI * f))))
+  }
+  // Camp-side edge: back along the Esplanade arc, closing the lens.
+  for (let s = 0; s <= domeSteps; s++) {
+    const f = s / domeSteps
+    domeRing.push(toLngLat(radialPoint(6 + DOME_HALF - 2 * DOME_HALF * f, espR)))
+  }
+  domeRing.push(domeRing[0]!)
+  features.push({ type: 'Feature', properties: { kind: 'block', camp: 1, shade: 0 }, geometry: { type: 'Polygon', coordinates: [domeRing] } })
+
+  // Short camp spokes radiating from the plaza into the four bordering plots.
+  for (const t of [5.62, 5.81, 6.0, 6.19, 6.38]) {
+    push('portal', { type: 'LineString', coordinates: [toLngLat(radialPoint(t, CANOPY_M + CENTER_CAMP_R)), toLngLat(radialPoint(t, CANOPY_M + CENTER_CAMP_R + 70))] }, { name: '' })
+  }
+  // Rod's Ring Road plaza (punched out of the camps) + café.
   push('portal-fill', { type: 'Polygon', coordinates: [circleRing(ccc, CENTER_CAMP_R)] }, { name: 'Center Camp' })
   push('portal', { type: 'LineString', coordinates: circleRing(ccc, CENTER_CAMP_R) }, { name: 'Center Camp' }) // Rod's Ring Road
-  // The upward keyhole arch above the plaza (protrudes toward the Man).
-  const archBaseR = CANOPY_M - CENTER_CAMP_R // the plaza's Man-side edge
-  const archApexR = STREET_RADII.Esplanade! // a shallow dome reaching the Esplanade
-  const archHalf = 0.18 // half-width in clock-hours
-  const archSteps = 14
-  const arch: [number, number][] = []
-  for (let s = 0; s <= archSteps; s++) {
-    const f = s / archSteps
-    const t = 6 - archHalf + 2 * archHalf * f
-    const r = archBaseR - (archBaseR - archApexR) * Math.sin(Math.PI * f)
-    arch.push(toLngLat(radialPoint(t, r)))
-  }
-  push('portal', { type: 'LineString', coordinates: arch }, { name: 'Center Camp' })
+  push('portal', { type: 'LineString', coordinates: circleRing(ccc, CAFE_R) }, { name: '' }) // Café canopy
 
   for (const p of plazas) {
     const c = radialPoint(p.time, p.ringM)
