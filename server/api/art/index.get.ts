@@ -21,7 +21,8 @@ export default defineEventHandler(async (event) => {
   return db.query.art.findMany({
     where,
     orderBy: [desc(art.createdAt)],
-    limit: 200,
+    // Holds the full official art listing (250+ pieces) plus community submissions.
+    limit: 600,
     with: {
       locations: {
         columns: { addressString: true, gpsLatitude: true, gpsLongitude: true, createdAt: true },
