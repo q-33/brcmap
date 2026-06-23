@@ -20,7 +20,7 @@ interface Recent { type: string, id: string, label: string, createdAt: string }
 interface Audit { id: string, action: string, actor: string, targetType: string | null, targetId: string | null, detail: string | null, createdAt: string }
 
 const { loggedIn } = useUserSession()
-const { me, isAdmin } = useMe()
+const { me, isAdmin, refreshMe } = useMe()
 const myId = computed(() => me.value?.id)
 
 const { data: users, refresh: refreshUsers } = await useFetch<AdminUser[]>('/api/admin/users', { immediate: false, default: () => [] })
@@ -176,7 +176,7 @@ async function resolveReport(r: Report, status: 'resolved' | 'dismissed') {
 
 async function decideClaim(c: ClaimItem, status: 'approved' | 'rejected') {
   busy.value = c.id
-  try { await $fetch(`/api/admin/claims/${c.id}`, { method: 'PATCH', body: { status } }); await Promise.all([refreshClaims(), refreshContent(), refreshAudit()]) }
+  try { await $fetch(`/api/admin/claims/${c.id}`, { method: 'PATCH', body: { status } }); await Promise.all([refreshClaims(), refreshContent(), refreshAudit(), refreshMe()]) }
   catch (e: any) { msg.value = e?.data?.statusMessage ?? 'Could not update claim' }
   finally { busy.value = '' }
 }

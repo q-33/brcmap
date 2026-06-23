@@ -16,7 +16,7 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
-const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, canMakeCamp, unreadMessages } = useMe()
+const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, canMakeCamp, unreadMessages, pendingClaims } = useMe()
 
 // account dropdown — quick links to messages + the admin/GPE tools + log out
 const userMenu = computed(() => {
@@ -36,7 +36,7 @@ const userMenu = computed(() => {
     tools.push(
       { label: 'Admin dashboard', icon: 'i-lucide-shield', to: '/admin' },
       { label: 'Review queue', icon: 'i-lucide-inbox', to: { path: '/admin', query: { tab: 'queue' } } },
-      { label: 'Art claims', icon: 'i-lucide-hand', to: { path: '/admin', query: { tab: 'claims' } } },
+      { label: pendingClaims.value ? `Art claims (${pendingClaims.value})` : 'Art claims', icon: 'i-lucide-hand', to: { path: '/admin', query: { tab: 'claims' } } },
       { label: 'Reports', icon: 'i-lucide-flag', to: { path: '/admin', query: { tab: 'reports' } } },
       { label: 'People & roles', icon: 'i-lucide-users', to: { path: '/admin', query: { tab: 'people' } } },
       { label: 'Audit log', icon: 'i-lucide-scroll-text', to: { path: '/admin', query: { tab: 'audit' } } },

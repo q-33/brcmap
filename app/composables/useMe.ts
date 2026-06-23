@@ -1,6 +1,6 @@
 import { canCreateCamp, canManageAnyCamp, canPostGate } from '~~/lib/roles'
 
-export interface Me { id: string, email: string, displayName: string | null, role: string, features: string[], unreadMessages?: number }
+export interface Me { id: string, email: string, displayName: string | null, role: string, features: string[], unreadMessages?: number, pendingClaims?: number }
 
 // The current user with LIVE role + feature flags, fetched from /api/me (not the
 // login session snapshot) so role/feature grants apply without re-login.
@@ -15,6 +15,7 @@ export function useMe() {
   const canManageCamps = computed(() => canManageAnyCamp(me.value?.role))
   const canMakeCamp = computed(() => canCreateCamp(me.value?.role))
   const unreadMessages = computed(() => me.value?.unreadMessages ?? 0)
+  const pendingClaims = computed(() => me.value?.pendingClaims ?? 0)
 
   function hasFeature(key: string): boolean {
     const m = me.value
@@ -30,5 +31,5 @@ export function useMe() {
     }
   }
 
-  return { me, isAdmin, isOrg, isTco, isGpe, canManageCamps, canMakeCamp, unreadMessages, hasFeature, refreshMe }
+  return { me, isAdmin, isOrg, isTco, isGpe, canManageCamps, canMakeCamp, unreadMessages, pendingClaims, hasFeature, refreshMe }
 }

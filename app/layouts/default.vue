@@ -1,15 +1,16 @@
 <script setup lang="ts">
 const { loggedIn, user } = useUserSession()
-const { isAdmin, unreadMessages } = useMe()
+const { isAdmin, unreadMessages, pendingClaims } = useMe()
 
 const links = computed(() => [
-  { label: 'Camps', to: '/camps', icon: 'i-lucide-tent' },
-  { label: 'Art', to: '/art', icon: 'i-lucide-palette' },
-  { label: 'Events', to: '/events', icon: 'i-lucide-calendar' },
-  { label: 'Gate', to: '/gate', icon: 'i-lucide-traffic-cone' },
-  { label: 'Live', to: '/live', icon: 'i-lucide-radio' },
-  { label: 'Guide', to: '/guide', icon: 'i-lucide-compass' },
-  ...(isAdmin.value ? [{ label: 'Admin', to: '/admin', icon: 'i-lucide-shield' }] : []),
+  { label: 'Camps', to: '/camps', icon: 'i-lucide-tent', badge: 0 },
+  { label: 'Art', to: '/art', icon: 'i-lucide-palette', badge: 0 },
+  { label: 'Events', to: '/events', icon: 'i-lucide-calendar', badge: 0 },
+  { label: 'Gate', to: '/gate', icon: 'i-lucide-traffic-cone', badge: 0 },
+  { label: 'Live', to: '/live', icon: 'i-lucide-radio', badge: 0 },
+  { label: 'Guide', to: '/guide', icon: 'i-lucide-compass', badge: 0 },
+  // pending art claims badge on the Admin link
+  ...(isAdmin.value ? [{ label: 'Admin', to: '/admin', icon: 'i-lucide-shield', badge: pendingClaims.value }] : []),
 ])
 
 async function logout() {
@@ -34,17 +35,24 @@ async function logout() {
         <UButton to="/" icon="i-lucide-map" size="sm" color="neutral" variant="soft" class="shrink-0">Map</UButton>
 
         <nav class="hidden items-center gap-1 sm:flex">
-          <UButton
+          <UChip
             v-for="l in links"
             :key="l.to"
-            :to="l.to"
-            :icon="l.icon"
-            variant="ghost"
-            color="neutral"
-            size="sm"
+            :text="l.badge"
+            :show="l.badge > 0"
+            color="primary"
+            size="lg"
           >
-            {{ l.label }}
-          </UButton>
+            <UButton
+              :to="l.to"
+              :icon="l.icon"
+              variant="ghost"
+              color="neutral"
+              size="sm"
+            >
+              {{ l.label }}
+            </UButton>
+          </UChip>
         </nav>
 
         <div class="flex items-center gap-2">
