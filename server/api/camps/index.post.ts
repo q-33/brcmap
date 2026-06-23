@@ -7,7 +7,11 @@ import { canCreateCamp } from '~~/lib/roles'
 // Camp Organizers (tco), BM Org, and admins. One camp per user — edit the
 // existing one instead of creating another.
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event)
+  // Live role (not the session snapshot) so a freshly-granted TCO can create
+  // immediately, matching the client's live /api/me gating.
+  const user = await getFreshUser(event)
+  if (!user)
+    throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
   if (!canCreateCamp(user.role))
     throw createError({ statusCode: 403, statusMessage: 'Only Theme Camp Organizers can create a camp. Ask an admin to grant you the TCO role.' })
   const body = await readValidatedBody(event, campSchema.parse)

@@ -8,7 +8,10 @@ import { canManageAnyCamp } from '~~/lib/roles'
 // stored EXACTLY where placed — the address is only a derived label. A typed BRC
 // address is geocoded to the grid (intentionally snapped to an intersection).
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event)
+  // Live role so a freshly-granted Org can place any camp without re-login.
+  const user = await getFreshUser(event)
+  if (!user)
+    throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
   const body = await readValidatedBody(event, locationSchema.parse)
   const db = useDb()
 

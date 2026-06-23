@@ -6,7 +6,10 @@ import { canManageAnyCamp } from '~~/lib/roles'
 // Update a camp's details (name, description, website, contact, hometown).
 // Owner-only (BM Org + admins may edit any camp). Location/year handled elsewhere.
 export default defineEventHandler(async (event) => {
-  const user = await requireUser(event)
+  // Live role so a freshly-granted Org can edit any camp without re-login.
+  const user = await getFreshUser(event)
+  if (!user)
+    throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
   const id = getRouterParam(event, 'id')
   if (!id)
     throw createError({ statusCode: 400, statusMessage: 'Missing id' })
