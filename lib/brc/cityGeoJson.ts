@@ -326,8 +326,8 @@ const DPW_ZONE_M = (STREET_RADII.F! + STREET_RADII.G!) / 2
 export const CIVIC_LANDMARKS: CivicLandmark[] = [
   // Medical / care (red)
   { name: 'Rampart Hospital', category: 'medical', at: { time: 5.25, street: 'Esplanade' }, note: 'Main field hospital · ESD station' },
-  { name: 'First Aid · 3:00', category: 'medical', at: { time: 3, street: 'C' }, note: 'Medical + Ranger Outpost (Berlin)' },
-  { name: 'First Aid · 9:00', category: 'medical', at: { time: 9, street: 'C' }, note: 'Medical + Ranger Outpost (Tokyo)' },
+  { name: 'First Aid · 3:00', category: 'medical', at: { time: 3, street: 'B' }, note: 'Medical + Ranger Outpost (Berlin) · 3:00 Plaza' },
+  { name: 'First Aid · 9:00', category: 'medical', at: { time: 9, street: 'B' }, note: 'Medical + Ranger Outpost (Tokyo) · 9:00 Plaza' },
   // Safety (blue)
   { name: 'Ranger HQ', category: 'safety', at: { time: 6.5, street: 'Esplanade' }, note: 'Black Rock Rangers headquarters' },
   { name: 'Law Enforcement', category: 'safety', at: { time: 5.08, street: 'Esplanade' }, note: 'Law enforcement substation · by Rampart at 5:15 & Esplanade' },
