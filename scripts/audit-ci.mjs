@@ -11,14 +11,8 @@ import process from 'node:process'
 // Reviewed + accepted advisories. Each MUST have a justification and ideally a
 // fix plan. Keep this list short — prefer fixing the dependency.
 const ALLOW = new Map([
-  // drizzle-orm <0.45.2: SQL injection via improperly escaped SQL *identifiers*.
-  // We never pass user input as a column/table identifier (identifiers are
-  // static in server/db/schema.ts; all user values are bound params), so our
-  // exposure is nil. Fix: bump drizzle-orm to >=0.45.2 (test the relational
-  // query paths first — it's a notable minor jump).
-  ['GHSA-gpj5-g38j-94v9', 'drizzle-orm — not exploitable in our usage; upgrade to >=0.45.2'],
-  // The following are dev-only test tooling (vitest/vite) — never shipped to
-  // production. Fix: upgrade to vitest 3.x.
+  // Dev-only test tooling (vitest/vite) — never shipped to production.
+  // Fix: upgrade to vitest 3.x.
   ['GHSA-9crc-q9x8-hgqq', 'vitest <2.1.9 — dev test runner only'],
   ['GHSA-5xrq-8626-4rwp', 'vitest <3.2.6 — dev test runner only'],
   ['GHSA-fx2h-pf6j-xcff', 'vite (via vitest) — dev only'],
