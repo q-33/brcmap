@@ -3,6 +3,8 @@ import { registerSchema } from '../../utils/validation'
 import { users } from '../../db/schema'
 
 export default defineEventHandler(async (event) => {
+  // Throttle account-creation spam + email-enumeration probing.
+  rateLimit(event, 'register-ip', 5, 60 * 60_000)
   const { email, password, displayName } = await readValidatedBody(event, registerSchema.parse)
   const db = useDb()
 

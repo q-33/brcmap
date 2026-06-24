@@ -30,5 +30,11 @@ export default defineEventHandler(async (event) => {
       },
     },
   })
-  return rows
+  // contactEmail is owner PII the public UI never displays — don't ship it over
+  // the public API (contact goes through in-app messaging instead).
+  return rows.map((c) => {
+    const o = { ...c } as Record<string, unknown>
+    delete o.contactEmail
+    return o
+  })
 })

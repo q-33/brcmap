@@ -62,6 +62,14 @@ const el = useTemplateRef<HTMLDivElement>('mapEl')
 let map: MlMap | undefined
 let pickMarker: Marker | undefined
 
+// Escape user-controlled text before it goes into a popup's innerHTML (setHTML).
+// Camp/art names + addresses are user input, so without this a name like
+// `<img src=x onerror=…>` would execute (stored XSS).
+const HTML_ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }
+function esc(v: unknown): string {
+  return String(v ?? '').replace(/[&<>"']/g, c => HTML_ESC[c]!)
+}
+
 function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
@@ -525,10 +533,10 @@ onMounted(async () => {
     map.on('click', 'civic-dots', (e) => {
       const f = e.features?.[0]
       if (f && map) {
-        const note = f.properties?.note ? `<br>${f.properties.note}` : ''
+        const note = f.properties?.note ? `<br>${esc(f.properties.note)}` : ''
         new maplibregl.Popup()
           .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${f.properties?.name}</b>${note}`)
+          .setHTML(`<b>${esc(f.properties?.name)}</b>${note}`)
           .addTo(map)
       }
     })
@@ -552,7 +560,7 @@ onMounted(async () => {
       if (f && map) {
         new maplibregl.Popup()
           .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${f.properties?.name}</b><br>${f.properties?.address ?? ''}`)
+          .setHTML(`<b>${esc(f.properties?.name)}</b><br>${esc(f.properties?.address)}`)
           .addTo(map)
       }
     })
@@ -613,7 +621,7 @@ onMounted(async () => {
       if (f && map) {
         new maplibregl.Popup()
           .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${f.properties?.name}</b><br>${f.properties?.address ?? ''}`)
+          .setHTML(`<b>${esc(f.properties?.name)}</b><br>${esc(f.properties?.address)}`)
           .addTo(map)
       }
     })

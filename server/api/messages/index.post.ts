@@ -5,6 +5,8 @@ import { messageSchema } from '../../utils/validation'
 // Send a 1:1 direct message to another registered user.
 export default defineEventHandler(async (event) => {
   const sender = await requireUser(event)
+  // Cap message volume per sender (the email nudge makes this an abuse vector).
+  rateLimit(event, 'msg', 20, 10 * 60_000, sender.id)
   const { recipientId, body } = await readValidatedBody(event, messageSchema.parse)
 
   if (recipientId === sender.id)

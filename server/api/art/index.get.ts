@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   // Hidden (admin-moderated) art never appears in public listings.
   const where = and(eq(art.hidden, false), search)
 
-  return db.query.art.findMany({
+  const rows = await db.query.art.findMany({
     where,
     orderBy: [desc(art.createdAt)],
     // Holds the full official art listing (250+ pieces) plus community submissions.
@@ -28,5 +28,12 @@ export default defineEventHandler(async (event) => {
         columns: { addressString: true, gpsLatitude: true, gpsLongitude: true, createdAt: true },
       },
     },
+  })
+  // Don't ship owner PII (contactEmail) or the unused legacy url over the public API.
+  return rows.map((a) => {
+    const o = { ...a } as Record<string, unknown>
+    delete o.contactEmail
+    delete o.url
+    return o
   })
 })

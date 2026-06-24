@@ -45,5 +45,11 @@ export default defineEventHandler(async (event) => {
     myClaim = c ? { status: c.status } : null
   }
 
-  return { ...row, isOwner, contributions, myClaim }
+  const out = { ...row, isOwner, contributions, myClaim } as Record<string, unknown>
+  // Only the owner needs the contact email / legacy url; strip for everyone else.
+  if (!isOwner) {
+    delete out.contactEmail
+    delete out.url
+  }
+  return out
 })
