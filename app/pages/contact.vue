@@ -4,12 +4,17 @@ const busy = ref(false)
 const sent = ref(false)
 const error = ref('')
 
+const failed = ref(false)
 async function submit() {
   busy.value = true
   error.value = ''
+  failed.value = false
   try {
-    await $fetch('/api/contact', { method: 'POST', body: { ...form } })
-    sent.value = true
+    const res = await $fetch<{ ok: boolean }>('/api/contact', { method: 'POST', body: { ...form } })
+    if (res?.ok)
+      sent.value = true
+    else
+      failed.value = true // email transport unavailable → show mailto fallback
   }
   catch (e: any) {
     error.value = e?.data?.statusMessage ?? 'Could not send your message.'
@@ -33,6 +38,11 @@ useHead({ title: 'Contact — BurnerMap' })
       <div v-if="sent" class="space-y-3 py-2 text-center">
         <UIcon name="i-lucide-send" class="mx-auto size-10 text-primary" />
         <p class="text-sm">Thanks — your message is on its way. I will reply to <b>{{ form.email }}</b>.</p>
+      </div>
+      <div v-else-if="failed" class="space-y-3 py-2 text-center">
+        <UIcon name="i-lucide-mail-warning" class="mx-auto size-10 text-amber-500" />
+        <p class="text-sm">Sorry — the contact form can't send right now. Please email me directly:</p>
+        <UButton :to="`mailto:digit@burnermap.org?subject=BurnerMap&body=${encodeURIComponent(form.message)}`" icon="i-lucide-mail">Email digit@burnermap.org</UButton>
       </div>
       <form v-else class="space-y-3" @submit.prevent="submit">
         <div class="grid gap-3 sm:grid-cols-2">

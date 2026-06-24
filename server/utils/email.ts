@@ -29,6 +29,11 @@ function transporter(): Transporter | null {
       port,
       secure: port === 465, // implicit SSL on 465; STARTTLS otherwise
       auth: { user: process.env.SMTP_USER ?? 'digit@burnermap.org', pass },
+      // Fail fast instead of hanging the request if outbound SMTP is blocked
+      // (some hosts, incl. DigitalOcean App Platform, block ports 465/587).
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
     })
   }
   return _transporter

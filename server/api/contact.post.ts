@@ -14,8 +14,7 @@ export default defineEventHandler(async (event) => {
     html: `<p><strong>${esc(name)}</strong> &lt;${esc(email)}&gt; wrote via the BurnerMap contact form:</p>`
       + `<blockquote style="margin:12px 0;padding:8px 12px;border-left:3px solid #e1641a;color:#444;white-space:pre-wrap">${esc(message)}</blockquote>`,
   })
-  if (!ok)
-    throw createError({ statusCode: 503, statusMessage: 'Email isn’t set up yet — please write to digit@burnermap.org directly.' })
-
-  return { ok: true }
+  // Always 200 — the client shows the mailto fallback when ok is false (avoids
+  // edge-mangled 5xx responses and gives a graceful path if SMTP is down).
+  return { ok }
 })
