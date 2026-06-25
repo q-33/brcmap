@@ -26,22 +26,6 @@ const OUTER = STREETS[STREETS.length - 1]! // Kundalini (K)
 const toLngLat = (p: { lat: number, lng: number }): [number, number] => [p.lng, p.lat]
 const HALF_STREET_M = 6 // half the street width → the gap between blocks
 
-// Local metric helpers around a city point, for plaza interior geometry.
-// `radTanAt` gives the radial (toward/away from the Man) + tangential (along the
-// street) unit axes at a point; `metricOffset` moves a point by Δeast/Δnorth (m).
-const M_PER_DEG_LAT = 111320
-function radTanAt(center: { lat: number, lng: number }): { rad: [number, number], tan: [number, number] } {
-  const mLng = M_PER_DEG_LAT * Math.cos((MAN.lat * Math.PI) / 180)
-  const E = (center.lng - MAN.lng) * mLng
-  const N = (center.lat - MAN.lat) * M_PER_DEG_LAT
-  const r = Math.hypot(E, N) || 1
-  return { rad: [E / r, N / r], tan: [-N / r, E / r] }
-}
-function metricOffset(center: { lat: number, lng: number }, de: number, dn: number): [number, number] {
-  const mLng = M_PER_DEG_LAT * Math.cos((center.lat * Math.PI) / 180)
-  return [center.lng + de / mLng, center.lat + dn / M_PER_DEG_LAT]
-}
-
 function arcAt(radiusM: number, tMin: number, tMax: number): [number, number][] {
   const pts: [number, number][] = []
   for (let t = tMin; t <= tMax + 1e-9; t += 0.1)
@@ -292,26 +276,11 @@ export function cityGridGeoJson(): FeatureCollection {
   push('portal', { type: 'LineString', coordinates: circleRing(ccc, CENTER_CAMP_R) }, { name: 'Center Camp' }) // Rod's Ring Road
   push('portal', { type: 'LineString', coordinates: circleRing(ccc, CAFE_R) }, { name: '' }) // Café canopy
 
-  // A small center island and four connector stubs (the avenue + cross-street
-  // meeting the plaza), matching the official plan's plaza geometry instead of a
-  // plain open disc.
-  const ISLAND_R = 6 // center island circle radius (m)
   for (const p of plazas) {
     const c = radialPoint(p.time, p.ringM)
     const ring = circleRing(c, p.radiusM)
     push('portal-fill', { type: 'Polygon', coordinates: [ring] }, { name: p.label ?? '' })
     push('portal', { type: 'LineString', coordinates: ring }, { name: p.label ?? '' })
-    // center island
-    push('portal', { type: 'LineString', coordinates: circleRing(c, ISLAND_R) }, { name: '' })
-    // four stubs: island → ring along the radial avenue (±) and cross-street (±)
-    const { rad, tan } = radTanAt(c)
-    const dirs: [number, number][] = [rad, [-rad[0], -rad[1]], tan, [-tan[0], -tan[1]]]
-    for (const u of dirs) {
-      push('portal', { type: 'LineString', coordinates: [
-        metricOffset(c, ISLAND_R * u[0], ISLAND_R * u[1]),
-        metricOffset(c, p.radiusM * u[0], p.radiusM * u[1]),
-      ] }, { name: '' })
-    }
     if (p.label)
       push('portal-label', { type: 'Point', coordinates: [c.lng, c.lat] }, { name: p.label })
   }

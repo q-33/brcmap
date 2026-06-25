@@ -10,10 +10,8 @@ describe('cityGridGeoJson', () => {
     const portals = fc.features.filter(f => f.properties?.kind === 'portal')
     expect(blocks.length).toBeGreaterThan(200) // 11 ring bands × ~31 columns
     expect(labels.length).toBe(12) // Esplanade + A..K
-    // 9 clock plazas (B ring 4 + G ring 5), each: outline ring + center island +
-    // 4 connector stubs = 6 → 54. Plus Center Camp [Rod's Ring Road + café +
-    // 5 plaza spokes = 7]. 54 + 7 = 61.
-    expect(portals.length).toBe(61)
+    // B ring (4) + G ring (5) + Center Camp [Rod's Ring Road + café + 5 plaza spokes = 7]
+    expect(portals.length).toBe(16)
     expect(labels.find(l => l.properties?.name === 'Eternal')).toBeTruthy()
   })
 
