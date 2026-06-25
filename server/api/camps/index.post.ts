@@ -1,19 +1,11 @@
 import { eq } from 'drizzle-orm'
 import { campSchema } from '../../utils/validation'
 import { camps } from '../../db/schema'
-import { canCreateCamp } from '~~/lib/roles'
 
-// Create a camp owned by the current user. Creating a camp is reserved for Theme
-// Camp Organizers (tco), BM Org, and admins. One camp per user — edit the
-// existing one instead of creating another.
+// Create a camp owned by the current user. Any signed-in user may create one
+// (one camp per user — edit the existing one instead of creating another).
 export default defineEventHandler(async (event) => {
-  // Live role (not the session snapshot) so a freshly-granted TCO can create
-  // immediately, matching the client's live /api/me gating.
-  const user = await getFreshUser(event)
-  if (!user)
-    throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
-  if (!canCreateCamp(user.role))
-    throw createError({ statusCode: 403, statusMessage: 'Only Theme Camp Organizers can create a camp. Ask an admin to grant you the TCO role.' })
+  const user = await requireUser(event)
   const body = await readValidatedBody(event, campSchema.parse)
   const db = useDb()
 

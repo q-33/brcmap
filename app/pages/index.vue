@@ -16,7 +16,7 @@ interface CampPin { name: string, lat: number, lng: number, address: string }
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
-const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, canMakeCamp, unreadMessages, pendingClaims } = useMe()
+const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, unreadMessages, pendingClaims } = useMe()
 
 // account dropdown — quick links to messages + the admin/GPE tools + log out
 const userMenu = computed(() => {
@@ -392,9 +392,8 @@ const itemOptions = computed(() => [
 
       <div class="pointer-events-auto flex items-center gap-2">
         <template v-if="loggedIn">
-          <!-- Creating a camp is reserved for Theme Camp Organizers / Org / Admin;
-               anyone who already owns a camp can still edit it. -->
-          <UButton v-if="myCamp || canMakeCamp" size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="myCamp ? openCampEdit() : startDrop('camp')">
+          <!-- Any signed-in user can drop a camp (or edit the one they own). -->
+          <UButton size="sm" color="primary" :icon="myCamp ? 'i-lucide-pencil' : 'i-lucide-map-pin'" :variant="dropMode === 'camp' ? 'soft' : 'solid'" :aria-label="myCamp ? 'Edit my camp' : 'Drop camp'" @click="myCamp ? openCampEdit() : startDrop('camp')">
             <span class="hidden sm:inline">{{ myCamp ? 'Edit my camp' : 'Drop camp' }}</span>
           </UButton>
           <UButton size="sm" color="neutral" variant="solid" class="bg-[#7c3aed]/85 text-white backdrop-blur-xl" icon="i-lucide-palette" aria-label="Drop art" @click="startDrop('art')">
