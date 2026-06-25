@@ -55,8 +55,8 @@ mark your camp's location before you arrive and update it once you have service 
 - **Roles** — `user` / `gpe` (Gate Road) / `tco` (theme-camp organizer) /
   `org` (Burning Man Org) / `admin`, applied live without re-login.
 - **Admin panel** — moderation queue, content reports, people & roles, content management
-  (edit/hide/delete camps, art, events), art-claim review, a who's-online view, and an
-  audit log.
+  (edit/hide/delete camps, art, events), art-claim review, a who's-online view, a recent
+  submissions feed, and an audit log.
 - **Camp moderation from the list** — admins/Org can edit a camp's details from the public
   Camps list; admins can delete camps created in error.
 - **Convert art to camp** — an admin tool to fix pins dropped as art that should be camps.
@@ -116,9 +116,9 @@ pnpm build        # production (Nitro Node) build
 pnpm audit:ci     # fail on new high/critical dependency advisories
 ```
 
-CI runs test + typecheck + build on every push to `main`, plus a dependency-audit job
-that also re-runs weekly so newly-disclosed advisories surface without a commit
-(see the badge above).
+CI runs test + typecheck + build on every push to `main` and every pull request, plus a
+dependency-audit job that also re-runs weekly so newly-disclosed advisories surface
+without a commit (see the badge above).
 
 ## The BRC geocoder
 
