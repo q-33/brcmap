@@ -13,8 +13,7 @@ function namedAddress(s: string | null | undefined): string | null {
 interface Loc { addressString: string | null, gpsLatitude: number | null, gpsLongitude: number | null, createdAt: string }
 interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, website: string | null, frontageFt: number | null, depthFt: number | null, owner: { id: string, displayName: string | null } | null, locations: Loc[] }
 
-const { loggedIn } = useUserSession()
-const { me, canManageCamps, isAdmin } = useMe()
+const { canManageCamps, isAdmin } = useMe()
 const toast = useToast()
 
 const q = ref('')
@@ -127,7 +126,7 @@ useHead({ title: 'Camps — BurnerMap' })
         <a v-if="c.website" :href="c.website" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline">
           <UIcon name="i-lucide-link" class="size-3" />{{ c.website.replace(/^https?:\/\/(www\.)?/, '') }}
         </a>
-        <template v-if="mapped(c) || (c.owner && c.owner.id !== me?.id) || canManageCamps" #footer>
+        <template v-if="mapped(c) || canManageCamps" #footer>
           <div class="flex items-center gap-3">
             <UButton
               v-if="mapped(c)"
@@ -137,16 +136,6 @@ useHead({ title: 'Camps — BurnerMap' })
               class="px-0"
             >
               View on map →
-            </UButton>
-            <UButton
-              v-if="c.owner && c.owner.id !== me?.id"
-              :to="loggedIn ? `/messages/${c.owner.id}` : '/?login=1'"
-              size="xs"
-              variant="link"
-              class="px-0"
-              icon="i-lucide-mail"
-            >
-              {{ loggedIn ? 'Message organizer' : 'Log in to message' }}
             </UButton>
             <!-- BM Org / Admin: place or move this camp on the map -->
             <UButton
