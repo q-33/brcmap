@@ -83,6 +83,22 @@ function trashFence(): [number, number][] {
   return ring
 }
 
+// Helpers for the lower entry/perimeter roads. The two southern fence vertices
+// (P1 = bottom-left, P5 = bottom-right) frame the 6:00 entrance; `towardMan`
+// seats a point a few metres inside the fence so the roads read as inside it.
+const M_PER_DEG_LAT = 111320
+function fenceVertex(i: number): { lat: number, lng: number } {
+  const [dlng, dlat] = FENCE_OFFSETS[i]!
+  return { lat: MAN.lat + dlat, lng: MAN.lng + dlng }
+}
+function towardMan(p: { lat: number, lng: number }, byM: number): { lat: number, lng: number } {
+  const mLng = M_PER_DEG_LAT * Math.cos((MAN.lat * Math.PI) / 180)
+  const E = (MAN.lng - p.lng) * mLng
+  const N = (MAN.lat - p.lat) * M_PER_DEG_LAT
+  const d = Math.hypot(E, N) || 1
+  return { lat: p.lat + (N / d) * byM / M_PER_DEG_LAT, lng: p.lng + (E / d) * byM / mLng }
+}
+
 export function cityGridGeoJson(): FeatureCollection {
   const features: Feature[] = []
   const push = (kind: string, geometry: any, props: Record<string, any> = {}) =>
@@ -213,6 +229,27 @@ export function cityGridGeoJson(): FeatureCollection {
   // straight through the plaza.
   push('avenue', { type: 'LineString', coordinates: radial(6, MAN_R, CANOPY_M - CENTER_CAMP_R) })
   push('gate-road', { type: 'LineString', coordinates: radial(6, CANOPY_M + CENTER_CAMP_R, 2350) })
+
+  // Lower entry/perimeter roads, matching the official plan's 6:00 entrance:
+  //  • two access roads from the outer street (K) at 5:00 & 7:00 down to the
+  //    bottom fence corners, and
+  //  • a perimeter road along the inside of the fence's bottom edge, broken at
+  //    the centre to leave the 6:00 gate opening (the gate-road runs through it).
+  const bl = towardMan(fenceVertex(0), 30) // bottom-left corner, inside the fence
+  const br = towardMan(fenceVertex(4), 30) // bottom-right corner
+  push('avenue', { type: 'LineString', coordinates: [toLngLat(radialPoint(7, kRadius + 12)), toLngLat(bl)] })
+  push('avenue', { type: 'LineString', coordinates: [toLngLat(radialPoint(5, kRadius + 12)), toLngLat(br)] })
+  // perimeter road with a centred gate gap
+  const mid = { lat: (bl.lat + br.lat) / 2, lng: (bl.lng + br.lng) / 2 }
+  const mLng = M_PER_DEG_LAT * Math.cos((MAN.lat * Math.PI) / 180)
+  const eE = (br.lng - bl.lng) * mLng
+  const eN = (br.lat - bl.lat) * M_PER_DEG_LAT
+  const eLen = Math.hypot(eE, eN) || 1
+  const GATE_HALF = 100 // metres of opening either side of the 6:00 axis
+  const gateL = { lat: mid.lat - (eN / eLen) * GATE_HALF / M_PER_DEG_LAT, lng: mid.lng - (eE / eLen) * GATE_HALF / mLng }
+  const gateR = { lat: mid.lat + (eN / eLen) * GATE_HALF / M_PER_DEG_LAT, lng: mid.lng + (eE / eLen) * GATE_HALF / mLng }
+  push('avenue', { type: 'LineString', coordinates: [toLngLat(bl), toLngLat(gateL)] })
+  push('avenue', { type: 'LineString', coordinates: [toLngLat(br), toLngLat(gateR)] })
 
   // Airport Road — branches off the 5:00 radial at the outer street and runs out
   // to the BRC Municipal Airport (88NV), south-east of the city beyond the fence.
