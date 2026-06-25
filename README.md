@@ -66,9 +66,9 @@ mark your camp's location before you arrive and update it once you have service 
 
 ### Security
 - Per-route rate limiting (login, registration, contributions), same-origin CSRF checks
-  on API mutations, HTML-escaped map popups (no stored XSS), single-use SHA-256-hashed
-  password-reset tokens, and timing-equalized login. New high/critical dependency
-  advisories fail CI.
+  on API mutations, HTML-escaped map popups (so a camp/art name can't inject script),
+  single-use SHA-256-hashed password-reset tokens, and timing-equalized login. New
+  high/critical dependency advisories fail CI.
 
 ## Stack
 
