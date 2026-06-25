@@ -11,17 +11,72 @@ function namedAddress(s: string | null | undefined): string | null {
 }
 
 interface Loc { addressString: string | null, gpsLatitude: number | null, gpsLongitude: number | null, createdAt: string }
-interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, website: string | null, owner: { id: string, displayName: string | null } | null, locations: Loc[] }
+interface Camp { id: string, name: string, year: number, description: string | null, hometown: string | null, website: string | null, frontageFt: number | null, depthFt: number | null, owner: { id: string, displayName: string | null } | null, locations: Loc[] }
 
 const { loggedIn } = useUserSession()
-const { me, canManageCamps } = useMe()
+const { me, canManageCamps, isAdmin } = useMe()
+const toast = useToast()
 
 const q = ref('')
 const debounced = refDebounced(q, 250)
 
-const { data: camps, status } = await useFetch<Camp[]>('/api/camps', {
+const { data: camps, status, refresh } = await useFetch<Camp[]>('/api/camps', {
   query: { q: debounced },
 })
+
+// --- manager/admin moderation: edit details or delete a camp made in error ---
+const editOpen = ref(false)
+const editId = ref('')
+const editBusy = ref(false)
+const editError = ref('')
+const form = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null })
+function openEdit(c: Camp & { frontageFt?: number | null, depthFt?: number | null }) {
+  editId.value = c.id
+  editError.value = ''
+  form.name = c.name
+  form.description = c.description ?? ''
+  form.website = c.website ?? ''
+  form.hometown = c.hometown ?? ''
+  form.contactEmail = ''
+  form.frontageFt = (c as any).frontageFt ?? null
+  form.depthFt = (c as any).depthFt ?? null
+  editOpen.value = true
+}
+async function saveEdit() {
+  if (!form.name.trim())
+    return
+  editBusy.value = true
+  editError.value = ''
+  try {
+    await $fetch(`/api/camps/${editId.value}`, { method: 'PATCH', body: { ...form } })
+    await refresh()
+    editOpen.value = false
+    toast.add({ title: 'Camp updated', color: 'success', icon: 'i-lucide-check' })
+  }
+  catch (e: any) {
+    editError.value = e?.data?.statusMessage ?? 'Could not save'
+  }
+  finally {
+    editBusy.value = false
+  }
+}
+const deletingId = ref('')
+async function removeCamp(c: Camp) {
+  if (!confirm(`Delete camp “${c.name}”? This also removes its pin and events. This cannot be undone.`))
+    return
+  deletingId.value = c.id
+  try {
+    await $fetch(`/api/admin/camps/${c.id}`, { method: 'DELETE' })
+    await refresh()
+    toast.add({ title: 'Camp deleted', description: c.name, color: 'success', icon: 'i-lucide-trash-2' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Could not delete', description: e?.data?.statusMessage ?? 'Try again', color: 'error' })
+  }
+  finally {
+    deletingId.value = ''
+  }
+}
 
 function currentLocation(c: Camp): Loc | undefined {
   return [...c.locations].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
@@ -104,6 +159,18 @@ useHead({ title: 'Camps — BurnerMap' })
             >
               {{ mapped(c) ? 'Move on map' : 'Place on map' }}
             </UButton>
+            <UButton
+              v-if="canManageCamps && mapped(c)"
+              :to="`/?editCamp=${c.id}`"
+              size="xs"
+              variant="link"
+              class="px-0"
+              icon="i-lucide-frame"
+            >
+              Boundary
+            </UButton>
+            <UButton v-if="canManageCamps" size="xs" variant="link" class="px-0" icon="i-lucide-pencil" @click="openEdit(c)">Edit</UButton>
+            <UButton v-if="isAdmin" size="xs" variant="link" color="error" class="px-0" icon="i-lucide-trash-2" :loading="deletingId === c.id" @click="removeCamp(c)">Delete</UButton>
           </div>
         </template>
       </UCard>
@@ -114,5 +181,27 @@ useHead({ title: 'Camps — BurnerMap' })
       <p v-if="q">No camps match “{{ q }}”.</p>
       <p v-else>No camps yet. Be the first to drop a pin on the map!</p>
     </div>
+
+    <!-- manager/admin: edit a camp's details in place -->
+    <UModal v-model:open="editOpen" title="Edit camp">
+      <template #body>
+        <form class="space-y-3" @submit.prevent="saveEdit">
+          <UInput v-model="form.name" placeholder="Camp name" class="w-full" />
+          <UTextarea v-model="form.description" :rows="3" autoresize placeholder="Description" class="w-full" />
+          <UInput v-model="form.website" type="url" placeholder="Website — https://…" icon="i-lucide-link" class="w-full" />
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model="form.hometown" placeholder="Hometown" class="w-full" />
+            <UInput v-model="form.contactEmail" type="email" placeholder="Contact email" class="w-full" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model.number="form.frontageFt" type="number" min="0" placeholder="Frontage (ft)" class="w-full" />
+            <UInput v-model.number="form.depthFt" type="number" min="0" placeholder="Depth (ft)" class="w-full" />
+          </div>
+          <p class="text-xs text-(--ui-text-muted)">Tip: use “Boundary” to drag the pin &amp; resize the plot live on the map.</p>
+          <p v-if="editError" class="text-sm text-red-600">{{ editError }}</p>
+          <UButton type="submit" block :loading="editBusy" :disabled="!form.name.trim()">Save details</UButton>
+        </form>
+      </template>
+    </UModal>
   </UContainer>
 </template>

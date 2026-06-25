@@ -150,8 +150,13 @@ function plotGeometry(lat: number, lng: number, frontageFt: number, depthFt: num
   return {
     MLNG, MLAT, E, N, manLng, manLat, rad, tan,
     ring: [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1), corner(-1, -1)],
-    frontageHandle: pt(hf * tan[0], hf * tan[1]), // +tangential edge midpoint
-    depthHandle: pt(hd * rad[0], hd * rad[1]), // +radial (outer) edge midpoint
+    // midpoint of each side, for the editor's draggable edge handles
+    handles: {
+      outer: pt(hd * rad[0], hd * rad[1]), // +radial (away from the Man) → depth
+      inner: pt(-hd * rad[0], -hd * rad[1]), // −radial (toward the Man) → depth
+      right: pt(hf * tan[0], hf * tan[1]), // +tangential → frontage
+      left: pt(-hf * tan[0], -hf * tan[1]), // −tangential → frontage
+    },
   }
 }
 
@@ -235,19 +240,25 @@ function shadowsGeoJson(pins: CampPin[], sunTime: number | null | undefined): Ge
 }
 
 // --- live boundary editor --------------------------------------------------
-// A green plot overlay with three draggable markers: the centre pin (reposition)
-// and two edge handles that resize frontage (tangential) and depth (radial).
-// All editing happens on the map; the parent's panel is a readout + Save/Cancel.
+// A green plot overlay with five draggable markers: the centre pin (moves the
+// whole plot) and one handle on each of the four sides. Dragging a side moves
+// that boundary while the opposite side stays put — so you reshape the plot, not
+// just recentre it. The model stays {centre pin + frontage + depth}: an edge
+// drag updates the dimension AND shifts the pin so the far edge holds, which the
+// stored geometry (which centres the box on the pin) reproduces exactly.
 // `edit` is the single source of truth; the parent receives it via `editChange`.
+type EdgeKey = 'outer' | 'inner' | 'left' | 'right'
 const MIN_FT = 20
 const MAX_FT = 3000
+const MIN_M = MIN_FT * 0.3048
+const MAX_M = MAX_FT * 0.3048
 const edit = { id: '', lat: 0, lng: 0, frontageFt: 0, depthFt: 0 }
 let editCenter: Marker | undefined
-let editFront: Marker | undefined
-let editDepth: Marker | undefined
+const editEdges: Partial<Record<EdgeKey, Marker>> = {}
 
 const clampFt = (v: number): number => Math.max(MIN_FT, Math.min(MAX_FT, Math.round(v)))
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+const EDGE_AXIS: Record<EdgeKey, 'frontage' | 'depth'> = { outer: 'depth', inner: 'depth', left: 'frontage', right: 'frontage' }
 
 function handleEl(title: string): HTMLDivElement {
   const d = document.createElement('div')
@@ -265,35 +276,48 @@ function renderEdit(): void {
     features: [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [g.ring] } }],
   })
   editCenter?.setLngLat([edit.lng, edit.lat])
-  editFront?.setLngLat(g.frontageHandle)
-  editDepth?.setLngLat(g.depthHandle)
+  for (const k of Object.keys(g.handles) as EdgeKey[])
+    editEdges[k]?.setLngLat(g.handles[k])
   emit('editChange', { lat: edit.lat, lng: edit.lng, frontageFt: edit.frontageFt, depthFt: edit.depthFt })
 }
 
-// Project a dragged handle's offset from the centre onto its axis (tangential
-// for frontage, radial for depth); twice that distance is the new dimension.
-function onHandleDrag(which: 'frontage' | 'depth'): void {
-  const m = which === 'frontage' ? editFront : editDepth
+// Drag a side: project its new position onto the outward axis to get the new
+// half-extent on that side, hold the opposite side fixed, and translate the pin
+// to the new midpoint. The perpendicular dimension is unchanged.
+function onEdgeDrag(edge: EdgeKey): void {
+  const m = editEdges[edge]
   if (!m)
     return
   const ll = m.getLngLat()
   const g = plotGeometry(edit.lat, edit.lng, edit.frontageFt, edit.depthFt)
+  const axisIs = EDGE_AXIS[edge]
+  const half = (axisIs === 'frontage' ? edit.frontageFt : edit.depthFt) * 0.3048 / 2 // current half-extent (m)
+  // outward unit vector for this side (away from the pin)
+  const sign = (edge === 'inner' || edge === 'left') ? -1 : 1
+  const base = axisIs === 'frontage' ? g.tan : g.rad
+  const u: [number, number] = [base[0] * sign, base[1] * sign]
   const dE = (ll.lng - g.manLng) * g.MLNG - g.E
   const dN = (ll.lat - g.manLat) * g.MLAT - g.N
-  const axis = which === 'frontage' ? g.tan : g.rad
-  const halfM = Math.abs(dE * axis[0] + dN * axis[1])
-  const ft = clampFt((halfM * 2) / 0.3048)
-  if (which === 'frontage')
-    edit.frontageFt = ft
+  const d = dE * u[0] + dN * u[1] // signed distance pin→dragged edge along u
+  const dimM = Math.max(MIN_M, Math.min(MAX_M, d + half)) // new full dimension, far edge fixed at -half
+  const newHalf = dimM / 2
+  // shift the pin so the opposite (-u) edge stays at its old position
+  const shift = newHalf - half
+  edit.lng += (shift * u[0]) / g.MLNG
+  edit.lat += (shift * u[1]) / g.MLAT
+  if (axisIs === 'frontage')
+    edit.frontageFt = clampFt(dimM / 0.3048)
   else
-    edit.depthFt = ft
-  renderEdit() // snaps the handle back onto its axis at the clamped size
+    edit.depthFt = clampFt(dimM / 0.3048)
+  renderEdit() // re-snaps every handle onto its side at the clamped size
 }
 
 function teardownEdit(): void {
   editCenter?.remove(); editCenter = undefined
-  editFront?.remove(); editFront = undefined
-  editDepth?.remove(); editDepth = undefined
+  for (const k of Object.keys(editEdges) as EdgeKey[]) {
+    editEdges[k]?.remove()
+    delete editEdges[k]
+  }
   if (map?.getLayer('edit-plot-fill'))
     map.removeLayer('edit-plot-fill')
   if (map?.getLayer('edit-plot-outline'))
@@ -320,18 +344,18 @@ function setupEdit(c: EditCamp): void {
     renderEdit()
   })
   editCenter = center
-  const front: Marker = new mlgl.Marker({ element: handleEl('frontage'), draggable: true }).setLngLat(g.frontageHandle).addTo(map)
-  front.on('drag', () => onHandleDrag('frontage'))
-  editFront = front
-  const depth: Marker = new mlgl.Marker({ element: handleEl('depth'), draggable: true }).setLngLat(g.depthHandle).addTo(map)
-  depth.on('drag', () => onHandleDrag('depth'))
-  editDepth = depth
+  const LABEL: Record<EdgeKey, string> = { outer: 'depth (outer edge)', inner: 'depth (inner edge)', left: 'frontage (left edge)', right: 'frontage (right edge)' }
+  for (const k of ['outer', 'inner', 'left', 'right'] as EdgeKey[]) {
+    const h: Marker = new mlgl.Marker({ element: handleEl(LABEL[k]), draggable: true }).setLngLat(g.handles[k]).addTo(map)
+    h.on('drag', () => onEdgeDrag(k))
+    editEdges[k] = h
+  }
 
   renderEdit()
   map.flyTo({ center: [edit.lng, edit.lat], zoom: 16.2, speed: 0.9 })
 }
 
-// Precise +/- nudges from the parent panel's steppers (single source of truth).
+// Precise +/- nudges from the parent panel's steppers (symmetric about the pin).
 function nudgeEdit(which: 'frontage' | 'depth', delta: number): void {
   if (!props.editCamp)
     return
