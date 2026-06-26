@@ -32,10 +32,11 @@ mark your camp's location before you arrive and update it once you have service 
 
 ### Community
 - **Drop your camp** — log in, tap the map to place a pin at the **exact spot** (no
-  snapping), name it, done. One camp per user — move, rename, or reshape it anytime.
+  snapping), name it, done. One camp per user (Hubs may run several) — move, rename, or
+  reshape it anytime.
 - **Live boundary editor** — drag the centre pin to move a camp and drag any of its four
-  sides to reshape its plot, live on the map. Owners can edit their own; admins/Org can
-  edit any.
+  sides to reshape its plot, live on the map. Owners can edit their own; Hubs, Org, and
+  admins can edit any.
 - **Art & open calls** — register artworks, mark their location, and post an open
   **call** for community contributions (owner-moderated).
 - **Claim your art** — an artist can request ownership of an existing ownerless artwork;
@@ -53,12 +54,13 @@ mark your camp's location before you arrive and update it once you have service 
 ### Accounts & moderation
 - **Auth** — email/password sessions (`nuxt-auth-utils`) with self-service password reset.
 - **Roles** — `user` / `gpe` (Gate Road) / `tco` (theme-camp organizer) /
-  `org` (Burning Man Org) / `admin`, applied live without re-login.
+  `hubs` (runs multiple camps; can place/edit any camp) / `org` (Burning Man Org) /
+  `admin`, applied live without re-login.
 - **Admin panel** — moderation queue, content reports, people & roles, content management
   (edit/hide/delete camps, art, events), art-claim review, a who's-online view, a recent
   submissions feed, and an audit log.
-- **Camp moderation from the list** — admins/Org can edit a camp's details from the public
-  Camps list; admins can delete camps created in error.
+- **Camp moderation from the list** — Hubs/Org/admins can edit a camp's details from the
+  public Camps list; admins can delete camps created in error.
 - **Convert art to camp** — an admin tool to fix pins dropped as art that should be camps.
 - **Feature flags** — per-user early access to upcoming features.
 - **Current-year aware** — 2026 themed street names (_Axis Mundi_: Ararat → Kundalini).
