@@ -10,7 +10,7 @@ interface AdminCamp {
 }
 interface Content {
   camps: AdminCamp[]
-  art: { id: string, name: string, year: number, owner: string | null, locations: number, contributions: number, pending: number, hidden: boolean }[]
+  art: { id: string, name: string, year: number, owner: string | null, locations: number, contributions: number, pending: number, hidden: boolean, artist: string | null, description: string | null, website: string | null, contactEmail: string | null, hometown: string | null }[]
   events: { id: string, title: string, camp: string | null, startsAt: string }[]
 }
 interface QueueItem { id: string, body: string, language: string | null, mediaUrl: string | null, authorName: string | null, createdAt: string, artId: string | null, artName: string }
@@ -178,6 +178,46 @@ async function saveCampEdit() {
   }
   finally {
     campEditBusy.value = false
+  }
+}
+
+// --- edit an artwork's details (admin) -------------------------------------
+type AdminArt = Content['art'][number]
+const artEditOpen = ref(false)
+const artEditId = ref('')
+const artForm = reactive({ name: '', artist: '', year: 2026, description: '', website: '', hometown: '', contactEmail: '' })
+const artEditBusy = ref(false)
+const artEditError = ref('')
+
+function openArtEdit(a: AdminArt) {
+  artEditId.value = a.id
+  artForm.name = a.name
+  artForm.artist = a.artist ?? ''
+  artForm.year = a.year
+  artForm.description = a.description ?? ''
+  artForm.website = a.website ?? ''
+  artForm.hometown = a.hometown ?? ''
+  artForm.contactEmail = a.contactEmail ?? ''
+  artEditError.value = ''
+  artEditOpen.value = true
+}
+
+async function saveArtEdit() {
+  if (!artForm.name.trim())
+    return
+  artEditBusy.value = true
+  artEditError.value = ''
+  try {
+    await $fetch(`/api/admin/art/${artEditId.value}/details`, { method: 'PATCH', body: { ...artForm } })
+    await refreshContent()
+    await refreshAudit()
+    artEditOpen.value = false
+  }
+  catch (e: any) {
+    artEditError.value = e?.data?.statusMessage ?? 'Could not save'
+  }
+  finally {
+    artEditBusy.value = false
   }
 }
 
@@ -402,6 +442,7 @@ useHead({ title: 'Admin — BurnerMap' })
                 <p class="truncate text-sm font-medium">{{ a.name }} <span class="text-(--ui-text-muted)">· {{ a.year }}</span><UBadge v-if="a.hidden" color="neutral" variant="subtle" size="xs" class="ml-1">hidden</UBadge></p>
                 <p class="truncate text-xs text-(--ui-text-muted)">{{ a.owner ?? 'no owner' }} · {{ a.contributions }} contribution(s)<span v-if="a.pending"> · {{ a.pending }} pending</span></p>
               </div>
+              <UButton variant="ghost" size="xs" icon="i-lucide-pencil" @click="openArtEdit(a)">Edit</UButton>
               <UButton :to="`/art/${a.id}`" variant="ghost" size="xs" icon="i-lucide-external-link">Open</UButton>
               <UButton v-if="a.owner" color="primary" variant="ghost" size="xs" icon="i-lucide-tent" :loading="busy === a.id" @click="convertToCamp(a.id, a.name)">→ Camp</UButton>
               <UButton :color="a.hidden ? 'primary' : 'neutral'" variant="ghost" size="xs" :icon="a.hidden ? 'i-lucide-eye' : 'i-lucide-eye-off'" :loading="busy === a.id" @click="toggleHidden('art', a.id, !a.hidden)">{{ a.hidden ? 'Show' : 'Hide' }}</UButton>
@@ -467,6 +508,27 @@ useHead({ title: 'Admin — BurnerMap' })
           <p class="text-xs text-(--ui-text-muted)">Tip: use “Boundary” to drag the pin &amp; resize the plot live on the map.</p>
           <p v-if="campEditError" class="text-sm text-red-600">{{ campEditError }}</p>
           <UButton type="submit" block :loading="campEditBusy" :disabled="!campForm.name.trim()">Save details</UButton>
+        </form>
+      </template>
+    </UModal>
+
+    <!-- edit art details (admin) -->
+    <UModal v-model:open="artEditOpen" title="Edit art">
+      <template #body>
+        <form class="space-y-3" @submit.prevent="saveArtEdit">
+          <UInput v-model="artForm.name" placeholder="Artwork name" class="w-full" />
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model="artForm.artist" placeholder="Artist" class="w-full" />
+            <UInput v-model.number="artForm.year" type="number" min="1986" placeholder="Year" class="w-full" />
+          </div>
+          <UTextarea v-model="artForm.description" :rows="3" autoresize placeholder="Description" class="w-full" />
+          <UInput v-model="artForm.website" type="url" placeholder="Website — https://…" icon="i-lucide-link" class="w-full" />
+          <div class="grid grid-cols-2 gap-2">
+            <UInput v-model="artForm.hometown" placeholder="Hometown" class="w-full" />
+            <UInput v-model="artForm.contactEmail" type="email" placeholder="Contact email" class="w-full" />
+          </div>
+          <p v-if="artEditError" class="text-sm text-red-600">{{ artEditError }}</p>
+          <UButton type="submit" block :loading="artEditBusy" :disabled="!artForm.name.trim()">Save details</UButton>
         </form>
       </template>
     </UModal>

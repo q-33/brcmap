@@ -129,6 +129,17 @@ export const campUpdateSchema = z.object({
   depthFt: z.number().min(0).max(3000).nullable().optional(),
 })
 
+// Admin edits to an artwork's details (e.g. fixing an entry dropped in error).
+export const artUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  artist: z.string().trim().max(200).optional().or(z.literal('')),
+  year: z.number().int().gte(1986).lte(2100).optional(),
+  description: z.string().max(2000).optional().or(z.literal('')),
+  website: z.string().url().optional().or(z.literal('')),
+  contactEmail: z.string().email().optional().or(z.literal('')),
+  hometown: z.string().max(200).optional().or(z.literal('')),
+})
+
 // A direct message to another registered user.
 export const messageSchema = z.object({
   recipientId: z.string().uuid(),

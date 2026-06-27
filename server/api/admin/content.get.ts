@@ -61,6 +61,11 @@ export default defineEventHandler(async (event) => {
       contributions: a.contributions.length,
       pending: a.contributions.filter(x => x.status === 'pending').length,
       hidden: a.hidden,
+      artist: a.artist,
+      description: a.description,
+      website: a.website,
+      contactEmail: a.contactEmail,
+      hometown: a.hometown,
     })),
     events: eventRows.map(e => ({ id: e.id, title: e.title, camp: e.camp?.name ?? null, startsAt: e.startsAt })),
   }
