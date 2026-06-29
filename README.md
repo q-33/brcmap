@@ -56,7 +56,7 @@ mark your camp's location before you arrive and update it once you have service 
 - **Roles** — `user` / `gpe` (Gate Road) / `tco` (theme-camp organizer) /
   `hubs` (runs multiple camps; can place/edit any camp) / `org` (Burning Man Org) /
   `admin`, applied live without re-login.
-- **Admin panel** — moderation queue, content reports, people & roles, content management
+- **Admin panel** — moderation queue, people & roles, content management
   (edit/hide/delete camps, art, events), art-claim review, a who's-online view, a recent
   submissions feed, and an audit log.
 - **Camp moderation from the list** — Hubs/Org/admins can edit a camp's details from the

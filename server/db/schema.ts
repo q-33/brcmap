@@ -40,19 +40,6 @@ export const userFeatures = pgTable('user_features', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('user_features_user_idx').on(t.userId)])
 
-// User-submitted reports / flags on a camp or artwork.
-export const contentReports = pgTable('content_reports', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  contentType: text('content_type').notNull(), // 'camp' | 'art'
-  contentId: uuid('content_id').notNull(),
-  reporterId: uuid('reporter_id').references(() => users.id, { onDelete: 'set null' }),
-  reason: text('reason'),
-  status: text('status').notNull().default('open'), // open | resolved | dismissed
-  resolvedById: uuid('resolved_by_id').references(() => users.id, { onDelete: 'set null' }),
-  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [index('content_reports_status_idx').on(t.status, t.createdAt)])
-
 // Moderation / admin audit log.
 export const auditLog = pgTable('audit_log', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -224,10 +211,6 @@ export const artClaimsRelations = relations(artClaims, ({ one }) => ({
   art: one(art, { fields: [artClaims.artId], references: [art.id] }),
   claimant: one(users, { fields: [artClaims.claimantId], references: [users.id] }),
   reviewer: one(users, { fields: [artClaims.reviewedById], references: [users.id] }),
-}))
-
-export const contentReportsRelations = relations(contentReports, ({ one }) => ({
-  reporter: one(users, { fields: [contentReports.reporterId], references: [users.id] }),
 }))
 
 export const auditLogRelations = relations(auditLog, ({ one }) => ({

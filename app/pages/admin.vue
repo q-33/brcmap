@@ -15,7 +15,6 @@ interface Content {
 }
 interface QueueItem { id: string, body: string, language: string | null, mediaUrl: string | null, authorName: string | null, createdAt: string, artId: string | null, artName: string }
 interface ClaimItem { id: string, message: string | null, createdAt: string, artId: string | null, artName: string, artArtist: string | null, claimant: string, claimantEmail: string | null }
-interface Report { id: string, contentType: string, contentId: string, contentName: string, reason: string | null, status: string, reporter: string | null, createdAt: string }
 interface OnlineUser { id: string, email: string, displayName: string | null, role: string, lastSeenAt: string | null }
 interface Recent { type: string, id: string, label: string, createdAt: string }
 interface Audit { id: string, action: string, actor: string, targetType: string | null, targetId: string | null, detail: string | null, createdAt: string }
@@ -28,7 +27,6 @@ const { data: users, refresh: refreshUsers } = await useFetch<AdminUser[]>('/api
 const { data: content, refresh: refreshContent } = await useFetch<Content>('/api/admin/content', { immediate: false, default: () => ({ camps: [], art: [], events: [] }) })
 const { data: queue, refresh: refreshQueue } = await useFetch<QueueItem[]>('/api/admin/contributions', { immediate: false, default: () => [] })
 const { data: claims, refresh: refreshClaims } = await useFetch<ClaimItem[]>('/api/admin/claims', { immediate: false, default: () => [] })
-const { data: reports, refresh: refreshReports } = await useFetch<Report[]>('/api/admin/reports', { immediate: false, default: () => [] })
 const { data: online, refresh: refreshOnline } = await useFetch<OnlineUser[]>('/api/admin/online', { immediate: false, default: () => [] })
 const { data: recent, refresh: refreshRecent } = await useFetch<Recent[]>('/api/admin/recent', { immediate: false, default: () => [] })
 const { data: auditRows, refresh: refreshAudit } = await useFetch<Audit[]>('/api/admin/audit', { immediate: false, default: () => [] })
@@ -38,7 +36,6 @@ watch(isAdmin, (v) => {
     refreshContent()
     refreshQueue()
     refreshClaims()
-    refreshReports()
     refreshOnline()
     refreshRecent()
     refreshAudit()
@@ -51,20 +48,18 @@ const nowTick = ref(Date.now())
 const isOnline = (u: OnlineUser) => !!u.lastSeenAt && nowTick.value - +new Date(u.lastSeenAt) < ONLINE_MS
 const onlineCount = computed(() => (online.value ?? []).filter(isOnline).length)
 
-const openReports = computed(() => (reports.value ?? []).filter(r => r.status === 'open'))
 const tabs = computed(() => [
   { key: 'queue', label: 'Queue', n: queue.value?.length ?? 0 },
   { key: 'claims', label: 'Claims', n: claims.value?.length ?? 0 },
-  { key: 'reports', label: 'Reports', n: openReports.value.length },
   { key: 'online', label: 'Online', n: onlineCount.value },
   { key: 'people', label: 'People', n: users.value?.length ?? 0 },
   { key: 'content', label: 'Content', n: undefined },
   { key: 'recent', label: 'Recent', n: undefined },
   { key: 'audit', label: 'Audit', n: undefined },
 ] as const)
-type Tab = 'queue' | 'claims' | 'reports' | 'online' | 'people' | 'content' | 'recent' | 'audit'
+type Tab = 'queue' | 'claims' | 'online' | 'people' | 'content' | 'recent' | 'audit'
 const route = useRoute()
-const validTabs: Tab[] = ['queue', 'claims', 'reports', 'online', 'people', 'content', 'recent', 'audit']
+const validTabs: Tab[] = ['queue', 'claims', 'online', 'people', 'content', 'recent', 'audit']
 const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'queue')
 watch(() => route.query.tab, (t) => { if (validTabs.includes(t as Tab)) tab.value = t as Tab })
 const ctab = ref<'camps' | 'art' | 'events'>('camps')
@@ -228,13 +223,6 @@ async function moderate(c: QueueItem, status: 'published' | 'hidden') {
   finally { busy.value = '' }
 }
 
-async function resolveReport(r: Report, status: 'resolved' | 'dismissed') {
-  busy.value = r.id
-  try { await $fetch(`/api/admin/reports/${r.id}`, { method: 'PATCH', body: { status } }); await refreshReports(); await refreshAudit() }
-  catch (e: any) { msg.value = e?.data?.statusMessage ?? 'Could not update report' }
-  finally { busy.value = '' }
-}
-
 async function decideClaim(c: ClaimItem, status: 'approved' | 'rejected') {
   busy.value = c.id
   try { await $fetch(`/api/admin/claims/${c.id}`, { method: 'PATCH', body: { status } }); await Promise.all([refreshClaims(), refreshContent(), refreshAudit(), refreshMe()]) }
@@ -327,32 +315,6 @@ useHead({ title: 'Admin — BurnerMap' })
           </UCard>
         </div>
         <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">No pending claims. 🎉</p>
-      </section>
-
-      <!-- REPORTS -->
-      <section v-show="tab === 'reports'" class="mt-5">
-        <p class="mb-3 text-sm text-(--ui-text-muted)">User-flagged content.</p>
-        <div v-if="reports?.length" class="space-y-2">
-          <UCard v-for="r in reports" :key="r.id" :class="r.status !== 'open' && 'opacity-55'">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-sm font-medium capitalize">
-                  {{ r.contentType }}:
-                  <NuxtLink v-if="r.contentType === 'art'" :to="`/art/${r.contentId}`" class="text-primary">{{ r.contentName }}</NuxtLink>
-                  <span v-else>{{ r.contentName }}</span>
-                  <UBadge v-if="r.status !== 'open'" size="xs" color="neutral" variant="subtle" class="ml-1">{{ r.status }}</UBadge>
-                </p>
-                <p v-if="r.reason" class="mt-0.5 text-sm text-(--ui-text-muted)">“{{ r.reason }}”</p>
-                <p class="mt-1 text-xs text-(--ui-text-muted)">by {{ r.reporter || 'unknown' }} · {{ rel(r.createdAt) }}</p>
-              </div>
-              <div v-if="r.status === 'open'" class="flex shrink-0 gap-1">
-                <UButton size="xs" color="primary" variant="soft" :loading="busy === r.id" @click="resolveReport(r, 'resolved')">Resolve</UButton>
-                <UButton size="xs" color="neutral" variant="ghost" :loading="busy === r.id" @click="resolveReport(r, 'dismissed')">Dismiss</UButton>
-              </div>
-            </div>
-          </UCard>
-        </div>
-        <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">No reports.</p>
       </section>
 
       <!-- ONLINE (presence) -->

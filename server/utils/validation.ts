@@ -98,18 +98,6 @@ export const featuresSchema = z.object({
   features: z.array(z.string().max(64)).max(50),
 })
 
-// A user reports/flags a camp or artwork.
-export const reportSchema = z.object({
-  contentType: z.enum(['camp', 'art']),
-  contentId: z.string().uuid(),
-  reason: z.string().trim().max(500).optional().or(z.literal('')),
-})
-
-// Admin resolves/dismisses a report.
-export const reportStatusSchema = z.object({
-  status: z.enum(['resolved', 'dismissed', 'open']),
-})
-
 // A GPE-posted Gate Road condition for one direction.
 export const gateConditionSchema = z.object({
   direction: z.enum(['inbound', 'exodus']),

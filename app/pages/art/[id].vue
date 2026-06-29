@@ -107,24 +107,6 @@ async function saveCall() {
   }
 }
 
-// --- report / flag ----------------------------------------------------------
-const reportOpen = ref(false)
-const reportReason = ref('')
-const reportBusy = ref(false)
-const reported = ref(false)
-async function submitReport() {
-  reportBusy.value = true
-  try {
-    await $fetch('/api/reports', { method: 'POST', body: { contentType: 'art', contentId: id.value, reason: reportReason.value } })
-    reported.value = true
-    reportOpen.value = false
-    reportReason.value = ''
-  }
-  finally {
-    reportBusy.value = false
-  }
-}
-
 // --- claim this artwork (ownerless art only) --------------------------------
 const claimOpen = ref(false)
 const claimMessage = ref('')
@@ -184,8 +166,6 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
           {{ claimStatus === 'rejected' ? 'Claim again' : 'Claim this artwork' }}
         </UButton>
         <UButton v-else-if="!art.owner && !loggedIn" to="/?login=1" size="xs" color="primary" variant="subtle" icon="i-lucide-hand">Log in to claim</UButton>
-        <UButton v-if="loggedIn && !reported" size="xs" variant="ghost" color="neutral" icon="i-lucide-flag" @click="reportOpen = true">Report</UButton>
-        <span v-if="reported" class="text-xs text-(--ui-text-muted)">Reported — thanks, a moderator will review.</span>
       </div>
 
       <!-- claim status banners -->
@@ -210,16 +190,6 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BurnerMap` : 'Art —
               <UButton type="submit" :loading="claimBusy">Submit claim</UButton>
               <UButton variant="ghost" color="neutral" @click="claimOpen = false">Cancel</UButton>
             </div>
-          </form>
-        </template>
-      </UModal>
-
-      <UModal v-model:open="reportOpen" title="Report this artwork">
-        <template #body>
-          <form class="space-y-3" @submit.prevent="submitReport">
-            <p class="text-sm text-(--ui-text-muted)">Flag this for a moderator. What's the issue?</p>
-            <UTextarea v-model="reportReason" :rows="3" class="w-full" placeholder="Reason (optional)" />
-            <UButton type="submit" block color="error" :loading="reportBusy">Submit report</UButton>
           </form>
         </template>
       </UModal>
