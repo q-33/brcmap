@@ -30,8 +30,15 @@
   "devDependencies": {
     "@types/node": "^26.0.0",
     "@types/nodemailer": "^8.0.1",
+    "@vite-pwa/nuxt": "^1.1.1",
     "drizzle-kit": "^0.28.0",
     "vitest": "^2.1.0",
-    "vue-tsc": "^3.3.5"
+    "vue-tsc": "^3.3.5",
+    "workbox-cacheable-response": "^7.4.1",
+    "workbox-core": "^7.4.1",
+    "workbox-expiration": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1"
   }
 }
