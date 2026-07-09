@@ -2,6 +2,7 @@
   "name": "burnermap",
   "type": "module",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "packageManager": "pnpm@8.6.2",
   "scripts": {
     "build": "nuxt build",

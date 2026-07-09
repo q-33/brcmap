@@ -129,3 +129,12 @@ without a commit (see the badge above).
 coordinates with no shipped per-year geometry. To roll to a new year, update
 `STREET_NAMES` + `CITY_YEAR` (and only refit the radii if the city plan's geometry
 actually changes).
+
+## License
+
+BurnerMap is Copyright (C) 2026 the BurnerMap authors and is licensed under the
+**GNU General Public License v3.0 or later** (`GPL-3.0-or-later`) — see [`LICENSE`](./LICENSE).
+
+The project began from an MIT-licensed Nuxt starter template (MIT is GPL-compatible)
+and the Meshtastic integration builds on the Meshtastic libraries, which are
+themselves GPL-3.0 — hence the copyleft license for the whole app.
