@@ -74,8 +74,12 @@ function toPins(items: any): CampPin[] {
       .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null })),
   )
 }
-const { data: campsData, refresh: refreshCamps } = await useFetch('/api/camps')
-const { data: artData, refresh: refreshArt } = await useFetch('/api/art')
+// client-only: the map (and its pins) render client-side after hydration anyway,
+// so keep the homepage SSR shell independent of the DB — it renders instantly and
+// stays resilient if the DB is slow/down, and offline the cached shell needs no
+// data. Pins populate reactively once these resolve (PlayaMap watches the props).
+const { data: campsData, refresh: refreshCamps } = await useFetch('/api/camps', { server: false, lazy: true, default: () => [] })
+const { data: artData, refresh: refreshArt } = await useFetch('/api/art', { server: false, lazy: true, default: () => [] })
 const pins = computed<CampPin[]>(() => toPins(campsData.value))
 const artPins = computed<CampPin[]>(() => toPins(artData.value))
 
@@ -171,13 +175,16 @@ async function saveEdit() {
   }
 }
 
-// live Gate Road condition → colour the gate road + a status dot
-const { data: gateData } = await useFetch<{ inbound: { status: GateStatus } | null }>('/api/gate')
+// live Gate Road condition → colour the gate road + a status dot.
+// client-only: a non-critical status pill shouldn't block SSR / first paint.
+const { data: gateData } = await useFetch<{ inbound: { status: GateStatus } | null }>('/api/gate', { server: false, lazy: true })
 const gateRoadColor = computed(() => gateData.value?.inbound ? gateColor(gateData.value.inbound.status) : undefined)
 const gateStatusLabel = computed(() => gateData.value?.inbound ? GATE_STATUS_META[gateData.value.inbound.status].label : 'No data')
 
-// live weather → a compact pill (temp + gusts + dust) linking to /live
-const { data: weatherData } = await useFetch<{ current: { temperature_2m: number, weather_code: number, wind_speed_10m: number, wind_gusts_10m: number, wind_direction_10m: number } | null }>('/api/weather')
+// live weather → a compact pill (temp + gusts + dust) linking to /live.
+// client-only: this proxies an external API (Open-Meteo); never let a slow
+// upstream hang SSR / first paint.
+const { data: weatherData } = await useFetch<{ current: { temperature_2m: number, weather_code: number, wind_speed_10m: number, wind_gusts_10m: number, wind_direction_10m: number } | null }>('/api/weather', { server: false, lazy: true })
 const wx = computed(() => weatherData.value?.current ?? null)
 
 // --- live wind layer: a field of arrows across the playa + a readout ---------

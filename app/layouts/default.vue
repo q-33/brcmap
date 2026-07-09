@@ -90,6 +90,9 @@ const accountMenu = computed(() => {
 
     <footer class="border-t border-(--ui-border)/60 py-8">
       <UContainer class="flex flex-col items-center gap-2 text-center text-sm text-(--ui-text-muted)">
+        <ClientOnly>
+          <OfflineReady class="mb-2" />
+        </ClientOnly>
         <p class="font-display font-semibold text-(--ui-text)">Burner<span class="text-primary">Map</span></p>
         <p>An unofficial, community map of Black Rock City. Pins are approximate.</p>
         <div class="flex items-center gap-4 text-xs">

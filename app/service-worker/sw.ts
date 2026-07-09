@@ -10,7 +10,7 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { clientsClaim } from 'workbox-core'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { precacheAndRoute } from 'workbox-precaching'
-import { registerRoute } from 'workbox-routing'
+import { registerRoute, setCatchHandler } from 'workbox-routing'
 import { CacheFirst, NetworkFirst } from 'workbox-strategies'
 
 declare const self: ServiceWorkerGlobalScope
@@ -18,17 +18,31 @@ declare const self: ServiceWorkerGlobalScope
 // Precache the built app shell (JS/CSS/icons/fonts) injected at build time.
 precacheAndRoute(self.__WB_MANIFEST)
 
-// Navigations (the SSR HTML documents): NetworkFirst so an online load gets the
-// fresh render, but offline (or on a slow playa hotspot) we fall back to the last
-// cached page and let the client hydrate from cached assets + data.
+// Navigations + any same-origin HTML document (incl. a warmed `fetch('/')`):
+// NetworkFirst so an online load gets the fresh render, but offline (or on a slow
+// playa hotspot) we serve the last cached page. Nuxt is a SPA after hydration, so
+// the cached shell + client-side routing + cached /api cover every in-app route.
+const pagesStrategy = new NetworkFirst({
+  cacheName: 'burnermap-pages',
+  networkTimeoutSeconds: 3,
+  plugins: [new CacheableResponsePlugin({ statuses: [200] })],
+})
 registerRoute(
-  ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({
-    cacheName: 'burnermap-pages',
-    networkTimeoutSeconds: 3,
-    plugins: [new CacheableResponsePlugin({ statuses: [200] })],
-  }),
+  ({ request, sameOrigin }) => request.method === 'GET' && sameOrigin
+    && (request.mode === 'navigate' || (request.headers.get('accept')?.includes('text/html') ?? false)),
+  pagesStrategy,
 )
+
+// Offline hard-reload of a route we never cached → fall back to the home shell,
+// which then client-routes to wherever the user was.
+setCatchHandler(async ({ request }) => {
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    const shell = await caches.match('/', { ignoreSearch: true })
+    if (shell)
+      return shell
+  }
+  return Response.error()
+})
 
 // Read-only public data (camps, art, gate, weather, toilets): NetworkFirst so it
 // refreshes online and serves the last-synced copy offline. Auth/mutating routes
