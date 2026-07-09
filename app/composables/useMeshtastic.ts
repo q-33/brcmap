@@ -163,6 +163,13 @@ export function useMeshtastic() {
     status.value = 'disconnected'
   }
 
+  // Wipe the last-known peers + chat (state; the persistence plugin then clears
+  // the saved copy on the next tick).
+  function clearMesh() {
+    nodes.value = {}
+    messages.value = []
+  }
+
   async function sendText(text: string, channel = 0) {
     if (!device || !connected.value || !text.trim())
       return
@@ -171,5 +178,5 @@ export function useMeshtastic() {
     messages.value = [...messages.value, { id: at, from: myNum.value ?? 0, fromName: 'You', text, at, channel, outbound: true }]
   }
 
-  return { supported, status, connected, error, myNum, nodes, nodesList, locatedPeers, messages, connect, disconnect, sendText }
+  return { supported, status, connected, error, myNum, nodes, nodesList, locatedPeers, messages, connect, disconnect, sendText, clearMesh }
 }

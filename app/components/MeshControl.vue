@@ -2,7 +2,7 @@
 // Meshtastic mesh control — connect a LoRa radio, see your people, chat off-grid.
 // Renders a floating button + a togglable panel. Wrap usages in <ClientOnly>
 // (Web Bluetooth / Web Serial are browser-only and unavailable on iOS).
-const { supported, status, connected, error, nodesList, locatedPeers, messages, myNum, connect, disconnect, sendText } = useMeshtastic()
+const { supported, status, connected, error, nodesList, locatedPeers, messages, connect, disconnect, sendText, clearMesh } = useMeshtastic()
 
 const open = ref(false)
 const draft = ref('')
@@ -83,6 +83,9 @@ async function send() {
           <UButton v-if="supported.serial" block icon="i-lucide-usb" color="primary" variant="soft" @click="connect('serial')">
             Connect via USB
           </UButton>
+          <p v-if="nodesList.length" class="border-t border-(--ui-border) pt-2 text-xs text-(--ui-text-muted)">
+            Last seen: {{ nodesList.length }} {{ nodesList.length === 1 ? 'person' : 'people' }}<span v-if="locatedPeers.length"> · {{ locatedPeers.length }} on the map</span>.
+          </p>
         </div>
 
         <!-- connecting -->
@@ -130,6 +133,14 @@ async function send() {
             </form>
           </div>
         </div>
+
+        <button
+          v-if="nodesList.length || messages.length"
+          class="mt-3 text-xs text-(--ui-text-muted) underline-offset-2 hover:text-error hover:underline"
+          @click="clearMesh"
+        >
+          Clear saved mesh data
+        </button>
       </div>
     </div>
   </div>
