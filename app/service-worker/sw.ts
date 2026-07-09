@@ -11,7 +11,7 @@ import { clientsClaim } from 'workbox-core'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { precacheAndRoute } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies'
+import { CacheFirst, NetworkFirst } from 'workbox-strategies'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -45,24 +45,18 @@ registerRoute(
   }),
 )
 
-// MapLibre glyph (font) PBFs — the map's one third-party runtime dependency.
-// Cache-first and long-lived so text labels render offline after the first visit.
-// (Self-hosting these is a follow-up; this makes them survive offline regardless.)
-registerRoute(
-  ({ url }) => url.hostname === 'demotiles.maplibre.org',
-  new CacheFirst({
-    cacheName: 'maplibre-glyphs',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({ maxEntries: 512, maxAgeSeconds: 60 * 60 * 24 * 365 }),
-    ],
-  }),
-)
-
-// Same-origin fonts/glyphs once self-hosted under /fonts.
+// MapLibre glyph (font) PBFs are self-hosted under /fonts and precached above,
+// so labels render offline with no third-party dependency. This runtime route is
+// a belt-and-suspenders fallback for any range not in the precache manifest.
 registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/fonts/'),
-  new StaleWhileRevalidate({ cacheName: 'burnermap-fonts' }),
+  new CacheFirst({
+    cacheName: 'burnermap-fonts',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [200] }),
+      new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 * 365 }),
+    ],
+  }),
 )
 
 // autoUpdate: take over as soon as the new SW is ready so a refresh serves fresh code.

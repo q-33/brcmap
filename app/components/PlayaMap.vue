@@ -383,7 +383,10 @@ onMounted(async () => {
     // tile-free style: the playa is featureless, so we draw only the city grid
     style: {
       version: 8,
-      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+      // Self-hosted glyph fonts (mirrored from MapLibre demotiles) so labels
+      // render fully offline with no third-party dependency. The SW precaches
+      // these PBFs; see public/fonts/. Latin ranges cover all playa labels.
+      glyphs: '/fonts/{fontstack}/{range}.pbf',
       sources: {},
       layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#f8f5ef' } }],
     },
@@ -806,6 +809,14 @@ onMounted(async () => {
       }
       emit('pick', { lat, lng })
     })
+
+    // Point every label layer at our self-hosted glyphs (public/fonts/OpenSans,
+    // no spaces/commas in the name so the offline SW precache-match is exact).
+    // Done once here rather than repeating text-font on each addLayer above.
+    for (const layer of map.getStyle().layers) {
+      if (layer.type === 'symbol')
+        map.setLayoutProperty(layer.id, 'text-font', ['OpenSans'])
+    }
 
     applyLayerVisibility()
     applyBasemap()
