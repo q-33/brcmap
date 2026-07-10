@@ -85,9 +85,8 @@ const artPins = computed<CampPin[]>(() => toPins(artData.value))
 
 // Live Meshtastic peers (LoRa mesh) → map dots. Shared singleton state, also
 // driven by <MeshControl>; here we just plot the ones with a position fix.
-// Only when the 'meshtastic' feature is on (canMesh, defined below).
 const { locatedPeers } = useMeshtastic()
-const meshPeers = computed(() => (canMesh.value ? locatedPeers.value : []).map(n => ({
+const meshPeers = computed(() => locatedPeers.value.map(n => ({
   num: n.num,
   lat: n.lat!,
   lng: n.lng!,
@@ -322,9 +321,6 @@ const myCamp = computed<MyItem | null>(() => (myCamps.value ?? [])[0] ?? null)
 // Manual address entry (gated by the 'manual-address' feature flag): type a BRC
 // address instead of tapping — e.g. to mark a spot before arriving (snaps to grid).
 const canManualAddress = computed(() => hasFeature('manual-address'))
-// The Meshtastic Mesh control is behind a feature flag while it's beta / awaiting
-// hardware validation — admins grant 'meshtastic' to testers.
-const canMesh = computed(() => hasFeature('meshtastic'))
 const manualAddress = ref('')
 const manualParsed = computed(() => parseAddress(manualAddress.value.trim()))
 const usingManual = computed(() => canManualAddress.value && manualAddress.value.trim() !== '')
@@ -588,9 +584,9 @@ const itemOptions = computed(() => [
 
     <!-- lower-left stack: Mesh control + gate status widget above the layers panel -->
     <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
-      <!-- Meshtastic mesh radio (behind the 'meshtastic' feature flag; beta) -->
+      <!-- Meshtastic mesh radio -->
       <ClientOnly>
-        <MeshControl v-if="canMesh" />
+        <MeshControl />
       </ClientOnly>
       <NuxtLink
         to="/gate"
