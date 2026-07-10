@@ -650,7 +650,7 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- top-left stack: weather pill · Meshtastic mesh · live wind readout -->
+    <!-- top-left stack: weather pill · live wind readout -->
     <div class="pointer-events-none absolute left-3 top-16 flex flex-col items-start gap-2">
       <!-- weather pill -->
       <NuxtLink
@@ -664,11 +664,6 @@ const itemOptions = computed(() => [
         <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
       </NuxtLink>
 
-      <!-- Meshtastic mesh radio -->
-      <ClientOnly>
-        <MeshControl />
-      </ClientOnly>
-
       <!-- live wind readout (when the Wind layer is on) -->
       <div v-if="windMode && windInfo" class="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
         <span class="flex size-7 shrink-0 items-center justify-center rounded-full" :style="{ background: `${windInfo.color}22` }">
@@ -681,9 +676,13 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- compass rose (map orientation is locked to bearing 45°) -->
-    <div class="pointer-events-none absolute bottom-20 right-4 sm:bottom-6">
+    <!-- bottom-right stack: compass rose · Meshtastic mesh -->
+    <div class="pointer-events-none absolute bottom-20 right-4 flex flex-col items-end gap-2 sm:bottom-6">
       <CompassRose />
+      <!-- Meshtastic mesh radio -->
+      <ClientOnly>
+        <MeshControl />
+      </ClientOnly>
     </div>
 
     <!-- sun & shade time control -->

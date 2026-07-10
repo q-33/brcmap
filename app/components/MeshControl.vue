@@ -29,8 +29,8 @@ async function send() {
 </script>
 
 <template>
-  <!-- Lives in the map's top-left control stack (under the weather pill). The
-       panel opens downward from the button into clear map space. -->
+  <!-- Lives in the map's bottom-right control stack (under the compass rose). The
+       panel opens upward and right-aligned into clear map space. -->
   <div class="pointer-events-auto relative">
     <UButton
       :color="connected ? 'primary' : 'neutral'"
@@ -48,7 +48,7 @@ async function send() {
 
     <div
       v-if="open"
-      class="absolute top-full left-0 z-30 mt-2 flex max-h-[70vh] w-80 flex-col overflow-hidden rounded-xl border border-(--ui-border) bg-(--ui-bg) shadow-2xl"
+      class="absolute bottom-full right-0 z-30 mb-2 flex max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-(--ui-border) bg-(--ui-bg) shadow-2xl"
     >
       <div class="flex items-center justify-between border-b border-(--ui-border) px-3 py-2">
         <p class="font-display text-sm font-semibold">
