@@ -85,8 +85,9 @@ const artPins = computed<CampPin[]>(() => toPins(artData.value))
 
 // Live Meshtastic peers (LoRa mesh) → map dots. Shared singleton state, also
 // driven by <MeshControl>; here we just plot the ones with a position fix.
+// Only when the 'meshtastic' feature is on (canMesh, defined below).
 const { locatedPeers } = useMeshtastic()
-const meshPeers = computed(() => locatedPeers.value.map(n => ({
+const meshPeers = computed(() => (canMesh.value ? locatedPeers.value : []).map(n => ({
   num: n.num,
   lat: n.lat!,
   lng: n.lng!,
@@ -321,6 +322,9 @@ const myCamp = computed<MyItem | null>(() => (myCamps.value ?? [])[0] ?? null)
 // Manual address entry (gated by the 'manual-address' feature flag): type a BRC
 // address instead of tapping — e.g. to mark a spot before arriving (snaps to grid).
 const canManualAddress = computed(() => hasFeature('manual-address'))
+// The Meshtastic Mesh control is behind a feature flag while it's beta / awaiting
+// hardware validation — admins grant 'meshtastic' to testers.
+const canMesh = computed(() => hasFeature('meshtastic'))
 const manualAddress = ref('')
 const manualParsed = computed(() => parseAddress(manualAddress.value.trim()))
 const usingManual = computed(() => canManualAddress.value && manualAddress.value.trim() !== '')
@@ -493,11 +497,6 @@ const itemOptions = computed(() => [
       </ClientOnly>
     </div>
 
-    <!-- Meshtastic mesh radio: connect, see your people, chat off-grid -->
-    <ClientOnly>
-      <MeshControl />
-    </ClientOnly>
-
     <!-- floating top bar -->
     <div class="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
       <div class="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#26211a]/85 p-1 pl-3 text-white shadow-lg backdrop-blur-xl">
@@ -587,8 +586,12 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- lower-left stack: gate status widget above the layers panel -->
+    <!-- lower-left stack: Mesh control + gate status widget above the layers panel -->
     <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
+      <!-- Meshtastic mesh radio (behind the 'meshtastic' feature flag; beta) -->
+      <ClientOnly>
+        <MeshControl v-if="canMesh" />
+      </ClientOnly>
       <NuxtLink
         to="/gate"
         class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
@@ -696,13 +699,12 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- GPS readout pill (bottom center) -->
-    <div class="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
-      <div class="pointer-events-auto items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl" :class="readout ? 'flex' : 'hidden sm:flex'">
-        <UIcon :name="position ? 'i-lucide-navigation' : 'i-lucide-locate-fixed'" class="size-4" :class="position ? 'text-primary' : 'text-white/50'" />
-        <span :class="position ? 'font-medium' : 'text-white/60'">
-          {{ readout ?? 'Tap the map to drop a pin — or ⌖ to find yourself on the playa' }}
-        </span>
+    <!-- GPS readout pill (bottom center) — only once we have a location fix;
+         no persistent "tap the map" hint bar cluttering the bottom. -->
+    <div v-if="readout" class="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-4">
+      <div class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
+        <UIcon name="i-lucide-navigation" class="size-4 text-primary" />
+        <span class="font-medium">{{ readout }}</span>
         <span v-if="accuracyLabel" class="text-xs" :class="accuracyRough ? 'text-amber-300' : 'text-white/50'">
           {{ accuracyLabel }}
         </span>

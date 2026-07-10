@@ -29,13 +29,14 @@ async function send() {
 </script>
 
 <template>
-  <div>
-    <!-- floating toggle -->
+  <!-- Lives in the map's lower-left control stack (above the Layers panel). The
+       panel opens upward from the button into clear map space. -->
+  <div class="pointer-events-auto relative">
     <UButton
       :color="connected ? 'primary' : 'neutral'"
       variant="solid"
       :icon="connected ? 'i-lucide-radio' : 'i-lucide-radio-tower'"
-      class="fixed bottom-4 left-4 z-30 shadow-lg"
+      class="shadow-lg"
       @click="open = !open"
     >
       Mesh
@@ -47,7 +48,7 @@ async function send() {
 
     <div
       v-if="open"
-      class="fixed bottom-16 left-4 z-30 flex max-h-[70vh] w-80 flex-col overflow-hidden rounded-xl border border-(--ui-border) bg-(--ui-bg) shadow-2xl"
+      class="absolute bottom-full left-0 z-30 mb-2 flex max-h-[70vh] w-80 flex-col overflow-hidden rounded-xl border border-(--ui-border) bg-(--ui-bg) shadow-2xl"
     >
       <div class="flex items-center justify-between border-b border-(--ui-border) px-3 py-2">
         <p class="font-display text-sm font-semibold">

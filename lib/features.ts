@@ -8,6 +8,11 @@ export const FEATURES: FeatureDef[] = [
     label: 'Manual address entry',
     description: 'Place a camp or artwork by typing a BRC address (e.g. “7:30 & E”) without needing GPS — useful for marking before arrival.',
   },
+  {
+    key: 'meshtastic',
+    label: 'Meshtastic mesh',
+    description: 'Show the Mesh control — connect a Meshtastic LoRa radio to see your people live on the map and chat off-grid. Web Bluetooth/USB (desktop Chrome/Edge or Android). Beta, pending hardware validation.',
+  },
 ]
 
 export const FEATURE_KEYS = FEATURES.map(f => f.key)
