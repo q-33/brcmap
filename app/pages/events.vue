@@ -20,7 +20,9 @@ const { data: events, refresh } = await useFetch<EventRow[]>('/api/events')
 // are playa-local; add new ones here.
 interface MajorBurn { name: string, day: string, time: string, note?: string }
 const majorBurns: MajorBurn[] = [
-  { name: 'Titanic\'s End', day: 'Friday, Sep 4', time: 'Sunset · ~7:30 PM' },
+  { name: 'Titanic\'s End', day: 'Friday, Sep 4', time: 'Sunset · 7:30 PM' },
+  { name: 'The Man', day: 'Saturday, Sep 5', time: 'After dark · ~9 PM (expected)' },
+  { name: 'The Temple', day: 'Sunday, Sep 6', time: 'At dusk · ~8 PM (expected)' },
 ]
 
 // playa wall-clock formatting (no timezone conversion — parse the string parts)
