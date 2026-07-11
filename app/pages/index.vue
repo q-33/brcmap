@@ -676,8 +676,9 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- bottom-right stack: compass rose · Meshtastic mesh -->
-    <div class="pointer-events-none absolute bottom-20 right-4 flex flex-col items-end gap-2 sm:bottom-6">
+    <!-- bottom-right stack: compass rose · Meshtastic mesh.
+         Anchored at bottom-4 to line up with the bottom-left (gate/layers) stack. -->
+    <div class="pointer-events-none absolute bottom-4 right-3 flex flex-col items-end gap-2">
       <CompassRose />
       <!-- Meshtastic mesh radio -->
       <ClientOnly>
