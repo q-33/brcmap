@@ -79,7 +79,8 @@ export const artContributionModerateSchema = z.object({
 // Events: a camp announces a planned event. starts/ends are playa wall-clock
 // strings (e.g. "2026-08-31T15:00") from a datetime-local input.
 export const eventSchema = z.object({
-  campId: z.string().uuid(),
+  // optional: admins may post an "official" event with no hosting camp
+  campId: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(160),
   description: z.string().max(2000).optional(),
   startsAt: z.string().min(1).max(40),

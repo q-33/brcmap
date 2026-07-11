@@ -4,7 +4,8 @@ import { relations, sql } from 'drizzle-orm'
 export const events = pgTable('events', {
   id: uuid('id').primaryKey().defaultRandom(),
   ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'set null' }),
-  campId: uuid('camp_id').notNull().references(() => camps.id, { onDelete: 'cascade' }),
+  // Nullable: admins can post "official" events with no hosting camp (0016).
+  campId: uuid('camp_id').references(() => camps.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
   startsAt: timestamp('starts_at', { mode: 'string' }).notNull(),

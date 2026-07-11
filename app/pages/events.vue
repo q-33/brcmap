@@ -5,15 +5,16 @@ import { MAJOR_BURNS } from '~~/lib/burns'
 interface EventRow {
   id: string
   ownerId: string | null
-  campId: string
+  campId: string | null
   title: string
   description: string | null
   startsAt: string
   endsAt: string | null
-  camp: { id: string, name: string, locations: { addressString: string | null, createdAt: string }[] }
+  camp: { id: string, name: string, locations: { addressString: string | null, createdAt: string }[] } | null
 }
 
 const { loggedIn, user } = useUserSession()
+const { isAdmin } = useMe()
 
 const { data: events, refresh } = await useFetch<EventRow[]>('/api/events')
 
@@ -31,6 +32,8 @@ function parts(s: string) {
 }
 
 function campAddress(e: EventRow): string | null {
+  if (!e.camp)
+    return null
   const loc = [...(e.camp.locations ?? [])].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
   if (!loc?.addressString)
     return null
@@ -66,7 +69,11 @@ const err = ref('')
 const form = reactive({ campId: '', title: '', description: '', startTime: '', endTime: '' })
 const dates = ref<string[]>([])
 const newDate = ref('')
-const campOptions = computed(() => (myCamps.value ?? []).map(c => ({ label: c.name, value: c.id })))
+const campOptions = computed(() => {
+  const opts = (myCamps.value ?? []).map(c => ({ label: c.name, value: c.id }))
+  // Admins can post an "official" event with no hosting camp.
+  return isAdmin.value ? [{ label: 'No camp — official event', value: '' }, ...opts] : opts
+})
 
 function addDate() {
   const d = newDate.value
@@ -105,7 +112,7 @@ async function openPost() {
 // Clone: prefill the form from an existing event (camp, title, desc, time span,
 // and its date) so the user can tweak the dates and re-post.
 function cloneEvent(e: EventRow) {
-  form.campId = e.campId
+  form.campId = e.campId ?? ''
   form.title = e.title
   form.description = e.description ?? ''
   const [sd = '', st = ''] = e.startsAt.replace(' ', 'T').split('T')
@@ -118,7 +125,7 @@ function cloneEvent(e: EventRow) {
 }
 
 async function submit() {
-  if (!form.campId || !form.title || !form.startTime || !dates.value.length)
+  if ((!form.campId && !isAdmin.value) || !form.title || !form.startTime || !dates.value.length)
     return
   busy.value = true
   err.value = ''
@@ -131,7 +138,7 @@ async function submit() {
         const endDate = form.endTime <= form.startTime ? nextDay(d) : d
         endsAt = `${endDate}T${form.endTime}`
       }
-      await $fetch('/api/events', { method: 'POST', body: { campId: form.campId, title: form.title, description: form.description || undefined, startsAt, endsAt } })
+      await $fetch('/api/events', { method: 'POST', body: { campId: form.campId || undefined, title: form.title, description: form.description || undefined, startsAt, endsAt } })
     }
     await refresh()
     open.value = false
@@ -199,8 +206,10 @@ useHead({ title: 'Events — BurnerMap' })
                 <p class="mt-0.5 text-sm text-(--ui-text-muted)">
                   <span class="text-primary">{{ parts(e.startsAt).time }}</span>
                   <span v-if="e.endsAt"> – {{ parts(e.endsAt).time }}</span>
-                  · hosted by <b class="text-(--ui-text)">{{ e.camp.name }}</b>
-                  <span v-if="campAddress(e)"> · 📍 {{ campAddress(e) }}</span>
+                  <template v-if="e.camp"> · hosted by <b class="text-(--ui-text)">{{ e.camp.name }}</b>
+                    <span v-if="campAddress(e)"> · 📍 {{ campAddress(e) }}</span>
+                  </template>
+                  <span v-else class="font-medium text-primary"> · Official</span>
                 </p>
                 <p v-if="e.description" class="mt-2 text-sm text-(--ui-text-toned)">{{ e.description }}</p>
               </div>
@@ -222,8 +231,8 @@ useHead({ title: 'Events — BurnerMap' })
 
     <UModal v-model:open="open" title="Post an event">
       <template #body>
-        <form v-if="myCamps && myCamps.length" class="space-y-3" @submit.prevent="submit">
-          <USelect v-model="form.campId" :items="campOptions" placeholder="Hosting camp" class="w-full" />
+        <form v-if="(myCamps && myCamps.length) || isAdmin" class="space-y-3" @submit.prevent="submit">
+          <USelect v-model="form.campId" :items="campOptions" :placeholder="isAdmin ? 'Hosting camp (optional)' : 'Hosting camp'" class="w-full" />
           <UInput v-model="form.title" placeholder="Event title" class="w-full" />
           <UTextarea v-model="form.description" placeholder="Description (optional)" :rows="3" class="w-full" />
           <div class="grid grid-cols-2 gap-3">
@@ -247,7 +256,7 @@ useHead({ title: 'Events — BurnerMap' })
             </div>
           </div>
           <p v-if="err" class="text-sm text-red-600">{{ err }}</p>
-          <UButton type="submit" block :loading="busy" :disabled="!form.campId || !form.title || !form.startTime || !dates.length">
+          <UButton type="submit" block :loading="busy" :disabled="(!form.campId && !isAdmin) || !form.title || !form.startTime || !dates.length">
             {{ dates.length > 1 ? `Post ${dates.length} events` : 'Post event' }}
           </UButton>
         </form>
