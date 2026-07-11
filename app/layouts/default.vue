@@ -1,7 +1,9 @@
 <script setup lang="ts">
 const { loggedIn, user } = useUserSession()
-const { isAdmin, unreadMessages, pendingClaims } = useMe()
+const { isAdmin, unreadMessages } = useMe()
 
+// Admin is intentionally NOT in the top nav — admins reach it from the account
+// dropdown ("Admin dashboard") instead.
 const links = computed(() => [
   { label: 'Camps', to: '/camps', icon: 'i-lucide-tent', badge: 0 },
   { label: 'Art', to: '/art', icon: 'i-lucide-palette', badge: 0 },
@@ -9,8 +11,6 @@ const links = computed(() => [
   { label: 'Gate', to: '/gate', icon: 'i-lucide-traffic-cone', badge: 0 },
   { label: 'Live', to: '/live', icon: 'i-lucide-radio', badge: 0 },
   { label: 'Guide', to: '/guide', icon: 'i-lucide-compass', badge: 0 },
-  // pending art claims badge on the Admin link
-  ...(isAdmin.value ? [{ label: 'Admin', to: '/admin', icon: 'i-lucide-shield', badge: pendingClaims.value }] : []),
 ])
 
 async function logout() {
