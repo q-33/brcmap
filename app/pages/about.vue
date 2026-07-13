@@ -5,7 +5,7 @@ useHead({ title: 'About — BurnerMap' })
 
 const streets = Object.entries(STREET_NAMES).filter(([k]) => k !== 'Esplanade')
 
-const team = ['Admin', 'LB', 'Gizmo']
+const team = ['Admin', 'Gizmo']
 const alumni = [
   'Crockett! (Vince Ferhino — Soon To Be Infamous)',
   'Pee Pee La Poo (Trashistan)',
