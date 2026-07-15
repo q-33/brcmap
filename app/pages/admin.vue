@@ -155,6 +155,8 @@ function openCampEdit(c: AdminCamp) {
   campForm.frontageFt = c.frontageFt
   campForm.depthFt = c.depthFt
   campEditError.value = ''
+  campOwnerEmail.value = c.owner ?? ''
+  campOwnerMsg.value = ''
   campEditOpen.value = true
 }
 
@@ -173,6 +175,31 @@ async function saveCampEdit() {
   }
   finally {
     campEditBusy.value = false
+  }
+}
+
+// Reassign who owns this camp (by their account email) so they can edit it and
+// post its events. Separate from the details form — a different, riskier action.
+const campOwnerEmail = ref('')
+const campOwnerBusy = ref(false)
+const campOwnerMsg = ref('')
+
+async function assignCampOwner() {
+  const email = campOwnerEmail.value.trim()
+  if (!email)
+    return
+  campOwnerBusy.value = true
+  campOwnerMsg.value = ''
+  try {
+    const r = await $fetch<{ ownerEmail: string }>(`/api/admin/camps/${campEditId.value}/owner`, { method: 'PATCH', body: { email } })
+    campOwnerMsg.value = `✓ Owner set to ${r.ownerEmail}`
+    await refreshContent()
+  }
+  catch (e: any) {
+    campOwnerMsg.value = e?.data?.statusMessage ?? 'Could not assign owner'
+  }
+  finally {
+    campOwnerBusy.value = false
   }
 }
 
@@ -471,6 +498,16 @@ useHead({ title: 'Admin — BurnerMap' })
           <p v-if="campEditError" class="text-sm text-red-600">{{ campEditError }}</p>
           <UButton type="submit" block :loading="campEditBusy" :disabled="!campForm.name.trim()">Save details</UButton>
         </form>
+
+        <div class="mt-4 border-t border-(--ui-border) pt-4">
+          <p class="mb-1 text-xs font-medium text-(--ui-text)">Owner</p>
+          <p class="mb-2 text-xs text-(--ui-text-muted)">The account that manages this camp — they can edit it and post its events.</p>
+          <div class="flex gap-2">
+            <UInput v-model="campOwnerEmail" type="email" placeholder="owner@email.com" icon="i-lucide-user" class="flex-1" @keydown.enter.prevent="assignCampOwner" />
+            <UButton :loading="campOwnerBusy" :disabled="!campOwnerEmail.trim()" color="neutral" variant="soft" @click="assignCampOwner">Assign</UButton>
+          </div>
+          <p v-if="campOwnerMsg" class="mt-1.5 text-xs" :class="campOwnerMsg.startsWith('✓') ? 'text-green-600' : 'text-red-600'">{{ campOwnerMsg }}</p>
+        </div>
       </template>
     </UModal>
 
