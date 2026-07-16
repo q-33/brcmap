@@ -98,36 +98,18 @@ export default defineNuxtConfig({
       goldenSpike: process.env.NUXT_PUBLIC_GOLDEN_SPIKE ?? '',
     },
   },
-  vite: {
-    plugins: [
-      // @nuxt/fonts (via fontless) prefixes every real @font-face src with a
-      // `local("Inter SemiBold")`-style hint. If a visitor has *any* font named
-      // "Inter"/"Oswald"/"Roboto Mono" installed locally (design tools ship
-      // these), the browser renders from THAT instead of our known-good, exact
-      // subset — producing scrambled glyphs on some machines (esp. the semibold
-      // weights used in titles/nav). Strip local() from url-bearing faces so
-      // everyone downloads the correct woff2. Metric-only fallback faces
-      // (`src:local("Arial")`, no url) are left intact.
-      {
-        name: 'burnermap:strip-font-local-src',
-        enforce: 'post',
-        // Run on the FINAL emitted CSS assets — @nuxt/fonts injects its
-        // @font-face blocks after per-module transforms, so a `transform` hook
-        // misses them; `generateBundle` sees the assembled stylesheet.
-        generateBundle(_options: unknown, bundle: Record<string, any>) {
-          for (const file of Object.values(bundle)) {
-            if (file?.type !== 'asset' || !file.fileName?.endsWith('.css'))
-              continue
-            const css = typeof file.source === 'string' ? file.source : file.source?.toString?.()
-            if (!css || !css.includes('local('))
-              continue
-            file.source = css.replace(
-              /@font-face\s*\{[^}]*\}/g,
-              (block: string) => block.includes('url(') ? block.replace(/local\("[^"]*"\)\s*,\s*/g, '') : block,
-            )
-          }
-        },
-      },
-    ],
+  fonts: {
+    // @nuxt/fonts (via fontless) prefixes every real @font-face src with a
+    // `local("Inter SemiBold")`-style hint. If a visitor has *any* font named
+    // "Inter"/"Oswald"/"Roboto Mono" installed locally (design tools ship
+    // these), the browser renders from THAT instead of our known-good exact
+    // subset — producing scrambled glyphs on some machines, worst on the
+    // semibold weights used in titles/nav/the account dropdown. Disabling the
+    // local() fallbacks forces every client to download the correct woff2.
+    // (Doing this at the source — not a post-build CSS rewrite — also changes
+    // the hashed CSS filename, so cached/immutable copies actually get busted.)
+    experimental: {
+      disableLocalFallbacks: true,
+    },
   },
 })
