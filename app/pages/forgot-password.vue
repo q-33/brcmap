@@ -19,7 +19,7 @@ async function submit() {
   }
 }
 
-useHead({ title: 'Reset password — OnPlaya' })
+useHead({ title: 'Reset password — BRC Map' })
 </script>
 
 <template>

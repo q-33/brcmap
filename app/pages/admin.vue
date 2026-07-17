@@ -265,7 +265,7 @@ onMounted(() => {
   onBeforeUnmount(() => { clearInterval(tick); clearInterval(poll) })
 })
 
-useHead({ title: 'Admin — OnPlaya' })
+useHead({ title: 'Admin — BRC Map' })
 </script>
 
 <template>

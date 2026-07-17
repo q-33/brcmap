@@ -40,7 +40,7 @@ const accountMenu = computed(() => {
           <span class="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/30">
             <UIcon name="i-lucide-flame" class="size-5" />
           </span>
-          <span class="font-display text-lg font-bold uppercase tracking-wide">On<span class="text-primary">Playa</span></span>
+          <span class="font-display text-lg font-bold uppercase tracking-wide">BRC <span class="text-primary">Map</span></span>
         </NuxtLink>
 
         <!-- always-visible link back to the map -->
@@ -93,12 +93,12 @@ const accountMenu = computed(() => {
         <ClientOnly>
           <OfflineReady class="mb-2" />
         </ClientOnly>
-        <p class="font-display font-semibold text-(--ui-text)">On<span class="text-primary">Playa</span></p>
+        <p class="font-display font-semibold text-(--ui-text)">BRC <span class="text-primary">Map</span></p>
         <p>An unofficial, community map of Black Rock City. Pins are approximate.</p>
         <div class="flex items-center gap-4 text-xs">
           <NuxtLink to="/about" class="hover:text-primary">About</NuxtLink>
           <NuxtLink to="/contact" class="hover:text-primary">Contact</NuxtLink>
-          <a href="https://github.com/q-33/onplaya" target="_blank" rel="noopener" class="hover:text-primary">GitHub</a>
+          <a href="https://github.com/q-33/brcmap" target="_blank" rel="noopener" class="hover:text-primary">GitHub</a>
         </div>
       </UContainer>
     </footer>

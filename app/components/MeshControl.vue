@@ -69,7 +69,7 @@ async function send() {
 
         <NuxtLink to="/guide" class="mb-2 flex items-center gap-1 text-xs text-primary hover:underline" @click="open = false">
           <UIcon name="i-lucide-qr-code" class="size-3.5 shrink-0" />
-          Set up your radio's channel for OnPlaya
+          Set up your radio's channel for BRC Map
         </NuxtLink>
 
         <!-- not supported (iOS / Firefox) -->

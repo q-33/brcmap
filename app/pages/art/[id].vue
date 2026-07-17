@@ -134,7 +134,7 @@ async function submitClaim() {
   }
 }
 
-useHead(() => ({ title: art.value ? `${art.value.name} — OnPlaya` : 'Art — OnPlaya' }))
+useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — BRC Map' }))
 </script>
 
 <template>

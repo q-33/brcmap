@@ -3,7 +3,7 @@
 // fonts are precached by the service worker on install; this tops that up with the
 // home shell and the read-only data the map needs (camps, art, events, gate,
 // weather). Everything is fetched through the SW, which caches it per its routes.
-const LS_KEY = 'onplaya:lastSyncedAt'
+const LS_KEY = 'brcmap:lastSyncedAt'
 
 // Read-only public data the map/pages need offline.
 const CRITICAL_API = ['/api/camps', '/api/art', '/api/events', '/api/gate', '/api/weather']

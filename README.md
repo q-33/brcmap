@@ -1,11 +1,11 @@
-# OnPlaya
+# BRC Map
 
-[![CI](https://github.com/q-33/onplaya/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/q-33/onplaya/actions/workflows/ci.yml)
+[![CI](https://github.com/q-33/brcmap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/q-33/brcmap/actions/workflows/ci.yml)
 
 Find your people on the playa. An unofficial, community map of **Black Rock City** —
 mark your camp's location before you arrive and update it once you have service on playa.
 
-**Live: [onplaya.com](https://onplaya.com)**
+**Live: [brcmap.net](https://brcmap.net)**
 
 > Unofficial map. Pins are approximate and do not equal reserved space. Only Burning Man
 > Placement determines camp locations and only the ARTery determines art placement.
@@ -52,7 +52,7 @@ mark your camp's location before you arrive and update it once you have service 
 - **Browse & search** camps and art (Postgres-native, no external index).
 
 ### Offline & off-grid
-- **Installable, offline-first PWA** — add OnPlaya to your home screen; once you've
+- **Installable, offline-first PWA** — add BRC Map to your home screen; once you've
   opened it online it caches the whole app, so the city map, labels, your GPS dot, the
   address readout, and last-synced camps/art all work with **no signal on the playa**. The
   map is tile-free and the fonts are self-hosted, so it has zero external runtime deps.
@@ -114,7 +114,7 @@ pnpm install
 #   SMTP_USER=digit@burnermap.org         # default shown
 #   SMTP_HOST=smtp.dreamhost.com          # default shown
 #   SMTP_PORT=465                         # default (implicit SSL)
-#   EMAIL_FROM="OnPlaya <digit@burnermap.org>"   # default sender
+#   EMAIL_FROM="BRC Map <digit@burnermap.org>"   # default sender
 #   CONTACT_TO=digit@burnermap.org        # where the contact form lands
 
 pnpm db:migrate   # apply db/migrations/*.sql (idempotent)
@@ -147,7 +147,7 @@ actually changes).
 
 ## License
 
-OnPlaya is Copyright (C) 2026 the OnPlaya authors and is licensed under the
+BRC Map is Copyright (C) 2026 the BRC Map authors and is licensed under the
 **GNU General Public License v3.0 or later** (`GPL-3.0-or-later`) — see [`LICENSE`](./LICENSE).
 
 The project began from an MIT-licensed Nuxt starter template (MIT is GPL-compatible)

@@ -42,7 +42,7 @@ function clockTime(iso: string) {
 // BMIR streams only during the event window (Aug 30 – Sep 7, 2026).
 const BMIR_STREAM = 'https://stream.revma.ihrhls.com/zc8378'
 
-useHead({ title: 'Live — OnPlaya' })
+useHead({ title: 'Live — BRC Map' })
 </script>
 
 <template>

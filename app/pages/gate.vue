@@ -66,7 +66,7 @@ async function submit() {
   }
 }
 
-useHead({ title: 'Gate Road — OnPlaya' })
+useHead({ title: 'Gate Road — BRC Map' })
 </script>
 
 <template>

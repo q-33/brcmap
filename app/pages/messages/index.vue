@@ -81,7 +81,7 @@ async function sendMesh() {
   await sendText(t)
 }
 
-useHead({ title: 'Messages — OnPlaya' })
+useHead({ title: 'Messages — BRC Map' })
 </script>
 
 <template>
@@ -190,7 +190,7 @@ useHead({ title: 'Messages — OnPlaya' })
         </div>
       </div>
       <p class="mt-3 text-center text-xs text-(--ui-text-muted)">
-        New to the mesh? <NuxtLink to="/guide" class="text-primary underline">Join the OnPlaya mesh</NuxtLink> to get your radio on the same channel.
+        New to the mesh? <NuxtLink to="/guide" class="text-primary underline">Join the BRC Map mesh</NuxtLink> to get your radio on the same channel.
       </p>
     </ClientOnly>
 

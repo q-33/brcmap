@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import QRCode from 'qrcode'
-import { ONPLAYA_CHANNEL } from '~~/lib/mesh/onplayaChannel'
+import { BRCMAP_CHANNEL } from '~~/lib/mesh/brcmapChannel'
 import { buildChannelUrl, randomPsk } from '~~/lib/mesh/channelSet'
 
-// Generate a Meshtastic channel QR/URL to get a radio onto the OnPlaya mesh
+// Generate a Meshtastic channel QR/URL to get a radio onto the BRC Map mesh
 // (public community channel) or a private crew channel. Client-only.
 const mode = ref<'public' | 'crew'>('public')
 const crewName = ref('My Crew')
@@ -19,7 +19,7 @@ async function regen() {
   err.value = ''
   try {
     const channel = mode.value === 'public'
-      ? ONPLAYA_CHANNEL
+      ? BRCMAP_CHANNEL
       : { name: (crewName.value.trim() || 'Crew').slice(0, 11), psk: crewPsk.value }
     url.value = buildChannelUrl(channel)
     qr.value = await QRCode.toDataURL(url.value, { margin: 1, width: 320, errorCorrectionLevel: 'M' })
@@ -55,7 +55,7 @@ async function copyUrl() {
         :class="mode === 'public' ? 'bg-(--ui-bg) shadow-sm' : 'text-(--ui-text-muted)'"
         @click="mode = 'public'"
       >
-        OnPlaya mesh
+        BRC Map mesh
       </button>
       <button
         type="button"
@@ -69,7 +69,7 @@ async function copyUrl() {
 
     <p class="text-sm text-(--ui-text-muted)">
       <template v-if="mode === 'public'">
-        The shared, public OnPlaya channel — everyone on it can see each other on the map and chat
+        The shared, public BRC Map channel — everyone on it can see each other on the map and chat
         off-grid. Region US · LONG_FAST · no internet needed.
       </template>
       <template v-else>
@@ -114,7 +114,7 @@ async function copyUrl() {
       <ol class="list-decimal space-y-1 pl-5">
         <li>Open the official <b>Meshtastic</b> app with your radio paired.</li>
         <li><b>Scan this QR</b> (or open the link on that phone) — it sets the channel, region, and preset in one step.</li>
-        <li>Confirm the import. You'll now appear on the map for everyone else on the {{ mode === 'public' ? 'OnPlaya mesh' : 'crew channel' }}.</li>
+        <li>Confirm the import. You'll now appear on the map for everyone else on the {{ mode === 'public' ? 'BRC Map mesh' : 'crew channel' }}.</li>
       </ol>
     </div>
   </div>

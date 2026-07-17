@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CITY_YEAR, STREET_NAMES, goldenSpikeKnown } from '~~/lib/brc/geocode'
 
-useHead({ title: 'City Guide — OnPlaya' })
+useHead({ title: 'City Guide — BRC Map' })
 
 // Resolved at setup; the golden-spike plugin calibrates before page render.
 const spikeKnown = goldenSpikeKnown()
@@ -45,7 +45,7 @@ const properties = [
           There's no cell service on the playa. <strong class="text-(--ui-text)">Meshtastic</strong> is an
           open-source, off-grid radio network: inexpensive <strong class="text-(--ui-text)">LoRa</strong>
           devices form a self-healing mesh that relays text messages and GPS positions for miles — no
-          internet, no towers. OnPlaya talks to your radio directly, so you can see
+          internet, no towers. BRC Map talks to your radio directly, so you can see
           <strong class="text-(--ui-text)">your people live on the map</strong> and
           <strong class="text-(--ui-text)">chat</strong> with them when nothing else works.
         </p>
@@ -87,7 +87,7 @@ const properties = [
           so your dot appears for everyone else.
         </li>
         <li>
-          <strong class="text-(--ui-text)">Connect it to OnPlaya.</strong> Open the map, tap the
+          <strong class="text-(--ui-text)">Connect it to BRC Map.</strong> Open the map, tap the
           <strong class="text-(--ui-text)">Mesh</strong> button (bottom-left), and choose
           <strong class="text-(--ui-text)">Connect via Bluetooth</strong> or
           <strong class="text-(--ui-text)">USB</strong>. Pick your radio in the browser prompt (the Bluetooth
@@ -109,16 +109,16 @@ const properties = [
           <p class="text-sm text-(--ui-text-muted)">
             <strong class="text-(--ui-text)">On an iPhone?</strong> Apple doesn't let web apps reach a radio
             over Bluetooth or USB, so pair your radio in the official
-            <strong class="text-(--ui-text)">Meshtastic</strong> app instead — OnPlaya's radio connection is
+            <strong class="text-(--ui-text)">Meshtastic</strong> app instead — BRC Map's radio connection is
             for Chrome/Edge on desktop and Android. And bring power: GPS + Bluetooth drain a radio fast over a
             week, so pack a battery bank or a small solar panel.
           </p>
         </div>
       </UCard>
 
-      <h3 class="mt-8 font-semibold text-(--ui-text)">Join the OnPlaya mesh</h3>
+      <h3 class="mt-8 font-semibold text-(--ui-text)">Join the BRC Map mesh</h3>
       <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
-        Scan this to put your radio on the shared OnPlaya channel with sensible playa settings —
+        Scan this to put your radio on the shared BRC Map channel with sensible playa settings —
         or spin up a private channel just for your crew. Everyone on the same channel shows up on
         each other's map.
       </p>
@@ -147,7 +147,7 @@ const properties = [
           The city occupies roughly the <strong class="text-(--ui-text)">2:00 to 10:00</strong> arc — about
           two-thirds of a circle — opening toward the deep playa. An address is simply where a time street
           meets a letter street: <strong class="text-(--ui-text)">“7:30 &amp; E”</strong> is where the 7:30
-          radial crosses E. That’s exactly how OnPlaya turns an address into a pin.
+          radial crosses E. That’s exactly how BRC Map turns an address into a pin.
         </p>
       </div>
 
@@ -219,7 +219,7 @@ const properties = [
         <div class="flex items-start gap-3">
           <UIcon name="i-lucide-target" class="mt-0.5 size-5 shrink-0 text-primary" />
           <p class="text-sm text-(--ui-text-muted)">
-            OnPlaya is built the same way: every address is computed from that single center point.
+            BRC Map is built the same way: every address is computed from that single center point.
             <template v-if="spikeKnown">
               The 2026 golden spike has been set, so the map is snapped to this year’s real survey.
             </template>
@@ -316,7 +316,7 @@ const properties = [
 
     <div class="mt-12 flex flex-wrap gap-3">
       <UButton to="/" icon="i-lucide-map" color="primary">Open the map</UButton>
-      <UButton to="/about" icon="i-lucide-info" color="neutral" variant="soft">About OnPlaya</UButton>
+      <UButton to="/about" icon="i-lucide-info" color="neutral" variant="soft">About BRC Map</UButton>
     </div>
   </UContainer>
 </template>

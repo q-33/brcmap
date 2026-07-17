@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
-// OnPlaya offline service worker (injectManifest strategy).
+// BRC Map offline service worker (injectManifest strategy).
 //
 // The playa has no cell/internet, so this SW is what makes the app usable there:
-// once you've opened OnPlaya online, the app shell, the map code, and the last
+// once you've opened BRC Map online, the app shell, the map code, and the last
 // data you saw are all cached and served offline. The map geometry itself is
 // generated in-browser (no tiles), so with the shell + fonts cached the whole
 // city renders with zero network.
@@ -23,7 +23,7 @@ precacheAndRoute(self.__WB_MANIFEST)
 // playa hotspot) we serve the last cached page. Nuxt is a SPA after hydration, so
 // the cached shell + client-side routing + cached /api cover every in-app route.
 const pagesStrategy = new NetworkFirst({
-  cacheName: 'onplaya-pages',
+  cacheName: 'brcmap-pages',
   networkTimeoutSeconds: 3,
   plugins: [new CacheableResponsePlugin({ statuses: [200] })],
 })
@@ -53,7 +53,7 @@ setCatchHandler(async ({ request }) => {
 registerRoute(
   ({ url, request }) => request.method === 'GET' && /^\/api\/(camps|art|gate|weather|toilets|events)\b/.test(url.pathname),
   new NetworkFirst({
-    cacheName: 'onplaya-api',
+    cacheName: 'brcmap-api',
     networkTimeoutSeconds: 4,
     matchOptions: { ignoreSearch: true },
     plugins: [
@@ -69,7 +69,7 @@ registerRoute(
 registerRoute(
   ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/fonts/'),
   new CacheFirst({
-    cacheName: 'onplaya-fonts',
+    cacheName: 'brcmap-fonts',
     plugins: [
       new CacheableResponsePlugin({ statuses: [200] }),
       new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 * 365 }),

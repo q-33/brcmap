@@ -159,7 +159,7 @@ async function remove(id: string) {
   await refresh()
 }
 
-useHead({ title: 'Events — OnPlaya' })
+useHead({ title: 'Events — BRC Map' })
 </script>
 
 <template>

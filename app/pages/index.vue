@@ -498,7 +498,7 @@ const itemOptions = computed(() => [
       <div class="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#26211a]/85 p-1 pl-3 text-white shadow-lg backdrop-blur-xl">
         <NuxtLink to="/" class="mr-1 flex items-center gap-1.5">
           <UIcon name="i-lucide-flame" class="size-4 text-primary" />
-          <span class="font-display text-sm font-bold uppercase tracking-wide">OnPlaya</span>
+          <span class="font-display text-sm font-bold uppercase tracking-wide">BRC Map</span>
         </NuxtLink>
         <!-- desktop: inline nav -->
         <div class="hidden items-center gap-1 sm:flex">

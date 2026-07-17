@@ -10,10 +10,10 @@ import nodemailer from 'nodemailer'
 //   SMTP_USER       default: digit@burnermap.org
 //   SMTP_HOST       default: smtp.dreamhost.com
 //   SMTP_PORT       default: 465 (implicit SSL)
-//   EMAIL_FROM      default: "OnPlaya <digit@burnermap.org>"
+//   EMAIL_FROM      default: "BRC Map <digit@burnermap.org>"
 //   CONTACT_TO      default: digit@burnermap.org   (where the contact form lands)
 
-const SITE_URL = process.env.PUBLIC_SITE_URL ?? 'https://onplaya.com'
+const SITE_URL = process.env.PUBLIC_SITE_URL ?? 'https://brcmap.net'
 
 export const CONTACT_TO = process.env.CONTACT_TO ?? 'digit@burnermap.org'
 
@@ -47,7 +47,7 @@ export async function sendEmail(opts: EmailOpts): Promise<boolean> {
     return false
   try {
     await t.sendMail({
-      from: process.env.EMAIL_FROM ?? 'OnPlaya <digit@burnermap.org>',
+      from: process.env.EMAIL_FROM ?? 'BRC Map <digit@burnermap.org>',
       to: opts.to,
       subject: opts.subject,
       text: opts.text,
@@ -73,9 +73,9 @@ export async function notifyNewMessage(to: string, fromName: string, preview: st
   const snippet = preview.length > 140 ? `${preview.slice(0, 140)}…` : preview
   await sendEmail({
     to,
-    subject: `New message from ${fromName} on OnPlaya`,
-    text: `${fromName} sent you a message on OnPlaya:\n\n"${snippet}"\n\nReply here: ${url}`,
-    html: `<p><strong>${esc(fromName)}</strong> sent you a message on OnPlaya:</p>`
+    subject: `New message from ${fromName} on BRC Map`,
+    text: `${fromName} sent you a message on BRC Map:\n\n"${snippet}"\n\nReply here: ${url}`,
+    html: `<p><strong>${esc(fromName)}</strong> sent you a message on BRC Map:</p>`
       + `<blockquote style="margin:12px 0;padding:8px 12px;border-left:3px solid #e1641a;color:#444">${esc(snippet)}</blockquote>`
       + `<p><a href="${url}" style="color:#e1641a">Open your inbox to reply →</a></p>`,
   })
@@ -85,11 +85,11 @@ export async function notifyNewMessage(to: string, fromName: string, preview: st
 export async function sendPasswordReset(to: string, resetUrl: string): Promise<boolean> {
   return sendEmail({
     to,
-    subject: 'Reset your OnPlaya password',
-    text: `Someone asked to reset the password for your OnPlaya account.\n\n`
+    subject: 'Reset your BRC Map password',
+    text: `Someone asked to reset the password for your BRC Map account.\n\n`
       + `Reset it here (link expires in 1 hour):\n${resetUrl}\n\n`
       + `If you didn't request this, you can ignore this email — your password won't change.`,
-    html: `<p>Someone asked to reset the password for your OnPlaya account.</p>`
+    html: `<p>Someone asked to reset the password for your BRC Map account.</p>`
       + `<p><a href="${resetUrl}" style="display:inline-block;background:#e1641a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Reset your password →</a></p>`
       + `<p style="color:#666;font-size:13px">This link expires in 1 hour. If you didn't request it, ignore this email — your password won't change.</p>`,
   })
@@ -100,9 +100,9 @@ export async function notifySignup(email: string, displayName: string | null): P
   const who = displayName || email
   await sendEmail({
     to: CONTACT_TO,
-    subject: `New OnPlaya signup: ${who}`,
-    text: `A new user just registered on OnPlaya:\n\n  Email: ${email}\n  Name:  ${displayName || '(none)'}\n\nManage users: ${SITE_URL}/admin?tab=people`,
-    html: `<p>A new user just registered on OnPlaya:</p>`
+    subject: `New BRC Map signup: ${who}`,
+    text: `A new user just registered on BRC Map:\n\n  Email: ${email}\n  Name:  ${displayName || '(none)'}\n\nManage users: ${SITE_URL}/admin?tab=people`,
+    html: `<p>A new user just registered on BRC Map:</p>`
       + `<ul><li><strong>Email:</strong> ${esc(email)}</li><li><strong>Name:</strong> ${esc(displayName || '(none)')}</li></ul>`
       + `<p><a href="${SITE_URL}/admin?tab=people" style="color:#e1641a">Manage users →</a></p>`,
   })
