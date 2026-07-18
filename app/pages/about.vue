@@ -5,7 +5,7 @@ useHead({ title: 'About — BRC Map' })
 
 const streets = Object.entries(STREET_NAMES).filter(([k]) => k !== 'Esplanade')
 
-const team = ['Admin', 'LB', 'Gizmo']
+const team = ['digit', 'LB', 'Gizmo']
 const alumni = [
   'Crockett! (Vince Ferhino — Soon To Be Infamous)',
   'Pee Pee La Poo (Trashistan)',
