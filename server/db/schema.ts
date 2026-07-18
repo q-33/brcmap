@@ -90,9 +90,6 @@ export const camps = pgTable('camps', {
   // optional plot footprint (feet): frontage along the street, depth radial
   frontageFt: doublePrecision('frontage_ft'),
   depthFt: doublePrecision('depth_ft'),
-  // optional structure height (feet) — used by the sun & shade tool to size each
-  // camp's shadow; falls back to a default reference height when unset.
-  heightFt: doublePrecision('height_ft'),
   hidden: boolean('hidden').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

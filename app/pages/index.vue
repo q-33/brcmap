@@ -71,7 +71,7 @@ function toPins(items: any): CampPin[] {
   return (items ?? []).flatMap((c: any) =>
     (c.locations ?? [])
       .filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
-      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null, heightFt: c.heightFt ?? null })),
+      .map((l: any) => ({ name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null })),
   )
 }
 // client-only: the map (and its pins) render client-side after hydration anyway,
@@ -299,7 +299,7 @@ async function logout() {
 
 // the current user's own camps + art (for picking vs creating)
 type DropKind = 'camp' | 'art'
-interface MyItem { id: string, name: string, description?: string | null, website?: string | null, contactEmail?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null }
+interface MyItem { id: string, name: string, description?: string | null, website?: string | null, contactEmail?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null }
 const { data: myCamps, refresh: refreshMineCamps } = await useFetch<MyItem[]>('/api/camps/mine', { immediate: false, default: () => [] })
 const { data: myArt, refresh: refreshMineArt } = await useFetch<MyItem[]>('/api/art/mine', { immediate: false, default: () => [] })
 watch(loggedIn, (v) => { if (v) { refreshMineCamps(); refreshMineArt() } }, { immediate: true })
@@ -409,7 +409,7 @@ const campEditOpen = ref(false)
 // The camp the details sheet is editing. Single-camp users only ever edit their
 // one camp; Hubs edit whichever camp they picked in the drop sheet.
 const campEditId = ref<string>('')
-const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null, heightFt: null as number | null })
+const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null })
 const campSaveBusy = ref(false)
 const campSaveError = ref('')
 
@@ -431,7 +431,6 @@ function openCampEdit(camp: MyItem | null = currentCamp.value) {
   campForm.contactEmail = c.contactEmail ?? ''
   campForm.frontageFt = c.frontageFt ?? null
   campForm.depthFt = c.depthFt ?? null
-  campForm.heightFt = c.heightFt ?? null
   campSaveError.value = ''
   campEditOpen.value = true
 }
@@ -796,8 +795,6 @@ const itemOptions = computed(() => [
               <UInput v-model.number="campForm.frontageFt" type="number" min="0" placeholder="Frontage (ft)" class="w-full" />
               <UInput v-model.number="campForm.depthFt" type="number" min="0" placeholder="Depth (ft)" class="w-full" />
             </div>
-            <UInput v-model.number="campForm.heightFt" type="number" min="0" max="200" placeholder="Structure height (ft)" class="mt-2 w-full" />
-            <p class="mt-1 text-xs text-(--ui-text-muted)">Height sharpens the sun &amp; shade shadow estimate.</p>
           </div>
           <p v-if="campSaveError" class="text-sm text-red-600">{{ campSaveError }}</p>
           <div class="flex gap-2">

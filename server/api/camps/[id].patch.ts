@@ -37,8 +37,6 @@ export default defineEventHandler(async (event) => {
     set.frontageFt = body.frontageFt || null
   if (body.depthFt !== undefined)
     set.depthFt = body.depthFt || null
-  if (body.heightFt !== undefined)
-    set.heightFt = body.heightFt || null
 
   const [updated] = await db.update(camps).set(set).where(eq(camps.id, id)).returning()
   return updated
