@@ -16,8 +16,8 @@ const dismissed = useCookie<boolean>('bm-disclaimer-dismissed', {
   >
     <UIcon name="i-lucide-info" class="size-3.5 shrink-0" />
     <span>
-      <b class="font-medium text-(--ui-text)">burnermap.org</b> (a fork of the Unofficial BRC Map) is now
-      <b class="font-medium text-(--ui-text)">brcmap.net</b>
+      <b class="font-medium text-(--ui-text)">BurnerMap.org</b> is now
+      <b class="font-medium text-(--ui-text)">BRCMap.net</b> — a fork of the Unofficial BRC Map
     </span>
     <button
       type="button"
