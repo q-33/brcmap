@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// Persistent-but-dismissible disclaimer under the countdown: this is an
-// independent, unofficial project — a fork of the Unofficial BRC Map — and NOT
-// the separate burnermap.com project. Dismissal is stored in a cookie so it's
-// SSR-aware (no flash for returning visitors who've closed it).
+// Persistent-but-dismissible notice under the countdown: this project (a fork of
+// the Unofficial BRC Map, formerly "BurnerMap") was renamed to BRC Map to avoid
+// confusion with the separate burnermap.com project. Dismissal is stored in a
+// cookie so it's SSR-aware (no flash for returning visitors who've closed it).
 const dismissed = useCookie<boolean>('bm-disclaimer-dismissed', {
   maxAge: 60 * 60 * 24 * 365,
   sameSite: 'lax',
@@ -16,9 +16,9 @@ const dismissed = useCookie<boolean>('bm-disclaimer-dismissed', {
   >
     <UIcon name="i-lucide-info" class="size-3.5 shrink-0" />
     <span>
-      Unofficial · a fork of the <b class="font-medium text-(--ui-text)">Unofficial BRC Map</b> — not the original
+      <b class="font-medium text-(--ui-text)">BurnerMap</b> (a fork of the Unofficial BRC Map) is now
+      <b class="font-medium text-(--ui-text)">BRC Map</b> to reduce confusion from
       <a href="https://burnermap.com" target="_blank" rel="noopener noreferrer" class="font-medium text-primary underline underline-offset-2">burnermap.com</a>
-      project.
     </span>
     <button
       type="button"
