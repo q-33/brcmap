@@ -78,6 +78,8 @@ export default defineNuxtConfig({
         { name: 'apple-mobile-web-app-title', content: 'BRC Map' },
       ],
       link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
         { rel: 'manifest', href: '/manifest.webmanifest' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
       ],
