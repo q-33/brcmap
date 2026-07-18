@@ -8,7 +8,7 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
 // (.client components break template refs / onMounted DOM access in Nuxt.)
 
-interface CampPin { name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null }
+interface CampPin { name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null }
 // A camp whose boundary is being edited live on the map (admin/owner tool).
 export interface EditCamp { id: string, name: string, lat: number, lng: number, frontageFt: number, depthFt: number }
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
@@ -215,7 +215,7 @@ function convexHull(pts: [number, number][]): [number, number][] {
 // Cast shadows for every camp at a given instant: each footprint (the plot, or a
 // small default box) is swept in the anti-sun direction; length scales with sun
 // altitude. `sunTime` is epoch ms; null/sun-down → no shadows.
-const SHADOW_HEIGHT_M = 3.5 // reference structure height
+const SHADOW_HEIGHT_M = 3.5 // fallback reference height when a camp sets no height
 const SHADOW_MAX_M = 90
 // suncalc is CommonJS — normalize whether the bundler exposes a default or the
 // namespace itself.
@@ -229,12 +229,17 @@ function shadowsGeoJson(pins: CampPin[], sunTime: number | null | undefined): Ge
     return { type: 'FeatureCollection', features: [] } // sun down / too low
   const MLAT = 111320
   const MLNG = MLAT * Math.cos((manLat * Math.PI) / 180)
-  const L = Math.min(SHADOW_MAX_M, SHADOW_HEIGHT_M / Math.tan((sun.altitude * Math.PI) / 180))
   const shAz = ((sun.azimuth + 180) * Math.PI) / 180 // shadow points away from the sun
-  const sE = L * Math.sin(shAz)
-  const sN = L * Math.cos(shAz)
+  const tanAlt = Math.tan((sun.altitude * Math.PI) / 180)
+  const shDir: [number, number] = [Math.sin(shAz), Math.cos(shAz)] // unit vector (E, N) toward the shadow
   const features: GeoJSON.Feature[] = []
   for (const c of pins) {
+    // shadow length scales with this camp's structure height (falling back to the
+    // reference height when unset), clamped so a low sun doesn't paint the playa
+    const hM = (c.heightFt ?? 0) > 0 ? c.heightFt! * 0.3048 : SHADOW_HEIGHT_M
+    const L = Math.min(SHADOW_MAX_M, hM / tanAlt)
+    const sE = L * shDir[0]
+    const sN = L * shDir[1]
     const E = (c.lng - manLng) * MLNG
     const N = (c.lat - manLat) * MLAT
     const r = Math.hypot(E, N) || 1

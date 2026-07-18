@@ -116,6 +116,8 @@ export const campUpdateSchema = z.object({
   hometown: z.string().max(200).optional().or(z.literal('')),
   frontageFt: z.number().min(0).max(3000).nullable().optional(),
   depthFt: z.number().min(0).max(3000).nullable().optional(),
+  // structure height (feet) for the sun & shade tool
+  heightFt: z.number().min(0).max(200).nullable().optional(),
 })
 
 // Admin edits to an artwork's details (e.g. fixing an entry dropped in error).

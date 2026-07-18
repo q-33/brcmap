@@ -47,6 +47,7 @@ export default defineEventHandler(async (event) => {
         hometown: c.hometown,
         frontageFt: c.frontageFt,
         depthFt: c.depthFt,
+        heightFt: c.heightFt,
         lat: loc?.gpsLatitude ?? null,
         lng: loc?.gpsLongitude ?? null,
         address: loc?.addressString ?? null,

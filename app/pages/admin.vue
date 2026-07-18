@@ -6,7 +6,7 @@ interface AdminUser { id: string, email: string, displayName: string | null, rol
 interface AdminCamp {
   id: string, name: string, year: number, owner: string | null, locations: number, hidden: boolean
   description: string | null, website: string | null, contactEmail: string | null, hometown: string | null
-  frontageFt: number | null, depthFt: number | null, lat: number | null, lng: number | null, address: string | null
+  frontageFt: number | null, depthFt: number | null, heightFt: number | null, lat: number | null, lng: number | null, address: string | null
 }
 interface Content {
   camps: AdminCamp[]
@@ -141,7 +141,7 @@ async function convertToCamp(id: string, label: string) {
 // --- edit a camp's details (admin) -----------------------------------------
 const campEditOpen = ref(false)
 const campEditId = ref('')
-const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null })
+const campForm = reactive({ name: '', description: '', website: '', hometown: '', contactEmail: '', frontageFt: null as number | null, depthFt: null as number | null, heightFt: null as number | null })
 const campEditBusy = ref(false)
 const campEditError = ref('')
 
@@ -154,6 +154,7 @@ function openCampEdit(c: AdminCamp) {
   campForm.contactEmail = c.contactEmail ?? ''
   campForm.frontageFt = c.frontageFt
   campForm.depthFt = c.depthFt
+  campForm.heightFt = c.heightFt
   campEditError.value = ''
   campOwnerEmail.value = c.owner ?? ''
   campOwnerMsg.value = ''
@@ -494,6 +495,7 @@ useHead({ title: 'Admin — BRC Map' })
             <UInput v-model.number="campForm.frontageFt" type="number" min="0" placeholder="Frontage (ft)" class="w-full" />
             <UInput v-model.number="campForm.depthFt" type="number" min="0" placeholder="Depth (ft)" class="w-full" />
           </div>
+          <UInput v-model.number="campForm.heightFt" type="number" min="0" max="200" placeholder="Structure height (ft) — for sun & shade" class="w-full" />
           <p class="text-xs text-(--ui-text-muted)">Tip: use “Boundary” to drag the pin &amp; resize the plot live on the map.</p>
           <p v-if="campEditError" class="text-sm text-red-600">{{ campEditError }}</p>
           <UButton type="submit" block :loading="campEditBusy" :disabled="!campForm.name.trim()">Save details</UButton>
