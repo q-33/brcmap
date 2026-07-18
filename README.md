@@ -111,11 +111,11 @@ pnpm install
 # Email is optional — if SMTP_PASSWORD is unset the email helpers no-op and the
 # app still runs. To enable outbound email (contact form, password resets, nudges):
 #   SMTP_PASSWORD=…                       # mailbox password (required to send)
-#   SMTP_USER=digit@burnermap.org         # default shown
+#   SMTP_USER=digit@brcmap.net         # default shown
 #   SMTP_HOST=smtp.dreamhost.com          # default shown
 #   SMTP_PORT=465                         # default (implicit SSL)
-#   EMAIL_FROM="BRC Map <digit@burnermap.org>"   # default sender
-#   CONTACT_TO=digit@burnermap.org        # where the contact form lands
+#   EMAIL_FROM="BRC Map <digit@brcmap.net>"   # default sender
+#   CONTACT_TO=digit@brcmap.net        # where the contact form lands
 
 pnpm db:migrate   # apply db/migrations/*.sql (idempotent)
 pnpm dev          # http://localhost:3000

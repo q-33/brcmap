@@ -32,7 +32,7 @@ useHead({ title: 'Contact — BRC Map' })
     <h1 class="font-display text-3xl font-bold uppercase tracking-tight">Contact</h1>
     <p class="mt-2 text-(--ui-text-muted)">
       Questions, corrections, or want your camp/art fixed up? Send a note below — or email
-      <a href="mailto:digit@burnermap.org" class="text-primary hover:underline">digit@burnermap.org</a> directly.
+      <a href="mailto:digit@brcmap.net" class="text-primary hover:underline">digit@brcmap.net</a> directly.
     </p>
     <UCard class="mt-6">
       <div v-if="sent" class="space-y-3 py-2 text-center">
@@ -42,7 +42,7 @@ useHead({ title: 'Contact — BRC Map' })
       <div v-else-if="failed" class="space-y-3 py-2 text-center">
         <UIcon name="i-lucide-mail-warning" class="mx-auto size-10 text-amber-500" />
         <p class="text-sm">Sorry — the contact form can't send right now. Please email me directly:</p>
-        <UButton :to="`mailto:digit@burnermap.org?subject=BRC%20Map&body=${encodeURIComponent(form.message)}`" icon="i-lucide-mail">Email digit@burnermap.org</UButton>
+        <UButton :to="`mailto:digit@brcmap.net?subject=BRC%20Map&body=${encodeURIComponent(form.message)}`" icon="i-lucide-mail">Email digit@brcmap.net</UButton>
       </div>
       <form v-else class="space-y-3" @submit.prevent="submit">
         <div class="grid gap-3 sm:grid-cols-2">

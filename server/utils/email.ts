@@ -6,16 +6,16 @@ import nodemailer from 'nodemailer'
 //
 // Configure on the server (DigitalOcean env / secret) — only SMTP_PASSWORD is
 // required, the rest have sensible DreamHost defaults:
-//   SMTP_PASSWORD   the digit@burnermap.org mailbox password   (SECRET, required)
-//   SMTP_USER       default: digit@burnermap.org
+//   SMTP_PASSWORD   the digit@brcmap.net mailbox password   (SECRET, required)
+//   SMTP_USER       default: digit@brcmap.net
 //   SMTP_HOST       default: smtp.dreamhost.com
 //   SMTP_PORT       default: 465 (implicit SSL)
-//   EMAIL_FROM      default: "BRC Map <digit@burnermap.org>"
-//   CONTACT_TO      default: digit@burnermap.org   (where the contact form lands)
+//   EMAIL_FROM      default: "BRC Map <digit@brcmap.net>"
+//   CONTACT_TO      default: digit@brcmap.net   (where the contact form lands)
 
 const SITE_URL = process.env.PUBLIC_SITE_URL ?? 'https://brcmap.net'
 
-export const CONTACT_TO = process.env.CONTACT_TO ?? 'digit@burnermap.org'
+export const CONTACT_TO = process.env.CONTACT_TO ?? 'digit@brcmap.net'
 
 let _transporter: Transporter | null = null
 function transporter(): Transporter | null {
@@ -28,7 +28,7 @@ function transporter(): Transporter | null {
       host: process.env.SMTP_HOST ?? 'smtp.dreamhost.com',
       port,
       secure: port === 465, // implicit SSL on 465; STARTTLS otherwise
-      auth: { user: process.env.SMTP_USER ?? 'digit@burnermap.org', pass },
+      auth: { user: process.env.SMTP_USER ?? 'digit@brcmap.net', pass },
       // Fail fast instead of hanging the request if outbound SMTP is blocked
       // (some hosts, incl. DigitalOcean App Platform, block ports 465/587).
       connectionTimeout: 10_000,
@@ -47,7 +47,7 @@ export async function sendEmail(opts: EmailOpts): Promise<boolean> {
     return false
   try {
     await t.sendMail({
-      from: process.env.EMAIL_FROM ?? 'BRC Map <digit@burnermap.org>',
+      from: process.env.EMAIL_FROM ?? 'BRC Map <digit@brcmap.net>',
       to: opts.to,
       subject: opts.subject,
       text: opts.text,
