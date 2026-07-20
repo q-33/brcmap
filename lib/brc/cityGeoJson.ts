@@ -222,10 +222,11 @@ export function cityGridGeoJson(): FeatureCollection {
   // where it becomes the 6:00 street. Matches the official plan's 6:00 entrance.
   push('gate-road', { type: 'LineString', coordinates: radial(6, kRadius, 2470) }, { name: 'Gate Rd' })
 
-  // Airport Road — branches off the 5:00 radial at the outer street and runs out
-  // to the BRC Municipal Airport (88NV), south-east of the city beyond the fence.
-  const AIRPORT: [number, number] = [-119.2107394, 40.7618388]
-  push('airport-road', { type: 'LineString', coordinates: [toLngLat(radialPoint(5, kRadius)), AIRPORT] }, { name: 'Airport Rd' })
+  // Airport Road — branches off the 5:00 radial at the outer street (K) and runs
+  // out to fence corner P5 (the south gate), matching the official plan. (P5 is
+  // the fence vertex by the airport; the airport marker itself sits just beyond.)
+  const fenceP5: [number, number] = [MAN.lng + FENCE_OFFSETS[4]![0], MAN.lat + FENCE_OFFSETS[4]![1]]
+  push('airport-road', { type: 'LineString', coordinates: [toLngLat(radialPoint(5, kRadius)), fenceP5] }, { name: 'Airport Rd' })
 
   // 6. Portals — open plaza circles that mask the blocks underneath.
   //  • Center Camp (Rod's Ring Road) at 6:00, opening onto the Esplanade.
