@@ -3,8 +3,13 @@ import { BRCMAP_LORA } from './brcmapChannel'
 export interface MeshChannel { name: string, psk: Uint8Array }
 
 // Build a Meshtastic channel-set share URL (https://meshtastic.org/e/#…) for the
-// given PRIMARY channel + the BRC Map LoRa preset. Scanning it in the Meshtastic
-// app (or applying it to a connected radio) puts a stock device on the mesh.
+// given channel(s) + the playa LoRa preset. Scanning it in the Meshtastic app (or
+// applying it to a connected radio) puts a stock device on the mesh.
+//
+// Pass an ARRAY to publish several channels at once: `settings` is a repeated
+// field and its ORDER is the channel index, so settings[0] becomes the device's
+// PRIMARY channel (the one position/node-info rides) and the rest become
+// secondaries (text only).
 //
 // The ChannelSet protobuf is hand-encoded (wire format below) so this has ZERO
 // runtime dependency on the (heavy, browser-fragile) Meshtastic SDK — the field
@@ -14,10 +19,14 @@ export interface MeshChannel { name: string, psk: Uint8Array }
 //   ChannelSettings { psk=2 (bytes), name=3 (string) }
 //   LoRaConfig   { use_preset=1, modem_preset=2, region=7, hop_limit=8,
 //                  tx_enabled=9, channel_num=11, ignore_mqtt=104 }  (all varint)
-export function buildChannelUrl(channel: MeshChannel): string {
-  const settings: number[] = []
-  bytesField(settings, 2, channel.psk)
-  bytesField(settings, 3, new TextEncoder().encode(channel.name))
+export function buildChannelUrl(channels: MeshChannel | MeshChannel[]): string {
+  const list = Array.isArray(channels) ? channels : [channels]
+  const encoded = list.map((channel) => {
+    const settings: number[] = []
+    bytesField(settings, 2, channel.psk)
+    bytesField(settings, 3, new TextEncoder().encode(channel.name))
+    return settings
+  })
 
   const lora: number[] = []
   varintField(lora, 1, 1) // use_preset = true
@@ -29,7 +38,8 @@ export function buildChannelUrl(channel: MeshChannel): string {
   varintField(lora, 104, BRCMAP_LORA.ignoreMqtt ? 1 : 0)
 
   const set: number[] = []
-  bytesField(set, 1, settings)
+  for (const settings of encoded) // repeated field: emitted once per channel, in order
+    bytesField(set, 1, settings)
   bytesField(set, 2, lora)
 
   return `https://meshtastic.org/e/#${base64url(Uint8Array.from(set))}`
