@@ -2,7 +2,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap, Marker } from 'maplibre-gl'
 import * as suncalcNs from 'suncalc'
-import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
+import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson, washCorners } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
@@ -37,7 +37,9 @@ function applyBasemap() {
       map!.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none')
   }
   set('blocks', !lines)
-  set('block-fans', !lines)
+  set('wash', !lines)
+  set('street-edges', !lines)
+  set('street-channels', !lines)
   set('blocks-outline', !lines)
   set('street-lines', lines)
 }
@@ -581,35 +583,63 @@ onMounted(async () => {
     if (!map)
       return
     map.addSource('grid', { type: 'geojson', data: cityGridGeoJson() })
-    // city blocks — vivid blue cells (white street channels are the gaps between)
+    // city blocks — white cells on the playa ground; the blue camping wash is a
+    // separate layer above (the official plan draws white blocks + a soft blue
+    // raster over the camping area).
     map.addLayer({
       id: 'blocks',
       type: 'fill',
       source: 'grid',
-      // only the placed-camp blocks are filled blue; the walk-in fringe (camp=0)
-      // is outline-only, giving the official tapered-horseshoe shape.
-      filter: ['all', ['==', ['get', 'kind'], 'block'], ['==', ['get', 'camp'], 1]],
-      // vivid azure (#2fa1fa) fading to white toward the outer rings + 2:00/10:00
-      // tips, per the official plan (each block carries a 0→1 `shade`).
-      paint: {
-        'fill-color': ['interpolate', ['linear'], ['get', 'shade'], 0, '#2fa1fa', 1, '#ffffff'],
-        'fill-opacity': 0.97,
-      },
+      filter: ['==', ['get', 'kind'], 'block'],
+      paint: { 'fill-color': '#fdfdfa', 'fill-opacity': 0.97 },
     })
-    // radial gradient fans — pale wedges along each spoke (official-plan look)
+    // the blue camping wash — the OFFICIAL plan's gradient raster itself, baked
+    // as a georeferenced RGBA image (pixel-exact shading; streets healed so the
+    // vector channels below redraw them). Corners track the golden spike.
+    map.addSource('wash', { type: 'image', url: '/brc-wash.png', coordinates: washCorners() as [[number, number], [number, number], [number, number], [number, number]] })
     map.addLayer({
-      id: 'block-fans',
-      type: 'fill',
+      id: 'wash',
+      type: 'raster',
+      source: 'wash',
+      paint: { 'raster-fade-duration': 0, 'raster-resampling': 'linear' },
+    })
+    // Streets in the official's EXACT print geometry, measured from the PDF:
+    // each street is two 4.25 m black strokes with a 7.5 m white core (16 m
+    // envelope). All widths are METRIC (scale with the ground, tiny px floor
+    // for legibility), so the map matches the plan's look at every zoom — a
+    // black casing band under a ground-coloured core; the core covers casings
+    // crossing at intersections, leaving clean openings exactly like the plan.
+    // zoom curves must be TOP-LEVEL in MapLibre, so the px floor goes inside the
+    // stop outputs (between stops the curve stays >= the floor).
+    const mFactorFloor = (m: any, floor: number): any => ['interpolate', ['exponential', 2], ['zoom'], 12, ['max', floor, ['*', m, 0.03456]], 18, ['max', floor, ['*', m, 2.212]]]
+    const coreW: any = ['coalesce', ['get', 'w'], 7.5]
+    map.addLayer({
+      id: 'street-edges',
+      type: 'line',
       source: 'grid',
-      filter: ['==', ['get', 'kind'], 'fan'],
-      paint: { 'fill-color': '#eaf6ff', 'fill-opacity': 0.4 },
+      // `nocase` features (Rod's Ring Road) draw their own edge circles instead
+      filter: ['all', ['==', ['get', 'kind'], 'street-channel'], ['!=', ['get', 'nocase'], 1]],
+      paint: {
+        'line-color': '#101820',
+        'line-width': mFactorFloor(['+', coreW, 8.5], 0.8),
+      },
     })
     map.addLayer({
       id: 'blocks-outline',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'block'],
-      paint: { 'line-color': '#22455f', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 15, 1.1] },
+      paint: { 'line-color': '#101820', 'line-width': mFactorFloor(4.25, 0.5) },
+    })
+    map.addLayer({
+      id: 'street-channels',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'street-channel'],
+      paint: {
+        'line-color': '#ffffff',
+        'line-width': mFactorFloor(coreW, 0.35),
+      },
     })
     // "Streets" basemap — the EXACT 2026 street geometry traced from the official
     // plan PDF. The default view: accurate street vectors, no fills.
@@ -621,29 +651,23 @@ onMounted(async () => {
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': '#9c9588', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 14, 1, 16, 1.8] },
     })
-    // trash fence (red dashed pentagon)
+    // trash fence (red dash-dot pentagon, like the plan)
     map.addLayer({
       id: 'fence',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'fence'],
-      paint: { 'line-color': '#e1241a', 'line-width': 1.4, 'line-dasharray': [4, 3] },
+      paint: { 'line-color': '#e1241a', 'line-width': mFactorFloor(4.25, 0.9), 'line-dasharray': [5, 2.5, 1.2, 2.5] },
     })
-    // cardinal avenues + 12:00 promenade + the Man's circle (black)
-    map.addLayer({
-      id: 'avenues',
-      type: 'line',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'avenue'],
-      paint: { 'line-color': '#1c2733', 'line-width': 1.1 },
-    })
-    // 6:00 gate road
+    // 6:00 gate road — a status overlay only: invisible until a live gate
+    // colour is set (the road itself renders as a street channel), but always
+    // carries the "Gate Road" label below.
     map.addLayer({
       id: 'gate-road',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'gate-road'],
-      paint: { 'line-color': props.gateColor ?? '#1c2733', 'line-width': props.gateColor ? 3 : 1.6 },
+      paint: { 'line-color': props.gateColor ?? '#1c2733', 'line-width': 3, 'line-opacity': props.gateColor ? 0.85 : 0 },
     })
     map.addLayer({
       id: 'gate-road-label',
@@ -659,6 +683,15 @@ onMounted(async () => {
         'text-letter-spacing': 0.08,
       },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
+    })
+    // the gate complex — the official plan's drawn strokes as filled shapes,
+    // so every road connects exactly as printed
+    map.addLayer({
+      id: 'gate-ink',
+      type: 'fill',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'gate-ink'],
+      paint: { 'fill-color': '#101820' },
     })
     // Airport Road — 5:00 branch out to the airport
     map.addLayer({
@@ -684,32 +717,31 @@ onMounted(async () => {
       },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
     })
-    // portals: open plaza circles. The fill-mask erases the blocks/grid/avenues
-    // underneath so the circles read as clear open plazas (no lines through them).
-    // Center Camp is the exception — the official 2026 plan fills Rod's Ring Road
-    // blue (camps/plaza), with only the ring-road + café drawn as outline circles,
-    // so it masks with the block azure rather than the open-plaza cream.
-    map.addLayer({
-      id: 'portal-mask',
-      type: 'fill',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'portal-fill'],
-      paint: { 'fill-color': ['case', ['==', ['get', 'name'], 'Center Camp'], '#2fa1fa', '#fbf9f5'] },
-    })
+    // portals: circle outlines (plazas, the Man, 12:00, café, spur roundabouts,
+    // keyhole V + neck flares). Interiors show the printed wash exactly — no
+    // fill masks; the street channels are already cut at each circle's edge.
     map.addLayer({
       id: 'portals',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'portal'],
-      paint: { 'line-color': '#1c2733', 'line-width': 1.5 },
+      paint: { 'line-color': '#101820', 'line-width': mFactorFloor(5.5, 0.6) }, // 5.5 m metric, official circle stroke
     })
-    // walk-in camping boundary (orange dashed, right side)
+    // walk-in camping boundary (orange; the 2:00 radial is solid on the plan,
+    // the city-edge arc + fence-corner run are dashed)
     map.addLayer({
       id: 'walkin-boundary',
       type: 'line',
       source: 'grid',
-      filter: ['==', ['get', 'kind'], 'walkin-boundary'],
+      filter: ['all', ['==', ['get', 'kind'], 'walkin-boundary'], ['!=', ['get', 'solid'], 1]],
       paint: { 'line-color': '#e08a2b', 'line-width': 1.4, 'line-dasharray': [4, 2] },
+    })
+    map.addLayer({
+      id: 'walkin-boundary-solid',
+      type: 'line',
+      source: 'grid',
+      filter: ['all', ['==', ['get', 'kind'], 'walkin-boundary'], ['==', ['get', 'solid'], 1]],
+      paint: { 'line-color': '#e08a2b', 'line-width': 1.6 },
     })
     map.addLayer({
       id: 'walkin-labels',
@@ -747,6 +779,17 @@ onMounted(async () => {
         'text-rotate': 300,
         'text-anchor': 'left',
       },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.4 },
+    })
+    // Clock-time labels around the outer city edge (2:00…10:00, every quarter),
+    // as on the official plan's rim.
+    map.addLayer({
+      id: 'time-labels',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'time-label'],
+      minzoom: 12.6,
+      layout: { 'text-field': ['get', 'name'], 'text-size': 9, 'text-allow-overlap': false },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.4 },
     })
     // Lettered ring-road names, curving ALONG each circular street (zoom in).

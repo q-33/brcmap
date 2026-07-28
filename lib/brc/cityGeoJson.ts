@@ -1,6 +1,7 @@
 import type { Feature, FeatureCollection } from 'geojson'
 import type { BrcAddress } from './geocode'
 import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
+import { GATE_INK } from './gateLines'
 import { STREET_LINE_OFFSETS } from './streetLines'
 
 // The exact 2026 street network traced from the official plan PDF, re-centred
@@ -26,6 +27,144 @@ const OUTER = STREETS[STREETS.length - 1]! // Kundalini (K)
 const toLngLat = (p: { lat: number, lng: number }): [number, number] => [p.lng, p.lat]
 const HALF_STREET_M = 6 // half the street width → the gap between blocks
 
+// Local flat projection (must mirror geocode.ts): metre offsets east/north of
+// the Man ↔ lng/lat. Computed per call so runtime golden-spike calibration of
+// MAN keeps working.
+const M_PER_DEG_LAT = 111320
+function enToLngLat(e: number, n: number): [number, number] {
+  const mPerDegLng = M_PER_DEG_LAT * Math.cos((MAN.lat * Math.PI) / 180)
+  return [MAN.lng + e / mPerDegLng, MAN.lat + n / M_PER_DEG_LAT]
+}
+function lngLatToEN(p: [number, number]): [number, number] {
+  const mPerDegLng = M_PER_DEG_LAT * Math.cos((MAN.lat * Math.PI) / 180)
+  return [(p[0] - MAN.lng) * mPerDegLng, (p[1] - MAN.lat) * M_PER_DEG_LAT]
+}
+// Plan-oriented offsets (12:00 straight up, as measured off the official PDF)
+// → real-world lng/lat: rotate by the city's 45° bearing first.
+const SQRT2_2 = Math.SQRT2 / 2
+function planToLngLat(px: number, py: number): [number, number] {
+  return enToLngLat((px + py) * SQRT2_2, (py - px) * SQRT2_2)
+}
+
+// Subtract a circle from a polygon ring: points inside the circle are replaced
+// by the circle's arc between the boundary crossings, so blocks visually "hug"
+// the plazas the way the official plan draws them. Handles corner bites (the
+// only case our geometry produces); rings fully outside are returned untouched.
+function carveCircle(ring: [number, number][], center: { lat: number, lng: number }, radiusM: number): [number, number][] {
+  const c = lngLatToEN([center.lng, center.lat])
+  const pts = ring.map(lngLatToEN)
+  const inside = pts.map(p => Math.hypot(p[0] - c[0], p[1] - c[1]) < radiusM)
+  if (!inside.some(Boolean))
+    return ring
+  const n = pts.length - 1 // ring is closed; ignore duplicate last point
+  // segment ↔ circle intersection (returns the parameter s in [0,1])
+  const hit = (a: [number, number], b: [number, number]): [number, number] => {
+    const dx = b[0] - a[0]; const dy = b[1] - a[1]
+    const fx = a[0] - c[0]; const fy = a[1] - c[1]
+    const A = dx * dx + dy * dy
+    const B = 2 * (fx * dx + fy * dy)
+    const C = fx * fx + fy * fy - radiusM * radiusM
+    const disc = Math.max(0, B * B - 4 * A * C)
+    const s1 = (-B - Math.sqrt(disc)) / (2 * A)
+    const s2 = (-B + Math.sqrt(disc)) / (2 * A)
+    const s = s1 >= -1e-9 && s1 <= 1 + 1e-9 ? s1 : s2
+    return [a[0] + dx * s, a[1] + dy * s]
+  }
+  const out: [number, number][] = []
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!
+    const q = pts[(i + 1) % n]!
+    if (!inside[i])
+      out.push(p)
+    if (inside[i] !== inside[(i + 1) % n]) {
+      const x = inside[i] ? hit(q, p) : hit(p, q)
+      // mark boundary crossings with their angle so arcs can be spliced below
+      out.push(x)
+    }
+  }
+  // splice arcs: consecutive crossing pairs (exit→re-entry of the OUTSIDE part)
+  // are joined along the circle. Find pairs where the gap between out[] points
+  // lies on the circle (both within ~1 m of the radius).
+  const res: [number, number][] = []
+  const onCircle = (p: [number, number]) => Math.abs(Math.hypot(p[0] - c[0], p[1] - c[1]) - radiusM) < 1
+  for (let i = 0; i < out.length; i++) {
+    const p = out[i]!
+    res.push(p)
+    const q = out[(i + 1) % out.length]!
+    if (onCircle(p) && onCircle(q)) {
+      // arc from p to q, bulging AWAY from the polygon interior (i.e. tracing
+      // the removed corner): sweep the short way around the circle.
+      let a0 = Math.atan2(p[1] - c[1], p[0] - c[0])
+      let a1 = Math.atan2(q[1] - c[1], q[0] - c[0])
+      if (a1 - a0 > Math.PI)
+        a1 -= 2 * Math.PI
+      if (a0 - a1 > Math.PI)
+        a1 += 2 * Math.PI
+      const steps = Math.max(2, Math.ceil(Math.abs(a1 - a0) / 0.12))
+      for (let s = 1; s < steps; s++) {
+        const a = a0 + ((a1 - a0) * s) / steps
+        res.push([c[0] + radiusM * Math.cos(a), c[1] + radiusM * Math.sin(a)])
+      }
+    }
+  }
+  const ll = res.map(p => enToLngLat(p[0], p[1]))
+  ll.push(ll[0]!)
+  return ll
+}
+
+// Cut a polyline where it enters circles (plazas, the Man circle, Center Camp)
+// so streets STOP at the drawn circle edge like the official plan — the circle
+// interiors stay clean wash-blue with no channel crossing them. Works by dense
+// resampling (~2 m) in metre space; boundary error is invisible at map scale.
+function cutCircles(coords: [number, number][], circles: { center: { lat: number, lng: number }, radiusM: number }[]): [number, number][][] {
+  const cs = circles.map(c => ({ en: lngLatToEN([c.center.lng, c.center.lat]), r: c.radiusM }))
+  const pts = coords.map(lngLatToEN)
+  const inside = (p: [number, number]) => cs.some(c => Math.hypot(p[0] - c.en[0], p[1] - c.en[1]) < c.r)
+  // resample densely
+  const dense: [number, number][] = []
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i]!
+    const b = pts[i + 1]!
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1])
+    const n = Math.max(1, Math.ceil(L / 2))
+    for (let s = 0; s < n; s++)
+      dense.push([a[0] + ((b[0] - a[0]) * s) / n, a[1] + ((b[1] - a[1]) * s) / n])
+  }
+  dense.push(pts[pts.length - 1]!)
+  // prune near-collinear resample points so runs stay compact
+  const prune = (run: [number, number][]): [number, number][] => {
+    if (run.length <= 2)
+      return run
+    const kept: [number, number][] = [run[0]!]
+    for (let i = 1; i < run.length - 1; i++) {
+      const a = kept[kept.length - 1]!
+      const b = run[i]!
+      const c = run[i + 1]!
+      const cross = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]))
+      const len = Math.hypot(c[0] - a[0], c[1] - a[1])
+      if ((len ? cross / len : 0) > 0.05 || Math.hypot(b[0] - a[0], b[1] - a[1]) > 60)
+        kept.push(b)
+    }
+    kept.push(run[run.length - 1]!)
+    return kept
+  }
+  const out: [number, number][][] = []
+  let cur: [number, number][] = []
+  const flush = () => {
+    if (cur.length > 1)
+      out.push(prune(cur).map(q => enToLngLat(q[0], q[1])))
+    cur = []
+  }
+  for (const p of dense) {
+    if (inside(p))
+      flush()
+    else
+      cur.push(p)
+  }
+  flush()
+  return out
+}
+
 function arcAt(radiusM: number, tMin: number, tMax: number): [number, number][] {
   const pts: [number, number][] = []
   for (let t = tMin; t <= tMax + 1e-9; t += 0.1)
@@ -35,34 +174,73 @@ function arcAt(radiusM: number, tMin: number, tMax: number): [number, number][] 
 
 // One city block: an annular-sector cell between two streets and two radials,
 // inset by half a street width on each side to leave the white street channels.
-// `camp` = 1 for the solid-blue placed-camp area, 0 for the outline-only walk-in
-// fringe at the outer corners (matching the official plan's tapered horseshoe).
-function block(rIn: number, rOut: number, t0: number, t1: number, camp: number, shade = 0): Feature {
-  const ring: [number, number][] = []
+// `camp` = 1 for the placed-camp area, 0 for the outline-only walk-in fringe at
+// the outer corners (matching the official plan's tapered horseshoe). Blocks
+// near a plaza get the plaza circle carved out so they hug it (official style).
+// Round a polygon's corners (official-plan style ~12 m fillets) with quadratic
+// béziers in metre space. `cornerIdxs` are indices into the OPEN ring.
+function roundCorners(ring: [number, number][], cornerIdxs: number[], radiusM: number): [number, number][] {
+  const pts = ring.map(lngLatToEN)
+  const n = pts.length
+  const out: [number, number][] = []
+  const cornerSet = new Set(cornerIdxs)
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!
+    if (!cornerSet.has(i)) {
+      out.push(p)
+      continue
+    }
+    const a = pts[(i - 1 + n) % n]!
+    const b = pts[(i + 1) % n]!
+    const la = Math.hypot(a[0] - p[0], a[1] - p[1])
+    const lb = Math.hypot(b[0] - p[0], b[1] - p[1])
+    const r = Math.min(radiusM, la / 3, lb / 3)
+    if (r < 2) {
+      out.push(p)
+      continue
+    }
+    const t1: [number, number] = [p[0] + ((a[0] - p[0]) * r) / la, p[1] + ((a[1] - p[1]) * r) / la]
+    const t2: [number, number] = [p[0] + ((b[0] - p[0]) * r) / lb, p[1] + ((b[1] - p[1]) * r) / lb]
+    for (const s of [0, 0.25, 0.5, 0.75, 1]) {
+      const u = 1 - s
+      out.push([u * u * t1[0] + 2 * s * u * p[0] + s * s * t2[0], u * u * t1[1] + 2 * s * u * p[1] + s * s * t2[1]])
+    }
+  }
+  return out.map(q => enToLngLat(q[0], q[1]))
+}
+
+function block(rIn: number, rOut: number, t0: number, t1: number, camp: number, carves: { center: { lat: number, lng: number }, radiusM: number }[] = []): Feature {
+  let ring: [number, number][] = []
   const steps = 4
   for (let s = 0; s <= steps; s++)
     ring.push(toLngLat(radialPoint(t0 + ((t1 - t0) * s) / steps, rIn)))
   for (let s = 0; s <= steps; s++)
     ring.push(toLngLat(radialPoint(t1 - ((t1 - t0) * s) / steps, rOut)))
+  // round the four corners like the plan, then close + carve
+  ring = roundCorners(ring, [0, steps, steps + 1, 2 * steps + 1], 12)
   ring.push(ring[0]!)
-  // `shade` 0→1 fades the cell blue→white (the official plan lightens toward the
-  // outer rings and the 2:00/10:00 tips); the renderer interpolates the colour.
-  return { type: 'Feature', properties: { kind: 'block', camp, shade: Math.round(shade * 100) / 100 }, geometry: { type: 'Polygon', coordinates: [ring] } }
+  for (const cv of carves)
+    ring = carveCircle(ring, cv.center, cv.radiusM)
+  return { type: 'Feature', properties: { kind: 'block', camp }, geometry: { type: 'Polygon', coordinates: [ring] } }
 }
 
-// Center Camp geometry, measured directly from the official 2026 plan PDF
-// (BRC_City_Plan_2026_update.pdf) by rasterising it and reading pixel radii
-// against the known Esplanade radius (762 m) for scale. Rod's Ring Road is a
-// ~80 m-radius circle centred on the Café Canopy, ~917 m from the Man on the
-// 6:00 axis (the plaza ring + café sit at the junction of four camp plots). The
-// inner camp edge bows toward the Man at 6:00 into a blue "keyhole dome" whose
-// apex reaches ~670 m (inside the Esplanade); the camps FILL that dome — it is
-// not an open throat.
-const CANOPY_M = 917
-const CENTER_CAMP_R = 80 // Rod's Ring Road radius (PDF: ~80 m)
-const CAFE_R = 36 // inner café circle (PDF: ~35 m)
-const DOME_APEX_M = 670 // dome apex (toward the Man), from the PDF
-const DOME_HALF = 0.42 // dome half-width in clock-hours, from the PDF
+// Center Camp keyhole, measured from the official 2026 plan PDF
+// (BRC_City_Plan_2026_update.pdf): vector geometry calibrated against the ring
+// radii (which match STREET_RADII to <0.05%). The café sits 915 m out on the
+// 6:00 axis; Rod's Ring Road channel spans ~75–84 m; the four bordering plots
+// are carved back to ~96 m. The camp edge bows toward the Man into the keyhole
+// dome (apex 672 m, half-width 0.424 h), whose sides flare to ±0.49 h at A. A
+// "V" walkway runs from the dome apex down to the ring road, and two radial
+// channels at ±0.307 h split the A–B flank plots.
+const CANOPY_M = 915
+const CC_PLAZA_R = 79.5 // the plaza's single drawn edge circle (streets stop here)
+const CC_CARVE_UPPER = 82 // the flank plots' edge sits under the circle stroke
+const CC_CARVE_LOWER = 95 // the B–C plots' corners are carved further back
+const CAFE_R = 38 // inner café circle
+const DOME_APEX_M = 672 // dome apex (toward the Man)
+const DOME_HALF = 0.424 // dome half-width in clock-hours at the Esplanade
+const KEYHOLE_SIDE = 0.49 // dome sides flare to ±this by the A ring
+const KEYHOLE_SPOKE = 0.307 // radial channels splitting the A–B flank plots
 
 // A getter (not a module-load const) so it re-derives after the golden spike is
 // calibrated at runtime.
@@ -110,11 +288,41 @@ export function cityGridGeoJson(): FeatureCollection {
   }
   const colMin = 2.0
   const colMax = 10.0
-  // Center Camp: the camps FILL right up to the plaza (the official 2026 plan
-  // shows blue camps around a small Rod's Ring Road donut — the four plots that
-  // border it). Only the plaza circle itself is punched out (below); nothing is
-  // skipped here, so those four bordering plots render.
-  const inKeyhole = (_i: number, _col: number) => false
+  // Plaza circles (r = 30.5 m on the official plan) carve bites out of adjacent
+  // blocks; Center Camp's plots are carved back to the plaza. Carve radius adds
+  // half a street so a channel rings each plaza.
+  const bRingM = STREET_RADII.B!
+  const gRingM = STREET_RADII.G!
+  const PLAZA_R = 30.5
+  const plazaDefs: { time: number, ringM: number, radiusM: number, label?: string }[] = [
+    { time: 3, ringM: bRingM, radiusM: PLAZA_R, label: '3:00 Plaza' },
+    { time: 9, ringM: bRingM, radiusM: PLAZA_R, label: '9:00 Plaza' },
+    { time: 4.5, ringM: bRingM, radiusM: PLAZA_R, label: '4:30 Plaza' },
+    { time: 7.5, ringM: bRingM, radiusM: PLAZA_R, label: '7:30 Plaza' },
+    { time: 3, ringM: gRingM, radiusM: PLAZA_R },
+    { time: 9, ringM: gRingM, radiusM: PLAZA_R },
+    { time: 4.5, ringM: gRingM, radiusM: PLAZA_R },
+    { time: 6, ringM: gRingM, radiusM: PLAZA_R },
+    { time: 7.5, ringM: gRingM, radiusM: PLAZA_R },
+  ]
+  const ccCenter = radialPoint(6, CANOPY_M)
+  const carveDefs = [
+    ...plazaDefs.map(p => ({ center: radialPoint(p.time, p.ringM), radiusM: p.radiusM + 9.5 })),
+    // in the standard loop only the B–C plots reach Center Camp (the A–B flanks
+    // are custom keyhole wedges carved at CC_CARVE_UPPER below)
+    { center: ccCenter, radiusM: CC_CARVE_LOWER },
+  ]
+  const carvesNear = (t0: number, t1: number, rIn: number, rOut: number) => {
+    const mid = radialPoint((t0 + t1) / 2, (rIn + rOut) / 2)
+    const midEN = lngLatToEN([mid.lng, mid.lat])
+    return carveDefs.filter((cv) => {
+      const cen = lngLatToEN([cv.center.lng, cv.center.lat])
+      return Math.hypot(midEN[0] - cen[0], midEN[1] - cen[1]) < cv.radiusM + 260
+    })
+  }
+  // The Center Camp keyhole replaces the standard blocks in the Esplanade–A and
+  // A–B bands around 6:00 (custom wedges below hug the dome + plaza instead).
+  const inKeyhole = (i: number, col: number) => i <= 1 && col > 5.5 && col < 6.5
   // Radial-street density per the official 2026 plan (confirmed against the plan
   // PDF's own vector geometry): the hour & half-hour avenues run full depth, but
   // the quarter-hour avenues (X:15, X:45) exist ONLY from Fulcrum (F) outward.
@@ -134,39 +342,9 @@ export function cityGridGeoJson(): FeatureCollection {
         continue
       const t0 = j + tGap
       const t1 = j + step - tGap
-      // fade-to-white: radial (outer rings, measured from the plan) + a tip boost
-      const radial = Math.max(0, (i - 5) / 5) * 0.7
-      const tip = Math.max(0, (Math.abs(col - 6) - 3) / 1) * 0.3
-      const shade = Math.min(0.85, radial + tip)
       if (t1 > t0)
-        features.push(block(rIn, rOut, t0, t1, i <= campDepth(col) ? 1 : 0, shade))
+        features.push(block(rIn, rOut, t0, t1, i <= campDepth(col) ? 1 : 0, carvesNear(t0, t1, rIn, rOut)))
     }
-  }
-
-
-  // 1c. Radial "gradient fans" — the pale wedges that radiate along every radial
-  // on the official plan. One centred on each radial column edge, widening
-  // outward, clipped to the tapered camp depth so they sit only on the blue.
-  // Half-hour spokes apex at the Esplanade; quarter-hour spokes apex at Fulcrum
-  // (F), since the quarter-hour avenues only exist from F out. Purely decorative.
-  const fRadius = STREET_RADII.F!
-  for (let t = colMin; t <= colMax + 1e-9; t += 0.25) {
-    // skip the radials over the Center Camp keyhole so the open throat stays clean
-    if (t > 5.5 && t < 6.5)
-      continue
-    const isQuarter = Math.abs(t * 2 - Math.round(t * 2)) > 1e-9
-    const depth = campDepth(Math.min(colMax - 0.125, Math.max(colMin + 0.125, t)))
-    const rOut = STREET_RADII[STREETS[Math.min(depth + 1, STREETS.length - 1)]!]!
-    const rIn = isQuarter ? fRadius : espRadius
-    if (rOut <= rIn)
-      continue
-    const wHalf = 0.075 // base half-width (clock-hours) at the outer edge
-    const ring: [number, number][] = [toLngLat(radialPoint(t, rIn))]
-    const steps = 5
-    for (let s = 0; s <= steps; s++)
-      ring.push(toLngLat(radialPoint(t - wHalf + (2 * wHalf * s) / steps, rOut)))
-    ring.push(ring[0]!)
-    push('fan', { type: 'Polygon', coordinates: [ring] })
   }
 
   // 2. Trash fence (red dashed pentagon)
@@ -198,29 +376,28 @@ export function cityGridGeoJson(): FeatureCollection {
 
 
 
-  // 4. Cardinal avenues radiating from the Man circle, the 12:00 promenade + end
-  // circle, and the Man circle itself. The avenues stop at the circle's edge so
-  // the inside of the Man circle stays clear (no lines crossing the center).
-  const MAN_R = 42 // the Man circle radius (m)
+  // 4. Circles drawn as single bold outlines like the official plan: the Man
+  // circle (r ≈ 122 m — avenues stop at its edge) and the 12:00 circle (r ≈
+  // 46 m) centred ON the Esplanade. Both are `portal` lines.
+  const MAN_R = 122 // the Man circle radius (m), per the official plan
   const radial = (t: number, a: number, b: number) => [radialPoint(t, a), radialPoint(t, b)].map(toLngLat)
-  push('avenue', { type: 'LineString', coordinates: radial(9, espRadius, MAN_R) })
-  push('avenue', { type: 'LineString', coordinates: radial(3, MAN_R, espRadius) })
-  push('avenue', { type: 'LineString', coordinates: radial(12, MAN_R, 900) })
-  push('avenue', { type: 'LineString', coordinates: circleRing(radialPoint(12, 900), 45) })
-  push('avenue', { type: 'LineString', coordinates: circleRing(MAN, MAN_R) })
+  push('portal', { type: 'LineString', coordinates: circleRing(MAN, MAN_R) }, { name: '' })
+  push('portal', { type: 'LineString', coordinates: circleRing(radialPoint(12, espRadius), 46) }, { name: '' })
 
-  // 5. The 6:00 axis: an inner promenade from the Man to Center Camp, then the
-  // road resumes OUTSIDE Center Camp and runs out to Kundalini (K). The road
-  // rings Center Camp via Rod's Ring Road (the portal circle below) — it never
-  // cuts straight through the plaza.
-  push('avenue', { type: 'LineString', coordinates: radial(6, MAN_R, CANOPY_M - CENTER_CAMP_R) })
-  // The 6:00 street resumes outside Center Camp and runs out to Kundalini (K),
-  // the outermost street, where it ends.
-  push('avenue', { type: 'LineString', coordinates: radial(6, CANOPY_M + CENTER_CAMP_R, kRadius) })
-  // Gate Road: the entrance road that comes IN from outside the perimeter (the
-  // trash fence sits at ~2,060 m on the 6:00 axis) and ends at Kundalini (K),
-  // where it becomes the 6:00 street. Matches the official plan's 6:00 entrance.
-  push('gate-road', { type: 'LineString', coordinates: radial(6, kRadius, 2470) }, { name: 'Gate Rd' })
+  // 5. Gate Road status overlay: an invisible-until-coloured line along the
+  // 6:00 entrance (K → through the box office) that carries the live gate
+  // colour + the "Gate Road" label; the road's double-line look itself comes
+  // from its street-channel below.
+  push('gate-road', { type: 'LineString', coordinates: radial(6, kRadius, 2050) }, { name: 'Gate Rd' })
+
+  // 5b. The 6:00 GATE COMPLEX + 5:30/6:30/9:30 spur roads — the official plan's
+  // ink itself: every drawn stroke's closed outline, extracted verbatim from the
+  // PDF vectors, rendered as filled shapes so the roads connect EXACTLY as
+  // printed (Y-junctions, box-office funnel, perimeter roads, roundabouts).
+  for (const ring of GATE_INK) {
+    const coords = ring.map(p => planToLngLat(p[0]!, p[1]!))
+    push('gate-ink', { type: 'Polygon', coordinates: [coords] })
+  }
 
   // Airport Road — branches off the 5:00 radial at the outer street (K) and runs
   // out to fence corner P5 (the south gate), matching the official plan. (P5 is
@@ -228,84 +405,166 @@ export function cityGridGeoJson(): FeatureCollection {
   const fenceP5: [number, number] = [MAN.lng + FENCE_OFFSETS[4]![0], MAN.lat + FENCE_OFFSETS[4]![1]]
   push('airport-road', { type: 'LineString', coordinates: [toLngLat(radialPoint(5, kRadius)), fenceP5] }, { name: 'Airport Rd' })
 
-  // 6. Portals — open plaza circles that mask the blocks underneath.
-  //  • Center Camp (Rod's Ring Road) at 6:00, opening onto the Esplanade.
-  //  • Inner ring on Bradbury (B): 3:00, 4:30, 7:30, 9:00 (3:00 & 9:00 are the
-  //    big "keyhole" plazas).
-  //  • Mid-city ring on Gibson (G): 3:00, 4:30, 6:00, 7:30, 9:00.
-  // Per the official 2026 measurements (plazas centred at 3,215 ft / 4,825 ft).
-  const bRing = STREET_RADII.B!
-  const gRing = STREET_RADII.G!
-  // Clock-plaza radius. Smaller than the surveyed 30 m so the open circle reads
-  // as a tidy plaza the camp blocks sit close to, rather than a large white disc
-  // that merges with the street channels (tune by eye against the official plan).
-  const PR = 20
-  const plazas: { time: number, ringM: number, radiusM: number, label?: string }[] = [
-    // Bradbury (B) ring — labelled
-    { time: 3, ringM: bRing, radiusM: PR, label: '3:00 Plaza' },
-    { time: 9, ringM: bRing, radiusM: PR, label: '9:00 Plaza' },
-    { time: 4.5, ringM: bRing, radiusM: PR, label: '4:30 Plaza' },
-    { time: 7.5, ringM: bRing, radiusM: PR, label: '7:30 Plaza' },
-    // Gibson (G) mid-city ring — unlabelled to avoid duplicate clock labels
-    { time: 3, ringM: gRing, radiusM: PR },
-    { time: 9, ringM: gRing, radiusM: PR },
-    { time: 4.5, ringM: gRing, radiusM: PR },
-    { time: 6, ringM: gRing, radiusM: PR },
-    { time: 7.5, ringM: gRing, radiusM: PR },
-  ]
-
-  // Center Camp (measured from the official 2026 PDF). The inner camp edge bows
-  // toward the Man at 6:00 into a blue "keyhole dome": a filled lens between the
-  // Esplanade and the dome arch (apex DOME_APEX_M), rendered as a camp block so
-  // it fills blue like the surrounding camps. The small Rod's Ring Road plaza +
-  // café are then punched out at the junction of the four bordering plots.
-  const cc = getCenterCampPoint()
-  const ccc = { lat: cc[1], lng: cc[0] }
+  // 6. Center Camp keyhole (all radii/angles measured from the official plan's
+  // vectors — see the constants above).
+  const ccc = ccCenter
   const espR = STREET_RADII.Esplanade!
+  const aInner = STREET_RADII.A! - HALF_STREET_M
+  // 6a. The dome CAP: arch (apex DOME_APEX_M at 6:00, shoulders at ±DOME_HALF on
+  // the Esplanade), sides flaring to ±KEYHOLE_SIDE at the A ring, base along A —
+  // carved by the plaza circle. There is NO Esplanade channel inside the dome
+  // (the official plan interrupts the Esplanade at the dome shoulders).
   const domeSteps = 24
-  const domeRing: [number, number][] = []
-  // Man-side edge: the dome arch, apex toward the Man at 6:00.
+  let capRing: [number, number][] = []
   for (let s = 0; s <= domeSteps; s++) {
     const f = s / domeSteps
     const t = 6 - DOME_HALF + 2 * DOME_HALF * f
-    domeRing.push(toLngLat(radialPoint(t, espR - (espR - DOME_APEX_M) * Math.sin(Math.PI * f))))
+    capRing.push(toLngLat(radialPoint(t, espR - (espR - DOME_APEX_M) * Math.sin(Math.PI * f))))
   }
-  // Camp-side edge: back along the Esplanade arc, closing the lens.
-  for (let s = 0; s <= domeSteps; s++) {
-    const f = s / domeSteps
-    domeRing.push(toLngLat(radialPoint(6 + DOME_HALF - 2 * DOME_HALF * f, espR)))
+  // right side flare: shoulder (6+DOME_HALF, Esplanade) → (6+KEYHOLE_SIDE, A)
+  for (let s = 1; s <= 6; s++) {
+    const f = s / 6
+    capRing.push(toLngLat(radialPoint(6 + DOME_HALF + (KEYHOLE_SIDE - DOME_HALF) * f, espR + (aInner - espR) * f)))
   }
-  domeRing.push(domeRing[0]!)
-  features.push({ type: 'Feature', properties: { kind: 'block', camp: 1, shade: 0 }, geometry: { type: 'Polygon', coordinates: [domeRing] } })
+  // base: back along the A ring to the left side
+  for (let s = 1; s <= 16; s++)
+    capRing.push(toLngLat(radialPoint(6 + KEYHOLE_SIDE - (2 * KEYHOLE_SIDE * s) / 16, aInner)))
+  // left side flare back up to the left shoulder
+  for (let s = 1; s < 6; s++) {
+    const f = 1 - s / 6
+    capRing.push(toLngLat(radialPoint(6 - DOME_HALF - (KEYHOLE_SIDE - DOME_HALF) * f, espR + (aInner - espR) * f)))
+  }
+  capRing.push(capRing[0]!)
+  capRing = carveCircle(capRing, ccc, CC_CARVE_UPPER)
+  features.push({ type: 'Feature', properties: { kind: 'block', camp: 1 }, geometry: { type: 'Polygon', coordinates: [capRing] } })
 
-  // Short camp spokes radiating from the plaza into the four bordering plots.
-  for (const t of [5.62, 5.81, 6.0, 6.19, 6.38]) {
-    push('portal', { type: 'LineString', coordinates: [toLngLat(radialPoint(t, CANOPY_M + CENTER_CAMP_R)), toLngLat(radialPoint(t, CANOPY_M + CENTER_CAMP_R + 70))] }, { name: '' })
+  // 6b. The four A–B flank plots (two per side, split by the ±KEYHOLE_SPOKE
+  // channels), hugging the plaza carve.
+  const abIn = STREET_RADII.A! + HALF_STREET_M
+  const abOut = STREET_RADII.B! - HALF_STREET_M
+  const abGap = (HALF_STREET_M / ((abIn + abOut) / 2)) * (6 / Math.PI)
+  const ccCarve = [{ center: ccc, radiusM: CC_CARVE_UPPER }]
+  features.push(block(abIn, abOut, 5.5 + abGap, 6 - KEYHOLE_SPOKE - abGap, 1, ccCarve))
+  features.push(block(abIn, abOut, 6 - KEYHOLE_SPOKE + abGap, 6 - abGap, 1, ccCarve))
+  features.push(block(abIn, abOut, 6 + abGap, 6 + KEYHOLE_SPOKE - abGap, 1, ccCarve))
+  features.push(block(abIn, abOut, 6 + KEYHOLE_SPOKE + abGap, 6.5 - abGap, 1, ccCarve))
+
+  // 6d. Rod's Ring Road: per the official plan there is ONE bold circle — the
+  // plaza's edge at 80 m (blue plot + café inside it) — and the white road is
+  // the 80–96 m ANNULUS between that circle and the carved blocks. Every road
+  // (V walkway, A-row streets, the ±0.307 splits, the 6:00 street) simply opens
+  // into the annulus; the carved block corners themselves form the keyhole
+  // neck. The annulus is a ground-coloured circular channel with no casing (the
+  // plaza circle + block outlines are its edges).
+  // plaza edge circle, broken only at the V opening (top, ±7°) and where the
+  // 6:00 street meets it (bottom, ±4°) — measured off the plan's raster
+  const ccEN2 = lngLatToEN([ccc.lng, ccc.lat])
+  const ccArc2 = (a0: number, a1: number): [number, number][] => {
+    const pts: [number, number][] = []
+    const steps = Math.max(8, Math.ceil((a1 - a0) / 3))
+    for (let s2 = 0; s2 <= steps; s2++) {
+      const a = ((a0 + ((a1 - a0) * s2) / steps) * Math.PI) / 180
+      pts.push(enToLngLat(ccEN2[0] + CC_PLAZA_R * Math.sin(a), ccEN2[1] + CC_PLAZA_R * Math.cos(a)))
+    }
+    return pts
   }
-  // Rod's Ring Road plaza (punched out of the camps) + café.
-  push('portal-fill', { type: 'Polygon', coordinates: [circleRing(ccc, CENTER_CAMP_R)] }, { name: 'Center Camp' })
-  push('portal', { type: 'LineString', coordinates: circleRing(ccc, CENTER_CAMP_R) }, { name: 'Center Camp' }) // Rod's Ring Road
+  push('portal', { type: 'LineString', coordinates: ccArc2(7, 176) }, { name: '' }) // plaza edge, east side
+  push('portal', { type: 'LineString', coordinates: ccArc2(184, 353) }, { name: '' }) // plaza edge, west side
   push('portal', { type: 'LineString', coordinates: circleRing(ccc, CAFE_R) }, { name: '' }) // Café canopy
+  // V walkway: apex → the plaza circle
+  push('portal', { type: 'LineString', coordinates: [toLngLat(radialPoint(6 - 0.089, DOME_APEX_M + 2)), toLngLat(radialPoint(6 - 0.025, CANOPY_M - CC_PLAZA_R))] }, { name: '' })
+  push('portal', { type: 'LineString', coordinates: [toLngLat(radialPoint(6 + 0.089, DOME_APEX_M + 2)), toLngLat(radialPoint(6 + 0.025, CANOPY_M - CC_PLAZA_R))] }, { name: '' })
 
-  for (const p of plazas) {
+  // 6e. Clock plazas — circle outlines only (r = 30.5 m); the interiors stay
+  // wash-blue exactly as printed, and the street channels are cut at the circle
+  // edges below. B ring labelled; G ring unlabelled.
+  for (const p of plazaDefs) {
     const c = radialPoint(p.time, p.ringM)
     const ring = circleRing(c, p.radiusM)
-    push('portal-fill', { type: 'Polygon', coordinates: [ring] }, { name: p.label ?? '' })
     push('portal', { type: 'LineString', coordinates: ring }, { name: p.label ?? '' })
     if (p.label)
       push('portal-label', { type: 'Point', coordinates: [c.lng, c.lat] }, { name: p.label })
   }
 
-  // 7. Walk-in camping (right side): orange boundary arc + two labels
-  push('walkin-boundary', { type: 'LineString', coordinates: arcAt(kRadius + 90, 2.0, 5.0) })
+  // 7. Walk-in camping boundary (orange, traced from the plan): a SOLID radial
+  // at 2:00 from the city edge out to the fence, then a dashed arc hugging the
+  // city edge (K + 17.5 m) from 2:00 to 5:00 and a dashed straight run to the
+  // bottom-right fence corner. Two labels sit in the enclosed area.
+  const walkR = kRadius + 17.5
+  push('walkin-boundary', { type: 'LineString', coordinates: radial(2, walkR, 2242) }, { solid: 1 })
+  push('walkin-boundary', { type: 'LineString', coordinates: arcAt(walkR, 2.0, 5.0) })
+  push('walkin-boundary', { type: 'LineString', coordinates: [toLngLat(radialPoint(5, walkR)), planToLngLat(1458, -1993)] })
   for (const t of [2.3, 4.7])
     push('walkin-label', { type: 'Point', coordinates: toLngLat(radialPoint(t, 2050)) }, { name: 'Walk-in Camping' })
+
+  // 8. Street channels — every road drawn the official way: a ground-coloured
+  // core over the wash, with black edge lines (the renderer's casing layer), CUT
+  // at every plaza/circle so circle interiors stay clean printed blue. Rings run
+  // 2:00–10:00 (the Esplanade is interrupted at the dome shoulders); half-hour
+  // radials run Esplanade→K, quarter-hour radials F→K, per the density rule;
+  // plus the playa promenades (3:00/9:00/12:00/6:00 to the dome apex).
+  const cutDefs = [
+    ...plazaDefs.map(p => ({ center: radialPoint(p.time, p.ringM), radiusM: p.radiusM })),
+    { center: ccc, radiusM: CC_PLAZA_R }, // Center Camp: streets stop at the plaza circle
+    { center: radialPoint(12, espRadius), radiusM: 46 },
+    { center: MAN, radiusM: MAN_R },
+  ]
+  const chan = (coords: [number, number][]) => {
+    for (const piece of cutCircles(coords, cutDefs))
+      push('street-channel', { type: 'LineString', coordinates: piece })
+  }
+  for (const street of STREETS) {
+    const r = STREET_RADII[street]!
+    if (street === 'Esplanade') {
+      chan(arcAt(r, CITY_TIME_MIN, 6 - DOME_HALF))
+      chan(arcAt(r, 6 + DOME_HALF, CITY_TIME_MAX))
+    }
+    else {
+      chan(arcAt(r, CITY_TIME_MIN, CITY_TIME_MAX))
+    }
+  }
+  for (let t = CITY_TIME_MIN; t <= CITY_TIME_MAX + 1e-9; t += 0.25) {
+    const isQuarter = Math.abs(t * 2 - Math.round(t * 2)) > 1e-9
+    if (Math.abs(t - 6) < 1e-9)
+      chan(radial(6, CANOPY_M + CC_PLAZA_R, kRadius) as [number, number][])
+    else
+      chan(radial(t, isQuarter ? STREET_RADII.F! : espRadius, kRadius) as [number, number][])
+  }
+  // keyhole interior channels: the ±KEYHOLE_SPOKE splits (A→B)
+  chan(radial(6 - KEYHOLE_SPOKE, STREET_RADII.A!, STREET_RADII.B!) as [number, number][])
+  chan(radial(6 + KEYHOLE_SPOKE, STREET_RADII.A!, STREET_RADII.B!) as [number, number][])
+  // playa promenades: 3:00 & 9:00 (Man circle ↔ Esplanade), the 12:00 promenade
+  // (Man circle → the 12:00 circle), and 6:00 (Man circle → the dome apex)
+  chan(radial(9, espRadius, MAN_R) as [number, number][])
+  chan(radial(3, MAN_R, espRadius) as [number, number][])
+  chan(radial(12, MAN_R, espRadius - 46) as [number, number][])
+  chan(radial(6, MAN_R, DOME_APEX_M) as [number, number][])
+
+  // 9. Clock-time labels around the outer edge, every quarter hour (the official
+  // plan labels the city edge 2:00…10:00).
+  for (let t = CITY_TIME_MIN; t <= CITY_TIME_MAX + 1e-9; t += 0.25)
+    push('time-label', { type: 'Point', coordinates: toLngLat(radialPoint(t, kRadius + 65)) }, { name: fmtTime(t) })
 
   return { type: 'FeatureCollection', features }
 }
 
 export function getManPoint(): [number, number] {
   return [MAN.lng, MAN.lat]
+}
+
+// Corner coordinates for /brc-wash.png — the official plan's blue camping wash
+// baked as a pixel-exact georeferenced RGBA raster (alpha = printed blueness,
+// streets healed so our vector channels redraw them). The PNG is in PLAN
+// orientation (12:00 up) covering plan-metre rect E [-1910, 1920] × N
+// [-2100, 960]; corners rotate through the city's 45° bearing and track the
+// golden spike. Order: top-left, top-right, bottom-right, bottom-left.
+export function washCorners(): [number, number][] {
+  return [
+    planToLngLat(-1910, 960),
+    planToLngLat(1920, 960),
+    planToLngLat(1920, -2100),
+    planToLngLat(-1910, -2100),
+  ]
 }
 
 // --- Civic landmarks ---------------------------------------------------------
