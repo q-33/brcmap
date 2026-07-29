@@ -40,7 +40,6 @@ function applyBasemap() {
   set('wash', !lines)
   set('street-edges', !lines)
   set('street-channels', !lines)
-  set('blocks-outline', !lines)
   set('street-lines', lines)
 }
 
@@ -603,16 +602,24 @@ onMounted(async () => {
       source: 'wash',
       paint: { 'raster-fade-duration': 0, 'raster-resampling': 'linear' },
     })
-    // Streets in the official's EXACT print geometry, measured from the PDF:
-    // each street is two 4.25 m black strokes with a 7.5 m white core (16 m
-    // envelope). All widths are METRIC (scale with the ground, tiny px floor
-    // for legibility), so the map matches the plan's look at every zoom — a
-    // black casing band under a ground-coloured core; the core covers casings
-    // crossing at intersections, leaving clean openings exactly like the plan.
+    // Streets in the official's EXACT print geometry, measured off the plan PDF
+    // by sampling ink across three radials: each street is two 4.25 m black
+    // strokes with a 4.75 m clear core, so a 13.25 m envelope and stroke centres
+    // 4.5 m off the centreline (the plan's own measure back: 4.25 / 4.75 / ±4.6).
+    // All widths are METRIC (scale with the ground, tiny px floor for
+    // legibility), so the map matches the plan's look at every zoom — a black
+    // casing band under a ground-coloured core; the core covers casings crossing
+    // at intersections, leaving clean openings exactly like the plan.
     // zoom curves must be TOP-LEVEL in MapLibre, so the px floor goes inside the
     // stop outputs (between stops the curve stays >= the floor).
-    const mFactorFloor = (m: any, floor: number): any => ['interpolate', ['exponential', 2], ['zoom'], 12, ['max', floor, ['*', m, 0.03456]], 18, ['max', floor, ['*', m, 2.212]]]
-    const coreW: any = ['coalesce', ['get', 'w'], 7.5]
+    // The px-per-metre stops ARE the true ground scale: MapLibre uses 512 px
+    // tiles, so px/m = 2^zoom / (40075017·cos(40.783°) / 512) → 0.0691 @ z12 and
+    // 4.4232 @ z18. (They were once the 256 px-tile constant — exactly half —
+    // which shrank every "metric" width to half its stated metres and let the
+    // block-ring stroke escape the casing as a phantom street line inside each
+    // block. Keep these in step with the tile size, not with a visual eyeball.)
+    const mFactorFloor = (m: any, floor: number): any => ['interpolate', ['exponential', 2], ['zoom'], 12, ['max', floor, ['*', m, 0.069112]], 18, ['max', floor, ['*', m, 4.423169]]]
+    const coreW: any = ['coalesce', ['get', 'w'], 4.75]
     map.addLayer({
       id: 'street-edges',
       type: 'line',
@@ -624,13 +631,11 @@ onMounted(async () => {
         'line-width': mFactorFloor(['+', coreW, 8.5], 0.8),
       },
     })
-    map.addLayer({
-      id: 'blocks-outline',
-      type: 'line',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'block'],
-      paint: { 'line-color': '#101820', 'line-width': mFactorFloor(4.25, 0.5) },
-    })
+    // NOTE: blocks are FILLS only — deliberately no outline stroke. The block
+    // ring sits 6 m off the street centreline, inside the casing's ±6.625 m, so
+    // the casing already inks that edge; a stroke centred on the ring would only
+    // duplicate it, and half of any 4.25 m stroke reaches 8.125 m — past the
+    // casing — surfacing inside the block as a phantom second street line.
     map.addLayer({
       id: 'street-channels',
       type: 'line',
