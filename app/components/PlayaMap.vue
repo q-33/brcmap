@@ -689,13 +689,15 @@ onMounted(async () => {
       },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
     })
-    // the gate complex — the official plan's drawn strokes as filled shapes,
-    // so every road connects exactly as printed
+    // the gate complex and Center Camp — the official plan's drawn strokes as
+    // filled shapes, so every road connects exactly as printed. Both are traced
+    // ink rather than parametric guesses, and both sit ABOVE the white street
+    // cores so a core can't cut a hole through the printed linework.
     map.addLayer({
       id: 'gate-ink',
       type: 'fill',
       source: 'grid',
-      filter: ['==', ['get', 'kind'], 'gate-ink'],
+      filter: ['in', ['get', 'kind'], ['literal', ['gate-ink', 'cc-ink']]],
       paint: { 'fill-color': '#101820' },
     })
     // Airport Road — 5:00 branch out to the airport

@@ -2,6 +2,7 @@ import type { Feature, FeatureCollection } from 'geojson'
 import type { BrcAddress } from './geocode'
 import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
 import { GATE_INK } from './gateLines'
+import { CENTER_CAMP_INK } from './planCenterCamp'
 import { STREET_LINE_OFFSETS } from './streetLines'
 
 // The exact 2026 street network traced from the official plan PDF, re-centred
@@ -236,7 +237,6 @@ const CANOPY_M = 915
 const CC_PLAZA_R = 79.5 // the plaza's single drawn edge circle (streets stop here)
 const CC_CARVE_UPPER = 82 // the flank plots' edge sits under the circle stroke
 const CC_CARVE_LOWER = 95 // the B–C plots' corners are carved further back
-const CAFE_R = 38 // inner café circle
 const DOME_APEX_M = 672 // dome apex (toward the Man)
 const DOME_HALF = 0.424 // dome half-width in clock-hours at the Esplanade
 const KEYHOLE_SIDE = 0.49 // dome sides flare to ±this by the A ring
@@ -449,31 +449,18 @@ export function cityGridGeoJson(): FeatureCollection {
   features.push(block(abIn, abOut, 6 + abGap, 6 + KEYHOLE_SPOKE - abGap, 1, ccCarve))
   features.push(block(abIn, abOut, 6 + KEYHOLE_SPOKE + abGap, 6.5 - abGap, 1, ccCarve))
 
-  // 6d. Rod's Ring Road: per the official plan there is ONE bold circle — the
-  // plaza's edge at 80 m (blue plot + café inside it) — and the white road is
-  // the 80–96 m ANNULUS between that circle and the carved blocks. Every road
-  // (V walkway, A-row streets, the ±0.307 splits, the 6:00 street) simply opens
-  // into the annulus; the carved block corners themselves form the keyhole
-  // neck. The annulus is a ground-coloured circular channel with no casing (the
-  // plaza circle + block outlines are its edges).
-  // plaza edge circle, broken only at the V opening (top, ±7°) and where the
-  // 6:00 street meets it (bottom, ±4°) — measured off the plan's raster
-  const ccEN2 = lngLatToEN([ccc.lng, ccc.lat])
-  const ccArc2 = (a0: number, a1: number): [number, number][] => {
-    const pts: [number, number][] = []
-    const steps = Math.max(8, Math.ceil((a1 - a0) / 3))
-    for (let s2 = 0; s2 <= steps; s2++) {
-      const a = ((a0 + ((a1 - a0) * s2) / steps) * Math.PI) / 180
-      pts.push(enToLngLat(ccEN2[0] + CC_PLAZA_R * Math.sin(a), ccEN2[1] + CC_PLAZA_R * Math.cos(a)))
-    }
-    return pts
+  // 6d. Center Camp's own linework is the plan's INK ITSELF, traced verbatim from
+  // the PDF vectors by scripts/trace-plan.py: the dome arc with its
+  // 6:00 opening, the V walkway, the plaza edge with its real breaks, and the café
+  // canopy. These used to be parametric approximations — a dome fitted from
+  // DOME_HALF/KEYHOLE_SIDE, two straight V spokes, a two-arc plaza — and the
+  // keyhole was the one part of the city that visibly missed the plan.
+  // The tracer filters out ring and radial strokes, so nothing here duplicates
+  // the streets drawn from STREET_RADII above.
+  for (const ring of CENTER_CAMP_INK) {
+    const coords = ring.map(p => planToLngLat(p[0]!, p[1]!))
+    push('cc-ink', { type: 'Polygon', coordinates: [coords] })
   }
-  push('portal', { type: 'LineString', coordinates: ccArc2(7, 176) }, { name: '' }) // plaza edge, east side
-  push('portal', { type: 'LineString', coordinates: ccArc2(184, 353) }, { name: '' }) // plaza edge, west side
-  push('portal', { type: 'LineString', coordinates: circleRing(ccc, CAFE_R) }, { name: '' }) // Café canopy
-  // V walkway: apex → the plaza circle
-  push('portal', { type: 'LineString', coordinates: [toLngLat(radialPoint(6 - 0.089, DOME_APEX_M + 2)), toLngLat(radialPoint(6 - 0.025, CANOPY_M - CC_PLAZA_R))] }, { name: '' })
-  push('portal', { type: 'LineString', coordinates: [toLngLat(radialPoint(6 + 0.089, DOME_APEX_M + 2)), toLngLat(radialPoint(6 + 0.025, CANOPY_M - CC_PLAZA_R))] }, { name: '' })
 
   // 6e. Clock plazas — circle outlines only (r = 30.5 m); the interiors stay
   // wash-blue exactly as printed, and the street channels are cut at the circle
