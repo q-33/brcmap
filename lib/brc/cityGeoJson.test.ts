@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CIVIC_LANDMARKS, cityGridGeoJson, civicLandmarksGeoJson, getManPoint, washCorners } from './cityGeoJson'
 import { STREET_RADII } from './geocode'
 import { CENTER_CAMP_INK, PLAN_CENTER_CAMP, PLAN_RING_RADII } from './planCenterCamp'
+import { GIS_BLOCKS, GIS_FENCE, GIS_PLAZAS, GIS_RING_RADII, GIS_STREETS } from './planCity'
 
 describe('cityGridGeoJson', () => {
   const fc = cityGridGeoJson()
@@ -12,9 +13,10 @@ describe('cityGridGeoJson', () => {
     const portals = fc.features.filter(f => f.properties?.kind === 'portal')
     expect(blocks.length).toBeGreaterThan(200) // 11 ring bands × ~31 columns
     expect(labels.length).toBe(12) // Esplanade + A..K
-    // Man + 12:00 + 9 clock plaza rings. Center Camp's plaza edge, café and V
-    // walkway are no longer parametric portals — they come from CENTER_CAMP_INK.
-    expect(portals.length).toBe(11)
+    // Man + 12:00 + the 12 surveyed plazas. The GIS carries two the parametric
+    // city never drew (2:00 & B, 10:00 & B) plus Center Camp Plaza; Center Camp's
+    // café and V walkway are ink, not portals — they come from CENTER_CAMP_INK.
+    expect(portals.length).toBe(14)
     // no fill masks anymore — the wash raster shows through every circle
     expect(fc.features.filter(f => f.properties?.kind === 'portal-fill').length).toBe(0)
     expect(labels.find(l => l.properties?.name === 'Eternal')).toBeTruthy()
@@ -96,6 +98,55 @@ describe('traced plan geometry agrees with the geocoder', () => {
     const ink = cityGridGeoJson().features.filter(f => f.properties?.kind === 'cc-ink')
     expect(ink.length).toBe(CENTER_CAMP_INK.length)
     expect(ink.every(f => f.geometry.type === 'Polygon')).toBe(true)
+  })
+})
+
+// The drawn city now comes from Burning Man's surveyed GIS while addresses still
+// come from STREET_RADII. Those are two independent descriptions of one city, so
+// they must be held together — if they drift, camps geocode to addresses that sit
+// off the drawn streets.
+describe('official GIS agrees with the geocoder', () => {
+  it('measures every ring within 2 m of STREET_RADII', () => {
+    const names = Object.keys(GIS_RING_RADII)
+    expect(names.length).toBe(Object.keys(STREET_RADII).length)
+    for (const name of names) {
+      const doc = STREET_RADII[name]
+      expect(doc, `${name} missing from STREET_RADII`).toBeDefined()
+      expect(Math.abs(GIS_RING_RADII[name]! - doc!), `${name} drifted`).toBeLessThan(2)
+    }
+  })
+
+  it('carries the surveyed blocks, streets, plazas and fence', () => {
+    expect(GIS_BLOCKS.length).toBeGreaterThan(200)
+    expect(GIS_STREETS.length).toBeGreaterThan(400)
+    expect(GIS_PLAZAS.length).toBe(12)
+    expect(GIS_FENCE.length).toBeGreaterThanOrEqual(5)
+    // real surveyed roadway widths, in feet
+    expect(new Set(GIS_STREETS.map(s => s.w))).toEqual(new Set([20, 30, 40, 50]))
+    // Center Camp's own roads are excluded — that area is drawn from traced ink
+    expect(GIS_STREETS.some(s => s.s === 'center_camp')).toBe(false)
+  })
+
+  it('only lets circular plazas cut the streets', () => {
+    const round = GIS_PLAZAS.filter(p => p.round)
+    const rect = GIS_PLAZAS.filter(p => !p.round)
+    expect(round.length).toBe(10)
+    // the 2:00 and 10:00 & B plazas are rectangular keyholes
+    expect(rect.map(p => p.n).sort()).toEqual(['10:00 & B Plaza', '2:00 & B Plaza'])
+    for (const p of round)
+      expect(p.r).toBeGreaterThan(20)
+  })
+
+  it('draws blocks and streets from the surveyed data', () => {
+    const fc = cityGridGeoJson()
+    const blocks = fc.features.filter(f => f.properties?.kind === 'block')
+    expect(blocks.length).toBe(GIS_BLOCKS.length)
+    const channels = fc.features.filter(f => f.properties?.kind === 'street-channel')
+    // Cutting at the drawn circles can split a street or swallow one whole: the
+    // 6:00 segment that crosses Center Camp Plaza disappears entirely, because the
+    // plan keeps plaza interiors clean. Nothing else should vanish.
+    expect(channels.length).toBeGreaterThanOrEqual(GIS_STREETS.length - 1)
+    expect(channels.every(f => (f.geometry as any).coordinates.length > 1)).toBe(true)
   })
 })
 
