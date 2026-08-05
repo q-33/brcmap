@@ -12,6 +12,7 @@ export interface MajorBurn {
 }
 
 export const MAJOR_BURNS: MajorBurn[] = [
+  { name: 'The Wave', date: '2026-09-02', day: 'Wednesday, Sep 2', time: '11:01 PM', tonight: '11:01 PM' },
   { name: 'Titanic\'s End', date: '2026-09-04', day: 'Friday, Sep 4', time: 'Sunset · 7:30 PM', tonight: 'sunset (7:30 PM)' },
   { name: 'The Man', date: '2026-09-05', day: 'Saturday, Sep 5', time: 'After dark · ~9 PM', tonight: 'after dark (~9 PM)', isMan: true, expected: true },
   { name: 'The Temple', date: '2026-09-06', day: 'Sunday, Sep 6', time: 'At dusk · ~8 PM', tonight: 'dusk (~8 PM)', expected: true },
