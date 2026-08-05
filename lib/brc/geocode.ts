@@ -224,10 +224,98 @@ export function formatAddressNamed(addr: BrcAddress, roundToMinutes = 15): strin
   return formatAddress({ ...addr, street: streetName(addr.street) }, roundToMinutes)
 }
 
-/** Human readout for a GPS fix, e.g. "near 7:30 & Eternal". */
-export function describeLatLng(point: LatLng): string {
+// --- GPS readout -------------------------------------------------------------
+// Display text only. None of this feeds addressToLatLng/formatAddress, so a
+// camp's stored address is untouched by anything below — these functions exist
+// purely to say something more useful than "near 7:30 & Eternal" when the fix
+// isn't actually sitting on a street. Shape borrowed from Justin Ormont's
+// burningman-addressing (MIT): Man-side/Mountain-side, between-street, and a
+// distance readout out in the deep playa.
+
+/** A camp the readout may mention by name. */
+export interface NearbyCamp { name: string, lat: number, lng: number }
+
+const M_TO_FT = 3.28084
+const ON_STREET_M = 20 // within this of a ring centreline, you're "on" that street
+const SIDE_M = 8 // beyond this, worth saying which side of the street
+const CAMP_NEAR_M = 60 // close enough to name a camp
+const OUTSIDE_CITY_M = 150 // past K by this much and you're in the open playa
+
+/**
+ * Just the clock part of an address, e.g. "7:30". The bearing model wraps 12:00
+ * round to 0, which is fine arithmetic and wrong on a clock face — nobody out
+ * there says "0:00 and Kundalini".
+ */
+function clockLabel(time: number): string {
+  const s = formatAddress({ time, street: 'Esplanade' }).split(' &')[0]!
+  return s.startsWith('0:') ? `12:${s.slice(2)}` : s
+}
+
+/** Metres from the Man. */
+export function radiusFromMan({ lat, lng }: LatLng): number {
+  const x = (lng - MAN.lng) * mPerDegLng(MAN.lat)
+  const y = (lat - MAN.lat) * M_PER_DEG_LAT
+  return Math.hypot(x, y)
+}
+
+/** The two lettered streets bracketing a radius, innermost first. */
+function bracketingStreets(radius: number): [string, string] | null {
+  const entries = Object.entries(STREET_RADII)
+  for (let i = 0; i < entries.length - 1; i++) {
+    const [inner, rIn] = entries[i]!
+    const [outer, rOut] = entries[i + 1]!
+    if (radius >= rIn && radius <= rOut)
+      return [inner, outer]
+  }
+  return null
+}
+
+/** The closest camp within CAMP_NEAR_M, or null. */
+export function nearestCamp(point: LatLng, camps: NearbyCamp[]): NearbyCamp | null {
+  const mLng = mPerDegLng(MAN.lat)
+  let best: NearbyCamp | null = null
+  let bestD = CAMP_NEAR_M
+  for (const c of camps) {
+    const d = Math.hypot((c.lng - point.lng) * mLng, (c.lat - point.lat) * M_PER_DEG_LAT)
+    if (d < bestD) {
+      bestD = d
+      best = c
+    }
+  }
+  return best
+}
+
+/**
+ * Human readout for a GPS fix, e.g. "near 7:30 & Eternal, Mountain-side".
+ * Pass `camps` to let it add "— near Camp Name" when the fix is on top of one.
+ */
+export function describeLatLng(point: LatLng, camps: NearbyCamp[] = []): string {
   const addr = latLngToAddress(point)
-  if (addr.time < CITY_TIME_MIN - 0.5 || addr.time > CITY_TIME_MAX + 0.5)
-    return 'in the open playa'
-  return `near ${formatAddressNamed(addr)}`
+  const radius = radiusFromMan(point)
+  const camp = nearestCamp(point, camps)
+  const tail = camp ? ` — near ${camp.name}` : ''
+  const outerRadius = STREET_RADII[Object.keys(STREET_RADII)[Object.keys(STREET_RADII).length - 1]!]!
+
+  // Deep playa: outside the city arc, or well past the outermost street. Give a
+  // clock bearing and a distance, which is the only useful thing out there.
+  if (addr.time < CITY_TIME_MIN - 0.5 || addr.time > CITY_TIME_MAX + 0.5
+    || radius > outerRadius + OUTSIDE_CITY_M) {
+    const ft = Math.round(radius * M_TO_FT / 10) * 10
+    return `in the open playa — ${clockLabel(addr.time)}, ${ft.toLocaleString('en-US')} ft out${tail}`
+  }
+
+  // Mid-block: name both streets rather than pretending to be on the nearer one.
+  if (addr.distanceM > ON_STREET_M) {
+    const pair = bracketingStreets(radius)
+    if (pair) {
+      return `near ${clockLabel(addr.time)}, between ${streetName(pair[0])} and ${streetName(pair[1])}${tail}`
+    }
+  }
+
+  // On a street. Once you're off the centreline by more than a few metres, which
+  // side you're on is the difference between two facing rows of camps.
+  const side = addr.distanceM > SIDE_M
+    ? (radius < STREET_RADII[addr.street]! ? ', Man-side' : ', Mountain-side')
+    : ''
+  return `near ${formatAddressNamed(addr)}${side}${tail}`
 }

@@ -255,7 +255,9 @@ const sunInstant = computed<number | null>(() => {
 // live GPS readout
 const position = ref<{ lat: number, lng: number }>()
 const accuracy = ref<number>() // metres, from the GPS fix
-const readout = computed(() => position.value ? describeLatLng(position.value) : null)
+// Pass the placed camps so the readout can name the one you're standing on —
+// "7:45 & Bodhi, Man-side — near PLUR Pups" beats a bare intersection on playa.
+const readout = computed(() => position.value ? describeLatLng(position.value, pins.value) : null)
 // A fix worse than this (metres) is too rough to trust the snapped street.
 const ACCURACY_WARN_M = 75
 const accuracyLabel = computed(() => accuracy.value != null ? `±${Math.round(accuracy.value)} m` : null)
@@ -328,7 +330,7 @@ const dropBusy = ref(false)
 // derived for display ONLY — the coordinates are stored verbatim, never snapped.
 const dropMode = ref<DropKind | null>(null)
 const pendingLoc = ref<{ lat: number, lng: number } | null>(null)
-const pendingLabel = computed(() => pendingLoc.value ? describeLatLng(pendingLoc.value) : null)
+const pendingLabel = computed(() => pendingLoc.value ? describeLatLng(pendingLoc.value, pins.value) : null)
 const myCamp = computed<MyItem | null>(() => (myCamps.value ?? [])[0] ?? null)
 
 // Manual address entry (gated by the 'manual-address' feature flag): type a BRC

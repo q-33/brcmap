@@ -14,6 +14,7 @@ import {
   latLngToAddress,
   parseAddress,
   parseLatLng,
+  radialPoint,
   streetName,
 } from './geocode'
 
@@ -102,9 +103,42 @@ describe('2026 street names', () => {
 })
 
 describe('describeLatLng', () => {
+  // A fix is almost never sitting on a street centreline, so the readout says
+  // which side you're on, names both streets mid-block, and gives a distance out
+  // in the deep playa. All display text — it never feeds a stored address.
   it('gives a human readout with the themed street name', () => {
     const ll = addressToLatLng({ time: 7.5, street: 'E' })!
     expect(describeLatLng(ll)).toBe('near 7:30 & Eternal')
+  })
+
+  it('names the side of the street once you are off the centreline', () => {
+    const r = STREET_RADII.E!
+    expect(describeLatLng(radialPoint(7.5, r + 12))).toBe('near 7:30 & Eternal, Mountain-side')
+    expect(describeLatLng(radialPoint(7.5, r - 12))).toBe('near 7:30 & Eternal, Man-side')
+    // still plain when essentially on the centreline
+    expect(describeLatLng(radialPoint(7.5, r + 4))).toBe('near 7:30 & Eternal')
+  })
+
+  it('names both streets when the fix is mid-block', () => {
+    const mid = (STREET_RADII.E! + STREET_RADII.F!) / 2
+    expect(describeLatLng(radialPoint(7.5, mid))).toBe('near 7:30, between Eternal and Fulcrum')
+  })
+
+  it('gives a clock bearing and distance out in the open playa', () => {
+    const out = describeLatLng(radialPoint(7.5, STREET_RADII.K! + 900))
+    expect(out).toMatch(/^in the open playa — 7:30, [\d,]+ ft out$/)
+    // beyond the city arc entirely — and 12:00 reads as 12:00, not the 0:00 the
+    // bearing model wraps it to
+    expect(describeLatLng(radialPoint(12, 900))).toMatch(/^in the open playa — 12:00, /)
+  })
+
+  it('names a camp you are standing on', () => {
+    const ll = addressToLatLng({ time: 7.5, street: 'E' })!
+    const camps = [{ name: 'PLUR Pups', lat: ll.lat, lng: ll.lng }]
+    expect(describeLatLng(ll, camps)).toBe('near 7:30 & Eternal — near PLUR Pups')
+    // far-away camps are not mentioned
+    const far = [{ name: 'Nowhere', ...radialPoint(3, STREET_RADII.K!) }]
+    expect(describeLatLng(ll, far)).toBe('near 7:30 & Eternal')
   })
 })
 
