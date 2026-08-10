@@ -36,6 +36,23 @@ export function windDir(deg: number): string {
   return dirs[Math.round(deg / 22.5) % 16]!
 }
 
+// Open-Meteo is asked for Fahrenheit and mph (see server/api/weather.get.ts),
+// which suits the US crowd and nobody else. Convert for display rather than
+// fetching twice: the response is cached for everyone, and Open-Meteo rounds to
+// one decimal anyway, so a second request would buy no precision.
+export const toCelsius = (f: number): number => (f - 32) * 5 / 9
+export const toKmh = (mph: number): number => mph * 1.609344
+
+/** "95°F / 35°C" */
+export function tempBoth(f: number): string {
+  return `${Math.round(f)}°F / ${Math.round(toCelsius(f))}°C`
+}
+
+/** "28 mph / 45 km/h" */
+export function windBoth(mph: number): string {
+  return `${Math.round(mph)} mph / ${Math.round(toKmh(mph))} km/h`
+}
+
 // Playa-specific dust heuristic from wind gusts (mph). Whiteouts are the real
 // hazard on the playa, so this is the most useful read of the forecast.
 export function dustRisk(gustMph: number): { label: string, color: string } {

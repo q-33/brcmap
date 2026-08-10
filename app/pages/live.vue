@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { dustRisk, windDir, wmo } from '~~/lib/weather'
+import { dustRisk, tempBoth, toCelsius, toKmh, windBoth, windDir, wmo } from '~~/lib/weather'
 
 interface Current {
   temperature_2m: number
@@ -58,8 +58,8 @@ useHead({ title: 'Live — BRC Map' })
       <div class="flex items-center gap-5">
         <UIcon :name="curWmo?.icon ?? 'i-lucide-cloud'" class="size-14 shrink-0 text-primary" />
         <div class="flex-1">
-          <p class="font-display text-5xl font-bold leading-none">{{ Math.round(cur.temperature_2m) }}°</p>
-          <p class="mt-1 text-(--ui-text-muted)">{{ curWmo?.label }} · feels {{ Math.round(cur.apparent_temperature) }}°</p>
+          <p class="font-display text-5xl font-bold leading-none">{{ Math.round(cur.temperature_2m) }}°F</p>
+          <p class="mt-1 text-(--ui-text-muted)">{{ Math.round(toCelsius(cur.temperature_2m)) }}°C · {{ curWmo?.label }} · feels {{ tempBoth(cur.apparent_temperature) }}</p>
         </div>
         <span
           v-if="dust"
@@ -71,10 +71,12 @@ useHead({ title: 'Live — BRC Map' })
         <div class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Wind</p>
           <p class="font-semibold">{{ Math.round(cur.wind_speed_10m) }} mph {{ windDir(cur.wind_direction_10m) }}</p>
+          <p class="text-xs text-(--ui-text-muted)">{{ Math.round(toKmh(cur.wind_speed_10m)) }} km/h</p>
         </div>
         <div class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Gusts</p>
           <p class="font-semibold">{{ Math.round(cur.wind_gusts_10m) }} mph</p>
+          <p class="text-xs text-(--ui-text-muted)">{{ Math.round(toKmh(cur.wind_gusts_10m)) }} km/h</p>
         </div>
         <div class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Humidity</p>
@@ -97,8 +99,9 @@ useHead({ title: 'Live — BRC Map' })
         <div v-for="(d, i) in data.days" :key="d.date" class="rounded-xl border border-(--ui-border) p-3 text-center">
           <p class="text-xs font-semibold">{{ dayName(d.date, i) }}</p>
           <UIcon :name="wmo(d.code).icon" class="mx-auto my-1.5 size-7 text-primary" />
-          <p class="text-sm"><b>{{ Math.round(d.max) }}°</b> <span class="text-(--ui-text-muted)">{{ Math.round(d.min) }}°</span></p>
-          <p class="mt-1 text-xs" :style="{ color: dustRisk(d.gustMax).color }">{{ Math.round(d.gustMax) }} mph</p>
+          <p class="text-sm"><b>{{ Math.round(d.max) }}°F</b> <span class="text-(--ui-text-muted)">{{ Math.round(d.min) }}°F</span></p>
+          <p class="text-xs text-(--ui-text-muted)"><b>{{ Math.round(toCelsius(d.max)) }}°C</b> {{ Math.round(toCelsius(d.min)) }}°C</p>
+          <p class="mt-1 text-xs" :style="{ color: dustRisk(d.gustMax).color }">{{ windBoth(d.gustMax) }}</p>
           <p v-if="d.precip > 5" class="text-xs text-(--ui-text-muted)">{{ d.precip }}% 🌧</p>
         </div>
       </div>
