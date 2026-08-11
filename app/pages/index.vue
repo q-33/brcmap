@@ -3,7 +3,7 @@ import type { GateStatus } from '~~/lib/gate'
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
 import { GATE_STATUS_META, gateColor } from '~~/lib/gate'
-import { dustRisk, toCelsius, toKmh, windDir, wmo } from '~~/lib/weather'
+import { dustRisk, windDir, wmo } from '~~/lib/weather'
 
 function namedAddress(s: string | null | undefined): string {
   if (!s)
@@ -878,10 +878,8 @@ const itemOptions = computed(() => [
         class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
       >
         <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
-        <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°F</span>
-        <span class="text-white/55">{{ Math.round(toCelsius(wx.temperature_2m)) }}°C</span>
+        <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
         <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
-        <span class="text-white/55">{{ Math.round(toKmh(wx.wind_gusts_10m)) }} km/h</span>
         <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
       </NuxtLink>
 
@@ -892,7 +890,6 @@ const itemOptions = computed(() => [
         </span>
         <div class="leading-tight">
           <p class="text-sm"><b>{{ Math.round(windInfo.speed) }} mph</b> <span class="text-white/55">gusts {{ Math.round(windInfo.gusts) }}</span></p>
-          <p class="text-xs text-white/55">{{ Math.round(toKmh(windInfo.speed)) }} km/h · gusts {{ Math.round(toKmh(windInfo.gusts)) }}</p>
           <p class="text-xs text-white/60">from the {{ windInfo.from }} · {{ windInfo.label }}</p>
         </div>
       </div>
