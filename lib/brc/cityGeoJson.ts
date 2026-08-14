@@ -346,23 +346,31 @@ const K_M = STREET_RADII[OUTER]!
 const DPW_ZONE_M = (STREET_RADII.F! + STREET_RADII.G!) / 2
 export const CIVIC_LANDMARKS: CivicLandmark[] = [
   // Medical / care (red)
-  { name: 'Rampart Hospital', category: 'medical', at: { time: 5.25, street: 'Esplanade' }, note: 'Main field hospital · ESD station' },
-  { name: 'First Aid · 3:00', category: 'medical', at: { time: 3, street: 'B' }, note: 'Medical + Ranger Outpost (Berlin) · 3:00 Plaza' },
-  { name: 'First Aid · 9:00', category: 'medical', at: { time: 9, street: 'B' }, note: 'Medical + Ranger Outpost (Tokyo) · 9:00 Plaza' },
+  { name: 'Rampart Hospital', category: 'medical', at: { lat: 40.7763497, lng: -119.2116420 }, note: 'Main field hospital · ESD · 5:15 & A' },
+  // The 3:00 and 9:00 stations are on C, NOT at the B plazas — reported by Amanda
+  // and confirmed against Burning Man's own 2026 GIS (cpns.geojson), which puts
+  // all four at 1084–1094 m from the Man: 19–29 m past C and 105–115 m past B.
+  // Exact surveyed coordinates rather than a clock+street approximation, because
+  // someone reads these while looking for help. Medical and the Ranger outpost
+  // are co-located but separate facilities, so each shows in its own layer.
+  { name: 'First Aid · 3:00', category: 'medical', at: { lat: 40.7761978, lng: -119.1989813 }, note: 'ESD Station 3 · medical + fire · 3:00 & C' },
+  { name: 'First Aid · 9:00', category: 'medical', at: { lat: 40.7902956, lng: -119.2167879 }, note: 'ESD Station 9 · medical + fire · 9:00 & C' },
   // Safety (blue)
-  { name: 'Ranger HQ', category: 'safety', at: { time: 6.5, street: 'Esplanade' }, note: 'Black Rock Rangers headquarters' },
-  { name: 'Law Enforcement', category: 'safety', at: { time: 5.08, street: 'Esplanade' }, note: 'Law enforcement substation · by Rampart at 5:15 & Esplanade' },
+  { name: 'Ranger · Berlin', category: 'safety', at: { lat: 40.7764827, lng: -119.1986123 }, note: 'Black Rock Ranger outpost · 3:00 & C' },
+  { name: 'Ranger · Tokyo', category: 'safety', at: { lat: 40.7900620, lng: -119.2172228 }, note: 'Black Rock Ranger outpost · 9:00 & C' },
+  { name: 'Ranger HQ', category: 'safety', at: { lat: 40.7799249, lng: -119.2163799 }, note: 'Black Rock Rangers headquarters · 6:30 & Esplanade' },
+  { name: 'Law Enforcement', category: 'safety', at: { lat: 40.7766646, lng: -119.2109608 }, note: 'BLM law-enforcement substation · 5:15 & Esplanade' },
   { name: 'GPE', category: 'safety', at: { time: 5.75, street: 'E' }, note: 'Gate, Perimeter & Exodus (The Black Hole) · also runs Gate Road outposts (approx.)' },
   // Services (teal)
-  { name: 'Ice · main', category: 'services', at: { time: 6.25, street: 'B' }, note: 'Arctica ice (main) · Center Camp Plaza' },
-  { name: 'Playa Info', category: 'services', at: { time: 5.9, street: 'Esplanade' }, note: 'Info · Lost & Found · VRT volunteer resources · Center Camp ~6:00 (2026)' },
-  { name: 'ARTery', category: 'services', at: { time: 6.25, street: 'Esplanade' }, note: 'Art HQ · registration, lighting & fire-safety sign-off' },
-  { name: 'Media Mecca', category: 'services', at: { time: 6.36, street: 'Esplanade' }, note: 'Press & media HQ · next to the ARTery' },
-  { name: 'Recycle Camp', category: 'services', at: { time: 5.58, street: 'Esplanade' }, note: 'Aluminum-can recycling & education' },
+  { name: 'Ice · main', category: 'services', at: { lat: 40.7782779, lng: -119.2167630 }, note: 'Arctica ice (main) · 6:15 & A' },
+  { name: 'Playa Info', category: 'services', at: { lat: 40.7778641, lng: -119.2130452 }, note: 'Info · Lost & Found · VRT volunteer resources · 5:45 & Esplanade' },
+  { name: 'ARTery', category: 'services', at: { lat: 40.7793809, lng: -119.2148607 }, note: 'Art HQ · registration, lighting & fire-safety sign-off · 6:15 & Esplanade' },
+  { name: 'Media Mecca', category: 'services', at: { lat: 40.7793039, lng: -119.2163165 }, note: 'Press & media HQ · 6:30 & A' },
+  { name: 'Recycle Camp', category: 'services', at: { lat: 40.7769507, lng: -119.2130300 }, note: 'Aluminum-can recycling & education · 5:30 & Esplanade' },
   { name: 'Burn Gardens', category: 'services', at: { time: 5.5, street: 'Esplanade' }, note: 'Scrap-wood donation' },
-  { name: 'Ice · 3:00', category: 'services', at: { time: 3, street: 'G' }, note: 'Arctica ice sales' },
-  { name: 'Ice · 9:00', category: 'services', at: { time: 9, street: 'G' }, note: 'Arctica ice sales' },
-  { name: 'Ice · bulk', category: 'services', at: { time: 6.25, street: 'K' }, note: 'Arctica large-order / bulk ice outpost' },
+  { name: 'Ice · 3:00', category: 'services', at: { lat: 40.7737637, lng: -119.1949101 }, note: 'Arctica ice sales · 3:00 & H' },
+  { name: 'Ice · 9:00', category: 'services', at: { lat: 40.7927170, lng: -119.2208314 }, note: 'Arctica ice sales · 9:00 & H' },
+  { name: 'Ice · bulk', category: 'services', at: { lat: 40.7736956, lng: -119.2239782 }, note: 'Arctica large-order / bulk ice outpost · 6:15 & J' },
   { name: 'Lamplighters', category: 'services', at: { time: 6.8, radiusM: 1350 }, note: 'Lamplighter village · lights the promenades nightly · ~6:48 outer (2026 Placement, approx.)' },
   { name: 'Mobility Camp', category: 'services', at: { time: 6.7, street: 'A' }, note: 'Accessibility / ADA mobility services · ~6:45 & A (2026 Placement)' },
   { name: 'DPW Depot', category: 'services', at: { time: 5.5, radiusM: K_M + 205 }, note: 'Dept. of Public Works · just past Kilgore (K)' },
@@ -378,20 +386,20 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   { name: 'Placement HQ', category: 'services', at: { time: 6.1, street: 'Esplanade' }, note: 'Theme-camp Placement HQ (Center Camp ring, approx.)' },
   { name: 'V-Spot', category: 'services', at: { time: 6.0, street: 'Esplanade' }, note: 'Volunteer sign-up (V-Spot) · Center Camp 6:00 promenade (approx.)' },
   { name: 'Fire Conclave', category: 'services', at: { time: 6.2, street: 'Esplanade' }, note: 'Great Circle fire-performance staging / Conclave Convergence (approx.)' },
-  { name: 'DMV FAST', category: 'services', at: { time: 6.13, street: 'A' }, note: 'Dept. of Mutant Vehicles · FAST licensing · Center Camp 6:00 promenade (approx.)' },
+  { name: 'DMV FAST', category: 'services', at: { lat: 40.7789614, lng: -119.2124627 }, note: 'Dept. of Mutant Vehicles · licensing · 5:45, inside the Esplanade' },
   { name: 'Temple Guardians', category: 'services', at: { time: 5.7, street: 'A' }, note: 'Temple Guardians HQ (Center Camp ring, approx.)' },
   { name: 'MOOP Map HQ', category: 'services', at: { time: 5.45, street: 'A' }, note: 'MOOP Map HQ · Matter Out Of Place data (approx.)' },
   { name: 'Water Works', category: 'services', at: { time: 5.55, street: 'Esplanade' }, note: 'Water Works office (Center Camp ring, ~5:33, approx.)' },
-  { name: 'DPW HEaT', category: 'services', at: { time: 5.3, street: 'A' }, note: 'DPW Heavy Equipment & Transport (HEaT) (approx.)' },
+  { name: 'DPW HEaT', category: 'services', at: { lat: 40.7765732, lng: -119.2122856 }, note: 'DPW Heavy Equipment & Transport · 5:30 & A' },
   // Transport / entry (amber)
-  { name: 'Airport (88NV)', category: 'transport', at: { lng: -119.2107394, lat: 40.7618388 }, note: 'BRC Municipal Airport · off 5:00, outside the fence' },
-  { name: 'Greeters', category: 'transport', at: { time: 6, radiusM: 2044 }, note: 'Welcome station + printed city map · 6,705 ft out on 6:00' },
+  { name: 'Airport (88NV)', category: 'transport', at: { lat: 40.7605453, lng: -119.2101021 }, note: 'BRC Municipal Airport · 4:45, outside the fence' },
+  { name: 'Greeters', category: 'transport', at: { lat: 40.7699130, lng: -119.2254033 }, note: 'Welcome station + printed city map · 6:00, past the outer street' },
   { name: 'Fallopian Tubes', category: 'transport', at: { time: 6, radiusM: 1980 }, note: 'Entry chicane / queue tubes at the 6:00 gate, just inside Greeters (approx.)' },
-  { name: 'Burner Express', category: 'transport', at: { time: 6, street: 'J' }, note: 'Burner Express bus depot (approx., moves yearly)' },
-  { name: 'Fuel · Hell Station', category: 'transport', at: { time: 9.5, radiusM: K_M + 110 }, note: 'Participant vehicle fueling · past the outer street' },
+  { name: 'Burner Express', category: 'transport', at: { lat: 40.7733549, lng: -119.2227195 }, note: 'Burner Express bus depot · 6:00 & I' },
+  { name: 'Fuel · Hell Station', category: 'transport', at: { lat: 40.7981065, lng: -119.2192173 }, note: 'Participant vehicle fueling · 9:30, past the outer street' },
   // Sacred (purple). 2026 Temple geometry publishes early July; this is the
   // 12:00 deep-playa axis at an approximate distance until then.
-  { name: 'Temple (approx.)', category: 'sacred', at: { time: 12, radiusM: 920 }, note: 'Deep playa, 12:00 axis · exact 2026 location pending official GIS' },
+  { name: 'The Temple', category: 'sacred', at: { lat: 40.7880994, lng: -119.2014996 }, note: 'Deep playa on the 12:00 axis' },
 ]
 
 export function civicLandmarksGeoJson(): FeatureCollection {

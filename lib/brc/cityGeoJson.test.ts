@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CIVIC_LANDMARKS, cityGridGeoJson, civicLandmarksGeoJson, getManPoint, washCorners } from './cityGeoJson'
-import { STREET_RADII } from './geocode'
+import { STREET_RADII, latLngToAddress } from './geocode'
 import { CENTER_CAMP_INK, PLAN_CENTER_CAMP, PLAN_RING_RADII } from './planCenterCamp'
 import { GIS_BLOCKS, GIS_FENCE, GIS_PLAZAS, GIS_RING_RADII, GIS_STREETS } from './planCity'
 
@@ -147,6 +147,53 @@ describe('official GIS agrees with the geocoder', () => {
     // plan keeps plaza interiors clean. Nothing else should vanish.
     expect(channels.length).toBeGreaterThanOrEqual(GIS_STREETS.length - 1)
     expect(channels.every(f => (f.geometry as any).coordinates.length > 1)).toBe(true)
+  })
+})
+
+// Reported by Amanda: medical and the Ranger outposts at 3:00 and 9:00 were
+// pinned at the B plazas. They are on C — about 105 m further out — and Burning
+// Man's own 2026 GIS (cpns.geojson) puts ESD Station 3/9 and Ranger Stations
+// Berlin/Tokyo at 1084–1094 m from the Man. People read these looking for help,
+// so the positions are pinned here rather than left to drift.
+describe('emergency services at 3:00 and 9:00', () => {
+  const fc = civicLandmarksGeoJson()
+  const at = (name: string) => {
+    const f = fc.features.find(x => x.properties?.name === name)
+    expect(f, `${name} missing`).toBeTruthy()
+    const [lng, lat] = (f!.geometry as any).coordinates
+    return latLngToAddress({ lat, lng })
+  }
+
+  it('puts first aid on C, not the B plazas', () => {
+    for (const name of ['First Aid · 3:00', 'First Aid · 9:00']) {
+      const a = at(name)
+      expect(a.street, name).toBe('C')
+      expect(a.distanceM, `${name} should sit within a block of C`).toBeLessThan(45)
+    }
+    expect(at('First Aid · 3:00').time).toBeCloseTo(3, 1)
+    expect(at('First Aid · 9:00').time).toBeCloseTo(9, 1)
+  })
+
+  it('puts the Ranger outposts on C too, in the safety layer', () => {
+    for (const name of ['Ranger · Berlin', 'Ranger · Tokyo']) {
+      const a = at(name)
+      expect(a.street, name).toBe('C')
+      const f = fc.features.find(x => x.properties?.name === name)
+      expect(f!.properties?.category, name).toBe('safety')
+    }
+    expect(at('Ranger · Berlin').time).toBeCloseTo(3, 1)
+    expect(at('Ranger · Tokyo').time).toBeCloseTo(9, 1)
+  })
+
+  it('keeps medical and Rangers co-located at each corner', () => {
+    const pair = (a: string, b: string) => {
+      const x = at(a)
+      const y = at(b)
+      expect(x.street).toBe(y.street)
+      expect(Math.abs(x.time - y.time)).toBeLessThan(0.1)
+    }
+    pair('First Aid · 3:00', 'Ranger · Berlin')
+    pair('First Aid · 9:00', 'Ranger · Tokyo')
   })
 })
 
