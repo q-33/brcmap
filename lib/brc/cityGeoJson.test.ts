@@ -197,6 +197,41 @@ describe('emergency services at 3:00 and 9:00', () => {
   })
 })
 
+// The gate complex and deep-playa zones come from the official CPN file. They
+// sit far outside the drawn city, so a regression that quietly snapped them onto
+// a lettered street would be easy to miss by eye.
+describe('landmarks beyond the outer street', () => {
+  const fc = civicLandmarksGeoJson()
+  const at = (name: string) => {
+    const f = fc.features.find(x => x.properties?.name === name)
+    expect(f, `${name} missing`).toBeTruthy()
+    const [lng, lat] = (f!.geometry as any).coordinates
+    return { f: f!, r: Math.hypot((lng + 119.207871) * 84360, (lat - 40.783242) * 111320) }
+  }
+
+  it('keeps the gate complex out past K where it belongs', () => {
+    const kRadius = STREET_RADII.K!
+    for (const name of ['Gate Actual', 'Box Office', 'Will Call Lot', 'D Lot', 'Census Checkpoint']) {
+      const { r, f } = at(name)
+      expect(r, `${name} should be beyond K`).toBeGreaterThan(kRadius + 500)
+      expect(f.properties?.category, name).toBe('transport')
+    }
+    // Will Call is the furthest out of the gate cluster
+    expect(at('Will Call Lot').r).toBeGreaterThan(at('Box Office').r)
+  })
+
+  it('places both deep-playa music zones outside the city', () => {
+    for (const name of ['Deep-Playa Music Zone', 'Deep-Playa Music Zone 2'])
+      expect(at(name).r, name).toBeGreaterThan(STREET_RADII.K!)
+  })
+
+  it('keeps the Census Checkpoint distinct from the in-city Census camp', () => {
+    // their CPN "Census Checkpoint" is the Gate Road survey point; our "Census"
+    // is the camp in the 6:30 wedge. Conflating them threw a pin 1.5 km out.
+    expect(at('Census Checkpoint').r - at('Census').r).toBeGreaterThan(1000)
+  })
+})
+
 describe('civicLandmarksGeoJson', () => {
   it('emits a point per landmark with finite coords and a category', () => {
     const fc = civicLandmarksGeoJson()

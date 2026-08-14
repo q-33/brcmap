@@ -390,6 +390,9 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   { name: 'Temple Guardians', category: 'services', at: { time: 5.7, street: 'A' }, note: 'Temple Guardians HQ (Center Camp ring, approx.)' },
   { name: 'MOOP Map HQ', category: 'services', at: { time: 5.45, street: 'A' }, note: 'MOOP Map HQ · Matter Out Of Place data (approx.)' },
   { name: 'Water Works', category: 'services', at: { time: 5.55, street: 'Esplanade' }, note: 'Water Works office (Center Camp ring, ~5:33, approx.)' },
+  { name: 'Yellow Bike Project', category: 'services', at: { lat: 40.7739274, lng: -119.2145451 }, note: 'Community bikes · repair & return · 5:30 & D' },
+  { name: 'Deep-Playa Music Zone', category: 'services', at: { lat: 40.7992038, lng: -119.2037669 }, note: 'DMZ · where the loud sound camps live · 10:45, past the outer street' },
+  { name: 'Deep-Playa Music Zone 2', category: 'services', at: { lat: 40.7784502, lng: -119.1843398 }, note: 'DMZ2 · second deep-playa sound zone · 2:00, past the outer street' },
   { name: 'DPW HEaT', category: 'services', at: { lat: 40.7765732, lng: -119.2122856 }, note: 'DPW Heavy Equipment & Transport · 5:30 & A' },
   // Transport / entry (amber)
   { name: 'Airport (88NV)', category: 'transport', at: { lat: 40.7605453, lng: -119.2101021 }, note: 'BRC Municipal Airport · 4:45, outside the fence' },
@@ -397,6 +400,14 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   { name: 'Fallopian Tubes', category: 'transport', at: { time: 6, radiusM: 1980 }, note: 'Entry chicane / queue tubes at the 6:00 gate, just inside Greeters (approx.)' },
   { name: 'Burner Express', category: 'transport', at: { lat: 40.7733549, lng: -119.2227195 }, note: 'Burner Express bus depot · 6:00 & I' },
   { name: 'Fuel · Hell Station', category: 'transport', at: { lat: 40.7981065, lng: -119.2192173 }, note: 'Participant vehicle fueling · 9:30, past the outer street' },
+  // The gate complex, all out past the outer street on the 6:15 line — official
+  // 2026 GIS. Useful before you arrive and again at Exodus.
+  { name: 'Gate Actual', category: 'transport', at: { lat: 40.7687253, lng: -119.2340881 }, note: 'Gate operations · 6:15, ~1.0 km past the outer street' },
+  { name: 'Box Office', category: 'transport', at: { lat: 40.7682269, lng: -119.2356701 }, note: 'Ticket sales & problem resolution · 6:15, ~1.1 km out' },
+  { name: 'Will Call Lot', category: 'transport', at: { lat: 40.7684061, lng: -119.2370464 }, note: 'Will Call ticket pickup · 6:15, ~1.2 km out' },
+  { name: 'D Lot', category: 'transport', at: { lat: 40.7681783, lng: -119.2338248 }, note: 'Holding / staging lot at the gate · 6:15, ~1.0 km out' },
+  { name: 'Census Checkpoint', category: 'transport', at: { lat: 40.7675669, lng: -119.2279380 }, note: 'Where arrivals are surveyed on Gate Road · 6:00, ~0.7 km out' },
+  { name: 'Walk-In Camp', category: 'transport', at: { lat: 40.7660514, lng: -119.2016597 }, note: 'Walk-in camping entry · 4:00, just past the outer street' },
   // Sacred (purple). 2026 Temple geometry publishes early July; this is the
   // 12:00 deep-playa axis at an approximate distance until then.
   { name: 'The Temple', category: 'sacred', at: { lat: 40.7880994, lng: -119.2014996 }, note: 'Deep playa on the 12:00 axis' },
