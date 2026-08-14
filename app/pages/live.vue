@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AirNow, FireAlert, FireIncident } from '~~/lib/fires'
+import { aqiBand, describeIncident } from '~~/lib/fires'
 import { dustRisk, tempBoth, toCelsius, toKmh, windBoth, windDir, wmo } from '~~/lib/weather'
 
 interface Current {
@@ -37,6 +39,32 @@ function dayName(d: string, i: number) {
 }
 function clockTime(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
+// Fire, smoke and official alerts around the city. Lazy + client-side so a slow
+// federal feed never holds up the weather above it.
+interface Fires { alerts: FireAlert[], incidents: FireIncident[], air: AirNow, updatedAt: string }
+const { data: fires } = await useFetch<Fires>('/api/fires', { server: false, lazy: true })
+const air = computed(() => aqiBand(fires.value?.air?.usAqi ?? null))
+// Only shout about a worse-later forecast when it crosses into a new band.
+const airLater = computed(() => {
+  const now = fires.value?.air?.usAqi ?? null
+  const peak = fires.value?.air?.aqiNext24 ?? null
+  if (now == null || peak == null || peak <= now)
+    return null
+  const band = aqiBand(peak)
+  return band.label === air.value.label ? null : { peak, ...band }
+})
+function alertTone(sev: string | null) {
+  const s = (sev ?? '').toLowerCase()
+  if (s === 'extreme' || s === 'severe')
+    return { bg: '#7f1d1d', fg: '#ffffff' }
+  return { bg: '#d97706', fg: '#ffffff' }
+}
+function alertWindow(iso: string | null) {
+  if (!iso)
+    return ''
+  return new Date(iso).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
 }
 
 // BMIR streams only during the event window (Aug 30 – Sep 7, 2026).
@@ -106,6 +134,93 @@ useHead({ title: 'Live — BRC Map' })
         </div>
       </div>
       <p class="mt-2 text-xs text-(--ui-text-muted)">Gusts shown per day (dust signal). Source: Open-Meteo.</p>
+    </section>
+
+    <!-- fire & smoke -->
+    <section v-if="fires" class="mt-10">
+      <div class="mb-3 flex items-baseline justify-between gap-3">
+        <h2 class="font-display text-xl font-semibold text-primary">Fire &amp; smoke</h2>
+        <span class="text-xs text-(--ui-text-muted)">updated {{ clockTime(fires.updatedAt) }}</span>
+      </div>
+
+      <!-- official watches and warnings, verbatim from the National Weather Service -->
+      <div
+        v-for="a in fires.alerts"
+        :key="a.url ?? a.event"
+        class="mb-3 rounded-xl px-4 py-3"
+        :style="{ background: alertTone(a.severity).bg, color: alertTone(a.severity).fg }"
+      >
+        <div class="flex items-center gap-2">
+          <UIcon name="i-lucide-triangle-alert" class="size-5 shrink-0" />
+          <p class="font-semibold">{{ a.event }}</p>
+          <span v-if="a.ends" class="ml-auto text-xs opacity-80">until {{ alertWindow(a.ends) }}</span>
+        </div>
+        <p v-if="a.headline" class="mt-1 text-sm opacity-95">{{ a.headline }}</p>
+        <p v-if="a.area" class="mt-1 text-xs opacity-80">{{ a.area }}</p>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <!-- air quality -->
+        <UCard>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-wind" class="size-5 text-primary" />
+            <h3 class="font-semibold">Air quality</h3>
+          </div>
+          <div class="mt-2 flex items-baseline gap-2">
+            <p class="font-display text-4xl font-bold leading-none">{{ fires.air.usAqi ?? '—' }}</p>
+            <span class="rounded-full px-2 py-0.5 text-xs font-semibold text-white" :style="{ background: air.color }">{{ air.label }}</span>
+          </div>
+          <p class="mt-1 text-sm text-(--ui-text-muted)">
+            US AQI<span v-if="fires.air.pm25 != null"> · PM2.5 {{ fires.air.pm25 }} µg/m³</span>
+          </p>
+          <p class="mt-2 text-sm">{{ air.advice }}</p>
+          <p v-if="airLater" class="mt-2 rounded-lg bg-(--ui-bg-muted) px-3 py-2 text-xs">
+            Forecast to reach <b>{{ airLater.peak }}</b> ({{ airLater.label }}) within 24 hours.
+          </p>
+        </UCard>
+
+        <!-- nearest active fires -->
+        <UCard>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-flame" class="size-5 text-primary" />
+            <h3 class="font-semibold">Active fires nearby</h3>
+          </div>
+          <p v-if="!fires.incidents.length" class="mt-2 text-sm text-(--ui-text-muted)">
+            No active incidents reported within 300 km.
+          </p>
+          <ul v-else class="mt-2 space-y-2">
+            <li v-for="f in fires.incidents" :key="f.name + f.km" class="text-sm">
+              <div class="flex items-baseline justify-between gap-2">
+                <span class="font-semibold">{{ f.name }}</span>
+                <span class="shrink-0 text-xs text-(--ui-text-muted)">{{ Math.round(f.km) }} km {{ f.bearing }}</span>
+              </div>
+              <p class="text-xs text-(--ui-text-muted)">
+                {{ describeIncident(f) }}<span v-if="f.county"> · {{ f.county }}, {{ f.state }}</span>
+              </p>
+            </li>
+          </ul>
+          <p class="mt-3 text-xs text-(--ui-text-muted)">Distance and bearing are from the Man. Source: NIFC.</p>
+        </UCard>
+      </div>
+
+      <div class="mt-4 rounded-xl border border-(--ui-border) bg-(--ui-bg-muted) px-4 py-3 text-sm">
+        <p class="font-semibold">BRC Map is not an emergency service.</p>
+        <p class="mt-1 text-(--ui-text-muted)">
+          Evacuation orders come from county emergency managers and change by the hour. If you are
+          travelling to or from the playa, check these before you go:
+        </p>
+        <ul class="mt-2 space-y-1 text-(--ui-text-muted)">
+          <li><a href="https://www.oem.nv.gov/wildfire-info-2026/" target="_blank" rel="noopener" class="text-primary underline">Nevada Emergency Management — wildfire info</a></li>
+          <li><a href="https://www.emergencywashoe.com/" target="_blank" rel="noopener" class="text-primary underline">Washoe County emergency (evacuations, shelters)</a></li>
+          <li><a href="https://inciweb.wildfire.gov/" target="_blank" rel="noopener" class="text-primary underline">InciWeb — incident detail</a></li>
+          <li><a href="https://www.weather.gov/rev/" target="_blank" rel="noopener" class="text-primary underline">NWS Reno — watches and warnings</a></li>
+          <li><a href="https://fire.airnow.gov/" target="_blank" rel="noopener" class="text-primary underline">AirNow Fire &amp; Smoke Map</a></li>
+        </ul>
+        <p class="mt-2 text-xs text-(--ui-text-muted)">
+          Alerts are shown verbatim from the National Weather Service. Nothing here decides whether an
+          area is evacuated.
+        </p>
+      </div>
     </section>
 
     <!-- radio -->
