@@ -64,7 +64,7 @@ function applyLayerVisibility() {
   }
   const cats = CIVIC_CATEGORIES.filter(c => props.layers?.[c] !== false)
   const filter = ['any', ['==', ['get', 'category'], 'sacred'], ['in', ['get', 'category'], ['literal', cats]]] as any
-  for (const id of ['civic-dots', 'civic-labels']) {
+  for (const id of ['civic-dots', 'civic-esd', 'civic-labels']) {
     if (map.getLayer(id))
       map.setFilter(id, filter)
   }
@@ -882,12 +882,50 @@ onMounted(async () => {
       id: 'civic-dots',
       type: 'circle',
       source: 'civic',
+      // ESD/medical draws as the official badge instead (layer below), so it is
+      // never mistaken for the red camp dots around it.
+      filter: ['!=', ['get', 'category'], 'medical'],
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 4, 15, 5.5, 18, 11],
         'circle-color': civicColor,
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 1.5,
       },
+    })
+    // Emergency Services: the official BRC ESD badge. Reported by Amanda, a
+    // Ranger stationed at Tokyo — medical shared the same red as ordinary camp
+    // pins, and someone in an emergency is not reading a legend. There is a huge
+    // lit red cross at ESD 3 and 9 on playa, so the map should be as unmistakable.
+    map.loadImage('/esd-badge.png').then(({ data }) => {
+      if (!map || map.hasImage('esd-badge'))
+        return
+      map.addImage('esd-badge', data)
+      map.addLayer({
+        id: 'civic-esd',
+        type: 'symbol',
+        source: 'civic',
+        filter: ['==', ['get', 'category'], 'medical'],
+        layout: {
+          'icon-image': 'esd-badge',
+          // Sized for legibility, not tidiness: below ~34 px the star of life and
+          // the fire/rescue emblem turn to mush and it reads as a yellow blob.
+          // 26 px at overview, 36 px mid, 60 px close in — deliberately larger
+          // than the civic dots, because this is the one pin someone hunts for
+          // in an emergency.
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.2, 15, 0.28, 18, 0.47],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+      })
+      // Hoist above the camp pins. Amanda reported a camp pin sitting on top of
+      // the ESD dot and hiding it; civic layers are added long before `camps`,
+      // so without this the badge stays buried under whoever camps next door.
+      map.moveLayer('civic-esd')
+    }).catch(() => {
+      // If the badge fails to load, fall back to the coloured dot rather than
+      // dropping medical off the map entirely.
+      if (map)
+        map.setFilter('civic-dots', null)
     })
     map.addLayer({
       id: 'civic-labels',
@@ -903,16 +941,18 @@ onMounted(async () => {
       },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
     })
-    map.on('click', 'civic-dots', (e) => {
-      const f = e.features?.[0]
-      if (f && map) {
-        const note = f.properties?.note ? `<br>${esc(f.properties.note)}` : ''
-        new maplibregl.Popup()
-          .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${esc(f.properties?.name)}</b>${note}`)
-          .addTo(map)
-      }
-    })
+    for (const layer of ['civic-dots', 'civic-esd'] as const) {
+      map.on('click', layer, (e) => {
+        const f = e.features?.[0]
+        if (f && map) {
+          const note = f.properties?.note ? `<br>${esc(f.properties.note)}` : ''
+          new maplibregl.Popup()
+            .setLngLat((f.geometry as any).coordinates)
+            .setHTML(`<b>${esc(f.properties?.name)}</b>${note}`)
+            .addTo(map)
+        }
+      })
+    }
     // art pins (violet) — drawn under camp pins
     map.addSource('art', { type: 'geojson', data: pinsGeoJson(props.artPins ?? []) })
     map.addLayer({
@@ -1012,7 +1052,7 @@ onMounted(async () => {
     // Placement mode: only when the parent has armed a drop (clicked Drop/Edit)
     // does tapping the map place/move a draggable pin at the EXACT point. Clicks
     // on an existing marker fall through to that marker's popup instead.
-    const interactive = ['camps', 'art', 'toilets', 'civic-dots']
+    const interactive = ['camps', 'art', 'toilets', 'civic-dots', 'civic-esd']
     map.on('click', (e) => {
       if (!map)
         return
