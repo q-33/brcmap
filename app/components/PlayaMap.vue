@@ -49,9 +49,20 @@ const VISIBILITY_GROUPS: Record<string, string[]> = {
   art: ['art', 'art-labels'],
   toilets: ['toilets'],
 }
-// Civic markers are one layer coloured by category; we toggle categories with a
-// filter. The Temple (sacred) is a landmark and stays visible regardless.
+// Civic markers are one source drawn by three layers; we toggle categories with
+// a filter. The Temple (sacred) is a landmark and stays visible regardless.
+//
+// Each layer also has a base filter deciding WHICH markers it draws at all, and
+// setFilter replaces the whole expression — so the base has to be re-applied
+// here every time, not just at creation. Getting that wrong put the ESD badge on
+// every civic landmark in the city the moment any layer was toggled.
 const CIVIC_CATEGORIES = ['medical', 'safety', 'services', 'transport']
+const CIVIC_BASE_FILTER: Record<string, any> = {
+  // medical draws as the ESD badge instead, in civic-esd
+  'civic-dots': ['!=', ['get', 'category'], 'medical'],
+  'civic-esd': ['==', ['get', 'category'], 'medical'],
+  'civic-labels': null, // labels every visible category
+}
 function applyLayerVisibility() {
   if (!map)
     return
@@ -63,10 +74,10 @@ function applyLayerVisibility() {
     }
   }
   const cats = CIVIC_CATEGORIES.filter(c => props.layers?.[c] !== false)
-  const filter = ['any', ['==', ['get', 'category'], 'sacred'], ['in', ['get', 'category'], ['literal', cats]]] as any
-  for (const id of ['civic-dots', 'civic-esd', 'civic-labels']) {
+  const visible = ['any', ['==', ['get', 'category'], 'sacred'], ['in', ['get', 'category'], ['literal', cats]]] as any
+  for (const [id, base] of Object.entries(CIVIC_BASE_FILTER)) {
     if (map.getLayer(id))
-      map.setFilter(id, filter)
+      map.setFilter(id, base ? (['all', visible, base] as any) : visible)
   }
 }
 const emit = defineEmits<{
@@ -863,6 +874,31 @@ onMounted(async () => {
       minzoom: 13,
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 2.5, 16, 4.5, 18, 8], 'circle-color': '#3f6212', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1 },
     })
+    // Swap the dot for an actual porta-potty once the sprite loads. Same layer id,
+    // so the click handler, the layer toggle and the interactive list all keep
+    // working; re-inserted before civic-dots to hold its place under the pins.
+    map.loadImage('/porta-potty.png').then(({ data }) => {
+      if (!map || !map.getLayer('toilets'))
+        return
+      if (!map.hasImage('porta-potty'))
+        map.addImage('porta-potty', data)
+      map.removeLayer('toilets')
+      map.addLayer({
+        id: 'toilets',
+        type: 'symbol',
+        source: 'toilets',
+        minzoom: 13,
+        layout: {
+          'icon-image': 'porta-potty',
+          // the sprite is 96 px tall: ~13 px on screen at z13, 22 at z16, 40 at z18
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 13, 0.14, 16, 0.23, 18, 0.42],
+          // stand it on its coordinate rather than centring the box on it
+          'icon-anchor': 'bottom',
+          'icon-allow-overlap': true,
+        },
+      }, map.getLayer('civic-dots') ? 'civic-dots' : undefined)
+      applyLayerVisibility()
+    }).catch(() => { /* keep the green dot */ })
     map.on('click', 'toilets', (e) => {
       if (map)
         new maplibregl.Popup().setLngLat((e.features?.[0]?.geometry as any).coordinates).setHTML('<b>Porta-potties</b><br>approx. (2025 placement)').addTo(map)
@@ -883,8 +919,9 @@ onMounted(async () => {
       type: 'circle',
       source: 'civic',
       // ESD/medical draws as the official badge instead (layer below), so it is
-      // never mistaken for the red camp dots around it.
-      filter: ['!=', ['get', 'category'], 'medical'],
+      // never mistaken for the red camp dots around it. Same expression the
+      // visibility pass re-applies — see CIVIC_BASE_FILTER.
+      filter: CIVIC_BASE_FILTER['civic-dots'],
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 4, 15, 5.5, 18, 11],
         'circle-color': civicColor,
@@ -904,7 +941,7 @@ onMounted(async () => {
         id: 'civic-esd',
         type: 'symbol',
         source: 'civic',
-        filter: ['==', ['get', 'category'], 'medical'],
+        filter: CIVIC_BASE_FILTER['civic-esd'],
         layout: {
           'icon-image': 'esd-badge',
           // Sized for legibility, not tidiness: below ~34 px the star of life and
