@@ -227,7 +227,7 @@ const windLayer = computed(() => (windMode.value && windInfo.value)
 // map layer visibility (the legend doubles as the toggle control)
 // Porta-potties default OFF — the 2026 placement isn't known yet, so we don't
 // want to imply the (stale) pins are accurate. Users can re-enable in the legend.
-const layers = reactive({ camps: true, art: true, toilets: false, medical: true, safety: true, services: true, transport: true })
+const layers = reactive({ camps: true, art: true, toilets: true, medical: true, safety: true, services: true, transport: true })
 const panelOpen = ref(false)
 const basemap = ref<'blocks' | 'lines'>('blocks')
 
