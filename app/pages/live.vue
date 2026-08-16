@@ -69,6 +69,11 @@ function alertWindow(iso: string | null) {
 
 // BMIR streams only during the event window (Aug 30 – Sep 7, 2026).
 const BMIR_STREAM = 'https://stream.revma.ihrhls.com/zc8378'
+// Shouting Fire runs year round. Their own player still points at a bmir-ice
+// host (Bobzilla ran BMIR before starting this), which is confusing and
+// http-only; this is the same Icecast mount on their TLS host, so the player
+// is not blocked as mixed content.
+const SHOUTING_FIRE_STREAM = 'https://shoutingfire-ice.streamguys1.com/live'
 
 useHead({ title: 'Live — BRC Map' })
 </script>
@@ -251,6 +256,21 @@ useHead({ title: 'Live — BRC Map' })
             <p class="font-semibold">On-playa only · tune to 95.1 FM</p>
             <p class="mt-0.5 text-xs text-(--ui-text-muted)">No online stream. For live gate status from here, see the <NuxtLink to="/gate" class="text-primary underline">Gate page</NuxtLink>.</p>
           </div>
+        </UCard>
+        <UCard>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-flame" class="size-5 text-primary" />
+            <h3 class="font-semibold">Shouting Fire 99.5 FM</h3>
+          </div>
+          <p class="mt-1 text-sm text-(--ui-text-muted)">The global burner radio network, started by Bobzilla, formerly one of BMIR's managers. On air year round, not just event week.</p>
+          <audio controls preload="none" :src="SHOUTING_FIRE_STREAM" class="mt-3 w-full">
+            Your browser can’t play this stream.
+          </audio>
+          <p class="mt-2 text-xs text-(--ui-text-muted)">
+            On playa · tune to 99.5 FM. Also on
+            <a href="https://shoutingfire.com" target="_blank" rel="noopener" class="text-primary underline">shoutingfire.com</a>,
+            iHeart, TuneIn and their own app.
+          </p>
         </UCard>
         <UCard>
           <div class="flex items-center gap-2">
