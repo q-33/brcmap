@@ -12,7 +12,7 @@ function namedAddress(s: string | null | undefined): string {
   return a ? formatAddressNamed(a) : s
 }
 
-interface CampPin { name: string, lat: number, lng: number, address: string }
+interface CampPin { name: string, lat: number, lng: number, address: string, description?: string | null, website?: string | null, hometown?: string | null }
 
 definePageMeta({ layout: false })
 
@@ -74,7 +74,21 @@ function toPins(items: any, geo?: Map<string, { footprint: [number, number][] | 
     const g = geo?.get(c.id)
     return (c.locations ?? [])
       .filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
-      .map((l: any) => ({ id: c.id, name: c.name, lat: l.gpsLatitude, lng: l.gpsLongitude, address: namedAddress(l.addressString), frontageFt: c.frontageFt ?? null, depthFt: c.depthFt ?? null, heightFt: g?.heightFt ?? null, footprint: g?.footprint ?? null }))
+      .map((l: any) => ({
+        id: c.id,
+        name: c.name,
+        lat: l.gpsLatitude,
+        lng: l.gpsLongitude,
+        address: namedAddress(l.addressString),
+        // carried through for the pin popup
+        description: c.description ?? null,
+        website: c.website || c.url || null,
+        hometown: c.hometown ?? null,
+        frontageFt: c.frontageFt ?? null,
+        depthFt: c.depthFt ?? null,
+        heightFt: g?.heightFt ?? null,
+        footprint: g?.footprint ?? null,
+      }))
   })
 }
 // client-only: the map (and its pins) render client-side after hydration anyway,
@@ -114,6 +128,24 @@ const adminPlaceCamp = computed(() => {
     .sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
   return { id: c.id, name: c.name as string, lat: (loc?.gpsLatitude ?? null) as number | null, lng: (loc?.gpsLongitude ?? null) as number | null }
 })
+// Civic landmarks are code constants, so admins correct them through an
+// override table rather than a deploy. Burners keep writing in about pins that
+// are a block off, and each report used to cost a code change.
+const { data: landmarkOverrides, refresh: refreshLandmarks } = await useFetch<{ name: string, lat: number, lng: number }[]>(
+  '/api/landmarks',
+  { server: false, lazy: true, default: () => [] },
+)
+async function onLandmarkMove(p: { name: string, lat: number, lng: number }) {
+  try {
+    await $fetch('/api/admin/landmarks', { method: 'POST', body: p })
+    await refreshLandmarks()
+    toast.add({ title: `Moved ${p.name}`, description: 'Everyone sees the new position within a minute.', color: 'success' })
+  }
+  catch (err: any) {
+    toast.add({ title: 'Could not move that pin', description: err?.data?.statusMessage ?? 'Try again', color: 'error' })
+  }
+}
+
 async function onAdminPlace(p: { lat: number, lng: number }) {
   const c = adminPlaceCamp.value
   if (!c)
@@ -687,7 +719,8 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" @footprint-draw="onFootprintDraw" />
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+          @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" />
       </ClientOnly>
     </div>
 

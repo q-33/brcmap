@@ -244,3 +244,48 @@ describe('civicLandmarksGeoJson', () => {
     }
   })
 })
+
+// Civic landmarks are code constants, so admins correct them through an
+// override table rather than a deploy. The code stays the default: an override
+// wins while it exists, and deleting the row must restore the shipped position.
+describe('landmark overrides', () => {
+  it('leaves every landmark alone when there are no overrides', () => {
+    const a = civicLandmarksGeoJson()
+    const b = civicLandmarksGeoJson([])
+    expect(a.features.length).toBe(b.features.length)
+    expect(a.features.every(f => f.properties?.moved === 0)).toBe(true)
+  })
+
+  it('moves only the named landmark, and marks it moved', () => {
+    const before = civicLandmarksGeoJson()
+    const target = 'Mobility Camp'
+    const at = { name: target, lat: 40.78, lng: -119.21 }
+    const after = civicLandmarksGeoJson([at])
+    expect(after.features.length).toBe(before.features.length)
+
+    const moved = after.features.find(f => f.properties?.name === target)!
+    expect((moved.geometry as any).coordinates).toEqual([at.lng, at.lat])
+    expect(moved.properties?.moved).toBe(1)
+
+    // everything else is untouched
+    for (const f of after.features) {
+      if (f.properties?.name === target)
+        continue
+      const orig = before.features.find(x => x.properties?.name === f.properties?.name)!
+      expect((f.geometry as any).coordinates).toEqual((orig.geometry as any).coordinates)
+      expect(f.properties?.moved).toBe(0)
+    }
+  })
+
+  it('ignores an override for a landmark that does not exist', () => {
+    const fc = civicLandmarksGeoJson([{ name: 'Not A Real Landmark', lat: 40.7, lng: -119.2 }])
+    expect(fc.features.length).toBe(civicLandmarksGeoJson().features.length)
+    expect(fc.features.some(f => f.properties?.name === 'Not A Real Landmark')).toBe(false)
+  })
+
+  it('lets an override replace the note too', () => {
+    const fc = civicLandmarksGeoJson([{ name: 'Mobility Camp', lat: 40.78, lng: -119.21, note: 'corrected by Elise' }])
+    const f = fc.features.find(x => x.properties?.name === 'Mobility Camp')!
+    expect(f.properties?.note).toBe('corrected by Elise')
+  })
+})

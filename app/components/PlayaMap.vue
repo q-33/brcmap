@@ -8,13 +8,13 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
 // (.client components break template refs / onMounted DOM access in Nuxt.)
 
-interface CampPin { id?: string, name: string, lat: number, lng: number, address: string, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
+interface CampPin { id?: string, name: string, lat: number, lng: number, address: string, description?: string | null, website?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
 // A camp whose boundary is being edited live on the map (admin/owner tool).
 export interface EditCamp { id: string, name: string, lat: number, lng: number, frontageFt: number, depthFt: number }
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
 export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
 
 function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
   return {
@@ -85,6 +85,7 @@ const emit = defineEmits<{
   pick: [{ lat: number, lng: number }]
   editChange: [{ lat: number, lng: number, frontageFt: number, depthFt: number }]
   footprintDraw: [[number, number][]]
+  landmarkMove: [{ name: string, lat: number, lng: number }]
 }>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
@@ -104,12 +105,41 @@ function esc(v: unknown): string {
   return String(v ?? '').replace(/[&<>"']/g, c => HTML_ESC[c]!)
 }
 
+/**
+ * A camp's website is whatever its owner typed, so it is never trusted straight
+ * into an href — `javascript:` and `data:` URLs would run in the popup. Only
+ * http(s) survives, and anything else is dropped rather than shown as a dead
+ * link. Bare domains get https:// so "camp.example" still works.
+ */
+function safeLink(raw: string): { href: string, label: string } | null {
+  const t = raw.trim()
+  if (!t)
+    return null
+  const withScheme = /^https?:\/\//i.test(t) ? t : `https://${t}`
+  try {
+    const u = new URL(withScheme)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:')
+      return null
+    return { href: u.toString(), label: u.host + (u.pathname === '/' ? '' : u.pathname) }
+  }
+  catch {
+    return null
+  }
+}
+
 function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
     features: pins.map(c => ({
       type: 'Feature',
-      properties: { id: c.id ?? '', name: c.name, address: c.address },
+      properties: {
+        id: c.id ?? '',
+        name: c.name,
+        address: c.address,
+        description: c.description ?? '',
+        website: c.website ?? '',
+        hometown: c.hometown ?? '',
+      },
       geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
     })),
   }
@@ -913,7 +943,7 @@ onMounted(async () => {
       'sacred', '#7c3aed',
       /* other */ '#334155',
     ] as any
-    map.addSource('civic', { type: 'geojson', data: civicLandmarksGeoJson() })
+    map.addSource('civic', { type: 'geojson', data: civicLandmarksGeoJson(props.landmarkOverrides ?? []) })
     map.addLayer({
       id: 'civic-dots',
       type: 'circle',
@@ -981,15 +1011,49 @@ onMounted(async () => {
     for (const layer of ['civic-dots', 'civic-esd'] as const) {
       map.on('click', layer, (e) => {
         const f = e.features?.[0]
-        if (f && map) {
-          const note = f.properties?.note ? `<br>${esc(f.properties.note)}` : ''
-          new maplibregl.Popup()
-            .setLngLat((f.geometry as any).coordinates)
-            .setHTML(`<b>${esc(f.properties?.name)}</b>${note}`)
-            .addTo(map)
-        }
+        if (!f || !map)
+          return
+        const name = String(f.properties?.name ?? '')
+        const note = f.properties?.note ? `<br>${esc(f.properties.note)}` : ''
+        const moved = f.properties?.moved ? '<br><i>moved by an admin</i>' : ''
+        // Landmarks are code constants, so only an admin with the override
+        // endpoint can move one. Everyone else just gets the name and note.
+        const button = props.canMoveLandmarks
+          ? `<br><button type="button" data-move-landmark style="margin-top:8px;padding:3px 10px;border:1px solid #d96a1e;border-radius:6px;background:#fff;color:#d96a1e;cursor:pointer;font:inherit">Move this pin</button>`
+          : ''
+        const popup = new maplibregl.Popup()
+          .setLngLat((f.geometry as any).coordinates)
+          .setHTML(`<b>${esc(name)}</b>${note}${moved}${button}`)
+          .addTo(map)
+        if (!props.canMoveLandmarks)
+          return
+        popup.getElement()?.querySelector('[data-move-landmark]')?.addEventListener('click', () => {
+          popup.remove()
+          startLandmarkMove(name, (f.geometry as any).coordinates)
+        })
       })
     }
+    // Drop a draggable handle on the landmark and let the admin place it. Emits
+    // once on dragend; the page saves and refreshes the overrides. Deliberately a
+    // real marker rather than a click-to-place mode, so you can nudge it a few
+    // metres and see the result before letting go.
+    let landmarkMarker: maplibregl.Marker | null = null
+    function startLandmarkMove(name: string, at: [number, number]) {
+      if (!map)
+        return
+      landmarkMarker?.remove()
+      const el = document.createElement('div')
+      el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:#d96a1e;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);cursor:grab'
+      el.title = `Drag to place ${name}, then release`
+      landmarkMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(at).addTo(map)
+      landmarkMarker.on('dragend', () => {
+        const p = landmarkMarker!.getLngLat()
+        emit('landmarkMove', { name, lat: p.lat, lng: p.lng })
+        landmarkMarker?.remove()
+        landmarkMarker = null
+      })
+    }
+
     // art pins (violet) — drawn under camp pins
     map.addSource('art', { type: 'geojson', data: pinsGeoJson(props.artPins ?? []) })
     map.addLayer({
@@ -1078,12 +1142,28 @@ onMounted(async () => {
     })
     map.on('click', 'camps', (e) => {
       const f = e.features?.[0]
-      if (f && map) {
-        new maplibregl.Popup()
-          .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${esc(f.properties?.name)}</b><br>${esc(f.properties?.address)}`)
-          .addTo(map)
+      if (!f || !map)
+        return
+      const p = f.properties ?? {}
+      const bits: string[] = [`<b>${esc(p.name)}</b>`]
+      if (p.address)
+        bits.push(`<div style="color:#6b6255">${esc(p.address)}</div>`)
+      if (p.hometown)
+        bits.push(`<div style="color:#6b6255">from ${esc(p.hometown)}</div>`)
+      if (p.description) {
+        // Descriptions run long; enough to know whether it is your kind of camp,
+        // without a popup that covers the city.
+        const d = String(p.description).trim()
+        const short = d.length > 260 ? `${d.slice(0, 260).trimEnd()}…` : d
+        bits.push(`<div style="margin-top:6px;max-height:9em;overflow:auto">${esc(short)}</div>`)
       }
+      const link = safeLink(String(p.website ?? ''))
+      if (link)
+        bits.push(`<div style="margin-top:6px"><a href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">${esc(link.label)}</a></div>`)
+      new maplibregl.Popup({ maxWidth: '280px' })
+        .setLngLat((f.geometry as any).coordinates)
+        .setHTML(`<div style="font-size:13px;line-height:1.45">${bits.join('')}</div>`)
+        .addTo(map)
     })
 
     // Placement mode: only when the parent has armed a drop (clicked Drop/Edit)

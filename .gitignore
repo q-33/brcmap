@@ -10,3 +10,6 @@ tasks/
 
 # local agent skills (npx skills add) — regenerable tooling
 .agents/
+
+# Claude Code personal overrides (permissions), not team config
+.claude/settings.local.json

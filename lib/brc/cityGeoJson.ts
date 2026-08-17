@@ -413,12 +413,36 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   { name: 'The Temple', category: 'sacred', at: { lat: 40.7880994, lng: -119.2014996 }, note: 'Deep playa on the 12:00 axis' },
 ]
 
-export function civicLandmarksGeoJson(): FeatureCollection {
+/** An admin correction to a landmark's position, keyed by name. */
+export interface LandmarkOverride { name: string, lat: number, lng: number, note?: string | null }
+
+/**
+ * Civic landmarks, with admin corrections applied.
+ *
+ * The constants above are the default and stay the source of truth in git.
+ * Overrides come from the landmark_overrides table and win when present, so
+ * removing a row reverts to the shipped position. `moved` marks a corrected pin
+ * so the map can tell an admin which ones have been touched.
+ */
+export function civicLandmarksGeoJson(overrides: LandmarkOverride[] = []): FeatureCollection {
+  const byName = new Map(overrides.map(o => [o.name, o]))
   const features: Feature[] = []
   for (const l of CIVIC_LANDMARKS) {
-    const coord = civicCoord(l.at)
-    if (coord)
-      features.push({ type: 'Feature', properties: { kind: 'civic', name: l.name, category: l.category, note: l.note ?? '' }, geometry: { type: 'Point', coordinates: coord } })
+    const o = byName.get(l.name)
+    const coord = o ? [o.lng, o.lat] as [number, number] : civicCoord(l.at)
+    if (coord) {
+      features.push({
+        type: 'Feature',
+        properties: {
+          kind: 'civic',
+          name: l.name,
+          category: l.category,
+          note: (o?.note ?? l.note) ?? '',
+          moved: o ? 1 : 0,
+        },
+        geometry: { type: 'Point', coordinates: coord },
+      })
+    }
   }
   return { type: 'FeatureCollection', features }
 }

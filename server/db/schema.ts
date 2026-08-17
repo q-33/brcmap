@@ -41,6 +41,19 @@ export const userFeatures = pgTable('user_features', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('user_features_user_idx').on(t.userId)])
 
+// Admin corrections to civic landmark positions. The shipped constants in
+// lib/brc/cityGeoJson.ts stay the default; a row here overrides one by name, and
+// deleting the row reverts to the code. See db/migrations/0019.
+export const landmarkOverrides = pgTable('landmark_overrides', {
+  name: text('name').primaryKey(),
+  lat: doublePrecision('lat').notNull(),
+  lng: doublePrecision('lng').notNull(),
+  note: text('note'),
+  movedById: uuid('moved_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Moderation / admin audit log.
 export const auditLog = pgTable('audit_log', {
   id: uuid('id').primaryKey().defaultRandom(),
