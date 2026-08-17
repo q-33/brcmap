@@ -380,3 +380,45 @@ describe('gate road beyond the fence, and the DMZ', () => {
     expect(label[1]!).toBeLessThan(Math.max(...lats))
   })
 })
+
+describe('medical: the hospital and the ESD stations are distinct', () => {
+  const feats = civicLandmarksGeoJson().features
+  const medical = feats.filter(f => f.properties?.category === 'medical')
+  const name = (f: any) => String(f.properties?.name)
+
+  it('carries all four surveyed medical points', () => {
+    expect(medical.map(name).sort()).toEqual([
+      'ESD Station 6', 'First Aid · 3:00', 'First Aid · 9:00', 'Rampart Hospital',
+    ])
+  })
+
+  it('marks only Rampart as the hospital', () => {
+    const hospitals = medical.filter(f => f.properties?.subtype === 'hospital')
+    expect(hospitals.map(name)).toEqual(['Rampart Hospital'])
+    // the other three are emergency services and keep the ESD badge
+    expect(medical.filter(f => f.properties?.subtype !== 'hospital')).toHaveLength(3)
+  })
+
+  it('puts ESD Station 6 beside Rampart, not on top of it', () => {
+    const M_LAT = 111320
+    const M_LNG = M_LAT * Math.cos(MAN.lat * Math.PI / 180)
+    const at = (n: string) => (medical.find(f => name(f) === n)!.geometry as any).coordinates as number[]
+    const [a, b] = [at('Rampart Hospital'), at('ESD Station 6')]
+    const m = Math.hypot((a[0]! - b[0]!) * M_LNG, (a[1]! - b[1]!) * M_LAT)
+    expect(m).toBeGreaterThan(30)
+    expect(m).toBeLessThan(80)
+  })
+
+  it('never draws a landmark as both badges, or as neither', () => {
+    // The badge layers split on `subtype`; every medical pin must fall in exactly
+    // one of them. Getting a civic filter wrong once put the ESD badge on every
+    // landmark in the city, so this is pinned rather than assumed.
+    for (const f of medical) {
+      const isHospital = f.properties?.subtype === 'hospital'
+      expect(typeof f.properties?.subtype).toBe('string')
+      expect(isHospital ? 1 : 0).toBe(name(f) === 'Rampart Hospital' ? 1 : 0)
+    }
+    // and nothing outside `medical` may claim to be a hospital
+    expect(feats.filter(f => f.properties?.subtype === 'hospital' && f.properties?.category !== 'medical')).toHaveLength(0)
+  })
+})

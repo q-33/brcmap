@@ -345,7 +345,13 @@ export function washCorners(): [number, number][] {
 export type CivicCategory = 'medical' | 'safety' | 'transport' | 'services' | 'sacred'
 
 type CivicAt = BrcAddress | { time: number, radiusM: number } | { lng: number, lat: number }
-export interface CivicLandmark { name: string, category: CivicCategory, at: CivicAt, note?: string }
+/**
+ * `kind` splits the medical category by what the place actually is. Rampart is
+ * the field hospital; the ESD stations are emergency services (medical, fire and
+ * rescue). They share the Medical layer because you want them together when you
+ * need one, but they draw differently because they are not the same thing.
+ */
+export interface CivicLandmark { name: string, category: CivicCategory, at: CivicAt, note?: string, kind?: 'hospital' }
 
 function civicCoord(at: CivicAt): [number, number] | null {
   if ('street' in at) {
@@ -368,7 +374,11 @@ const K_M = STREET_RADII[OUTER]!
 const DPW_ZONE_M = (STREET_RADII.F! + STREET_RADII.G!) / 2
 export const CIVIC_LANDMARKS: CivicLandmark[] = [
   // Medical / care (red)
-  { name: 'Rampart Hospital', category: 'medical', at: { lat: 40.7763497, lng: -119.2116420 }, note: 'Main field hospital · ESD · 5:15 & A' },
+  { name: 'Rampart Hospital', category: 'medical', kind: 'hospital', at: { lat: 40.7763497, lng: -119.2116420 }, note: 'Main field hospital · 5:15 & A · surveyed' },
+  // The emergency-services station beside Rampart, 53 m north of the hospital
+  // itself. Official name kept — calling it "First Aid · 5:15" would imply a
+  // second walk-in post rather than the ESD building next door.
+  { name: 'ESD Station 6', category: 'medical', at: { lat: 40.7767935, lng: -119.2114002 }, note: 'Emergency Services · medical + fire · beside Rampart · surveyed' },
   // The 3:00 and 9:00 stations are on C, NOT at the B plazas — reported by Amanda
   // and confirmed against Burning Man's own 2026 GIS (cpns.geojson), which puts
   // all four at 1084–1094 m from the Man: 19–29 m past C and 105–115 m past B.
@@ -459,6 +469,7 @@ export function civicLandmarksGeoJson(overrides: LandmarkOverride[] = []): Featu
           kind: 'civic',
           name: l.name,
           category: l.category,
+          subtype: l.kind ?? '',
           note: (o?.note ?? l.note) ?? '',
           moved: o ? 1 : 0,
         },

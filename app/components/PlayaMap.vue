@@ -58,9 +58,11 @@ const VISIBILITY_GROUPS: Record<string, string[]> = {
 // every civic landmark in the city the moment any layer was toggled.
 const CIVIC_CATEGORIES = ['medical', 'safety', 'services', 'transport']
 const CIVIC_BASE_FILTER: Record<string, any> = {
-  // medical draws as the ESD badge instead, in civic-esd
+  // medical draws as a badge instead of a dot: the ESD emblem for emergency
+  // services, a red cross for the hospital
   'civic-dots': ['!=', ['get', 'category'], 'medical'],
-  'civic-esd': ['==', ['get', 'category'], 'medical'],
+  'civic-esd': ['all', ['==', ['get', 'category'], 'medical'], ['!=', ['get', 'subtype'], 'hospital']],
+  'civic-hospital': ['all', ['==', ['get', 'category'], 'medical'], ['==', ['get', 'subtype'], 'hospital']],
   'civic-labels': null, // labels every visible category
 }
 function applyLayerVisibility() {
@@ -126,6 +128,52 @@ function safeLink(raw: string): { href: string, label: string } | null {
   catch {
     return null
   }
+}
+
+/**
+ * The hospital marker, drawn in code rather than shipped as a file: a red cross
+ * on a white disc. Generated so it stays crisp at any icon-size and needs no
+ * network fetch, which matters on a map people use with no signal.
+ *
+ * This is the generic medical cross, not the Red Cross society's emblem.
+ */
+function hospitalCrossImage(size = 96): { width: number, height: number, data: Uint8Array } {
+  const data = new Uint8Array(size * size * 4)
+  const c = (size - 1) / 2
+  const rOuter = size * 0.47
+  const rInner = size * 0.40
+  const arm = size * 0.115 // half-thickness of a cross bar
+  const reach = size * 0.26 // half-length of a cross bar
+  const RED = [211, 47, 47]
+  const put = (i: number, rgb: number[], a: number) => {
+    data[i] = rgb[0]!
+    data[i + 1] = rgb[1]!
+    data[i + 2] = rgb[2]!
+    data[i + 3] = Math.round(a * 255)
+  }
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4
+      const dx = x - c
+      const dy = y - c
+      const dist = Math.hypot(dx, dy)
+      // soft one-pixel edge so the disc does not look jagged when scaled down
+      const disc = Math.min(1, Math.max(0, rOuter - dist))
+      if (disc <= 0) {
+        put(i, RED, 0)
+        continue
+      }
+      const inCross = (Math.abs(dx) <= arm && Math.abs(dy) <= reach)
+        || (Math.abs(dy) <= arm && Math.abs(dx) <= reach)
+      if (inCross)
+        put(i, RED, disc)
+      else if (dist > rInner)
+        put(i, RED, disc) // the ring
+      else
+        put(i, [255, 255, 255], disc)
+    }
+  }
+  return { width: size, height: size, data }
 }
 
 function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
@@ -747,13 +795,26 @@ onMounted(async () => {
     // Gate Road beyond the fence — the drive in from the highway. Two edge lines
     // so it reads as a road; thin, because it is context for the gate rather
     // than something you navigate by once you are inside.
+    // Drawn with the city's own stroke convention — a dark casing with a white
+    // core, at the same widths as every other street — rather than as hairlines.
+    // The surveyed road and the plan's traced gate funnel are both correct where
+    // they sit; what made the join look broken was drawing one as thin tan lines
+    // and the other as the city's black linework.
+    map.addLayer({
+      id: 'gate-road-casing',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'gate-road-outer'],
+      layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: { 'line-color': '#101820', 'line-width': mFactorFloor(['+', 4.75, 8.5], 0.8) },
+    })
     map.addLayer({
       id: 'gate-road-outer',
       type: 'line',
       source: 'grid',
       filter: ['==', ['get', 'kind'], 'gate-road-outer'],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#8a7f6d', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 1.2, 16, 2.4] },
+      layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: { 'line-color': '#ffffff', 'line-width': mFactorFloor(4.75, 0.35) },
     })
     map.addLayer({
       id: 'gate-road-outer-label',
@@ -768,7 +829,7 @@ onMounted(async () => {
         'text-size': 10,
         'text-letter-spacing': 0.08,
       },
-      paint: { 'text-color': '#6b6255', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
+      paint: { 'text-color': '#1c2733', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
     })
     // The Deep-Playa Music Zone — a placement boundary, so an outline and a wash
     // rather than a solid shape. Sits out past the 10:00 end of the city.
@@ -1061,6 +1122,28 @@ onMounted(async () => {
       if (map)
         map.setFilter('civic-dots', null)
     })
+    // Rampart draws as a red cross, not the ESD badge. They are different places
+    // doing different jobs — one is the field hospital you are taken to, the
+    // others are the emergency-services stations that come to you — and on a map
+    // you read at 3am under dust that difference should not need a legend.
+    // Generated rather than fetched, so it cannot fail to load.
+    if (!map.hasImage('hospital-cross'))
+      map.addImage('hospital-cross', hospitalCrossImage())
+    map.addLayer({
+      id: 'civic-hospital',
+      type: 'symbol',
+      source: 'civic',
+      filter: CIVIC_BASE_FILTER['civic-hospital'],
+      layout: {
+        'icon-image': 'hospital-cross',
+        // matched to the ESD badge's on-screen size so neither outranks the other
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.24, 15, 0.34, 18, 0.56],
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+      },
+    })
+    // above the camp pins, for the same reason the ESD badge is
+    map.moveLayer('civic-hospital')
     map.addLayer({
       id: 'civic-labels',
       type: 'symbol',
