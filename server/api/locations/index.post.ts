@@ -18,12 +18,15 @@ export default defineEventHandler(async (event) => {
   // Verify the user owns the parent camp/art. BM Org + admins may place ANY camp;
   // the art override stays admin-only.
   const isAdmin = user.role === 'admin'
+  // Placing something you do not own is a staff action, so it gets audited below.
+  let onBehalf = false
   if (body.campId) {
     const [c] = await db.select({ ownerId: camps.ownerId }).from(camps).where(eq(camps.id, body.campId)).limit(1)
     if (!c)
       throw createError({ statusCode: 404, statusMessage: 'Camp not found' })
     if (c.ownerId !== user.id && !canManageAnyCamp(user.role))
       throw createError({ statusCode: 403, statusMessage: 'You do not own that camp' })
+    onBehalf = c.ownerId !== user.id
   }
   else if (body.artId) {
     const [a] = await db.select({ ownerId: art.ownerId }).from(art).where(eq(art.id, body.artId)).limit(1)
@@ -31,6 +34,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: 'Art not found' })
     if (a.ownerId !== user.id && !isAdmin)
       throw createError({ statusCode: 403, statusMessage: 'You do not own that art' })
+    onBehalf = a.ownerId !== user.id
   }
 
   // Resolve the point + a label. A map tap keeps its EXACT coordinates; a typed
@@ -74,5 +78,14 @@ export default defineEventHandler(async (event) => {
       gpsLongitude: lng,
     })
     .returning()
+  // Moving someone else's pin should leave a trace — the owner did not do it and
+  // will want to know who did. Own placements are ordinary use and stay quiet.
+  if (onBehalf) {
+    await audit(user.id, 'location.place', {
+      targetType: body.campId ? 'camp' : 'art',
+      targetId: (body.campId ?? body.artId)!,
+      detail: lat != null && lng != null ? `${addressString} · ${lat.toFixed(6)}, ${lng.toFixed(6)}` : addressString,
+    })
+  }
   return loc
 })

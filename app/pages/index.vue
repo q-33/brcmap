@@ -12,7 +12,7 @@ function namedAddress(s: string | null | undefined): string {
   return a ? formatAddressNamed(a) : s
 }
 
-interface CampPin { name: string, lat: number, lng: number, address: string, description?: string | null, website?: string | null, hometown?: string | null }
+interface CampPin { id?: string, kind?: 'camp' | 'art', canMove?: 0 | 1, name: string, lat: number, lng: number, address: string, description?: string | null, website?: string | null, hometown?: string | null }
 
 definePageMeta({ layout: false })
 
@@ -69,13 +69,18 @@ const focus = computed(() => {
 
 // camps + art -> pins. `geo` (campId → exact footprint/height) is merged in for
 // camps so the Sun & Shade tool can extrude each camp's real geometry.
-function toPins(items: any, geo?: Map<string, { footprint: [number, number][] | null, heightFt: number | null }>): CampPin[] {
+function toPins(items: any, geo?: Map<string, { footprint: [number, number][] | null, heightFt: number | null }>, kind: 'camp' | 'art' = 'camp'): CampPin[] {
   return (items ?? []).flatMap((c: any) => {
     const g = geo?.get(c.id)
     return (c.locations ?? [])
       .filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
       .map((l: any) => ({
         id: c.id,
+        kind,
+        // Whether THIS viewer may drag THIS pin. The rule lives here because the
+        // page is what knows who you are; /api/locations enforces it again, so a
+        // forged flag buys nothing but a 403.
+        canMove: canMovePin(kind, c) ? 1 : 0,
         name: c.name,
         lat: l.gpsLatitude,
         lng: l.gpsLongitude,
@@ -102,7 +107,7 @@ const { data: artData, refresh: refreshArt } = await useFetch('/api/art', { serv
 const { data: geoData, refresh: refreshGeo } = await useFetch<any[]>('/api/camps/geometry', { server: false, lazy: true, default: () => [] })
 const geoByCamp = computed(() => new Map((geoData.value ?? []).map((g: any) => [g.campId, { footprint: (g.footprint ?? null) as [number, number][] | null, heightFt: (g.heightFt ?? null) as number | null }])))
 const pins = computed<CampPin[]>(() => toPins(campsData.value, geoByCamp.value))
-const artPins = computed<CampPin[]>(() => toPins(artData.value))
+const artPins = computed<CampPin[]>(() => toPins(artData.value, undefined, 'art'))
 
 // Live Meshtastic peers (LoRa mesh) → map dots. Shared singleton state, also
 // driven by <MeshControl>; here we just plot the ones with a position fix.
@@ -135,6 +140,31 @@ const { data: landmarkOverrides, refresh: refreshLandmarks } = await useFetch<{ 
   '/api/landmarks',
   { server: false, lazy: true, default: () => [] },
 )
+// Who may drag a camp or art pin. Mirrors /api/locations exactly: admins and Org
+// place any camp, admins alone place any artwork, and everyone can move their
+// own. Kept in step with the server rather than guessed at — a button that 403s
+// on release is worse than no button.
+function canMovePin(kind: 'camp' | 'art', row: any): boolean {
+  const mine = !!user.value?.id && row?.ownerId === user.value.id
+  if (mine)
+    return true
+  return kind === 'camp' ? canManageCamps.value : isAdmin.value
+}
+
+async function onPinMove(p: { kind: 'camp' | 'art', id: string, name: string, lat: number, lng: number }) {
+  try {
+    await $fetch('/api/locations', {
+      method: 'POST',
+      body: p.kind === 'camp' ? { campId: p.id, lat: p.lat, lng: p.lng } : { artId: p.id, lat: p.lat, lng: p.lng },
+    })
+    await (p.kind === 'camp' ? refreshCamps() : refreshArt())
+    toast.add({ title: `Moved ${p.name}`, description: 'The new spot is saved.', color: 'success' })
+  }
+  catch (err: any) {
+    toast.add({ title: 'Could not move that pin', description: err?.data?.statusMessage ?? 'Try again', color: 'error' })
+  }
+}
+
 async function onLandmarkMove(p: { name: string, lat: number, lng: number }) {
   try {
     await $fetch('/api/admin/landmarks', { method: 'POST', body: p })
@@ -720,7 +750,7 @@ const itemOptions = computed(() => [
     <div class="absolute inset-0">
       <ClientOnly>
         <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
-          @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" />
+          @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" />
       </ClientOnly>
     </div>
 

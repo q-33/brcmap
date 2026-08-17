@@ -8,7 +8,7 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
 // (.client components break template refs / onMounted DOM access in Nuxt.)
 
-interface CampPin { id?: string, name: string, lat: number, lng: number, address: string, description?: string | null, website?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
+interface CampPin { id?: string, kind?: 'camp' | 'art', canMove?: 0 | 1, name: string, lat: number, lng: number, address: string, description?: string | null, website?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
 // A camp whose boundary is being edited live on the map (admin/owner tool).
 export interface EditCamp { id: string, name: string, lat: number, lng: number, frontageFt: number, depthFt: number }
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
@@ -86,6 +86,7 @@ const emit = defineEmits<{
   editChange: [{ lat: number, lng: number, frontageFt: number, depthFt: number }]
   footprintDraw: [[number, number][]]
   landmarkMove: [{ name: string, lat: number, lng: number }]
+  pinMove: [{ kind: 'camp' | 'art', id: string, name: string, lat: number, lng: number }]
 }>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
@@ -134,6 +135,8 @@ function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
       type: 'Feature',
       properties: {
         id: c.id ?? '',
+        kind: c.kind ?? 'camp',
+        canMove: c.canMove ?? 0,
         name: c.name,
         address: c.address,
         description: c.description ?? '',
@@ -1101,20 +1104,42 @@ onMounted(async () => {
     // once on dragend; the page saves and refreshes the overrides. Deliberately a
     // real marker rather than a click-to-place mode, so you can nudge it a few
     // metres and see the result before letting go.
-    let landmarkMarker: maplibregl.Marker | null = null
-    function startLandmarkMove(name: string, at: [number, number]) {
+    let moveMarker: maplibregl.Marker | null = null
+    function startPinDrag(name: string, at: [number, number], done: (p: { lat: number, lng: number }) => void) {
       if (!map)
         return
-      landmarkMarker?.remove()
+      moveMarker?.remove()
       const el = document.createElement('div')
       el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:#d96a1e;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);cursor:grab'
       el.title = `Drag to place ${name}, then release`
-      landmarkMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(at).addTo(map)
-      landmarkMarker.on('dragend', () => {
-        const p = landmarkMarker!.getLngLat()
-        emit('landmarkMove', { name, lat: p.lat, lng: p.lng })
-        landmarkMarker?.remove()
-        landmarkMarker = null
+      moveMarker = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(at).addTo(map)
+      moveMarker.on('dragend', () => {
+        const p = moveMarker!.getLngLat()
+        moveMarker?.remove()
+        moveMarker = null
+        done({ lat: p.lat, lng: p.lng })
+      })
+    }
+    function startLandmarkMove(name: string, at: [number, number]) {
+      startPinDrag(name, at, p => emit('landmarkMove', { name, lat: p.lat, lng: p.lng }))
+    }
+    // Shared by the camp and art popups. The button only appears when the pin
+    // says this viewer may move it; /api/locations checks again on save.
+    function moveButton(canMove: unknown): string {
+      return canMove
+        ? `<br><button type="button" data-move-pin style="margin-top:8px;padding:3px 10px;border:1px solid #d96a1e;border-radius:6px;background:#fff;color:#d96a1e;cursor:pointer;font:inherit">Move this pin</button>`
+        : ''
+    }
+    function wireMoveButton(popup: maplibregl.Popup, f: maplibregl.MapGeoJSONFeature): void {
+      popup.getElement()?.querySelector('[data-move-pin]')?.addEventListener('click', () => {
+        const p = f.properties ?? {}
+        popup.remove()
+        startPinDrag(String(p.name ?? 'this pin'), (f.geometry as any).coordinates, at => emit('pinMove', {
+          kind: p.kind === 'art' ? 'art' : 'camp',
+          id: String(p.id ?? ''),
+          name: String(p.name ?? ''),
+          ...at,
+        }))
       })
     }
 
@@ -1135,14 +1160,15 @@ onMounted(async () => {
     })
     map.on('click', 'art', (e) => {
       const f = e.features?.[0]
-      if (f && map) {
-        const id = f.properties?.id
-        const link = id ? `<br><a href="/art/${esc(id)}" style="color:#d96a1e;font-weight:600">View details / edit →</a>` : ''
-        new maplibregl.Popup()
-          .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${esc(f.properties?.name)}</b><br>${esc(f.properties?.address)}${link}`)
-          .addTo(map)
-      }
+      if (!f || !map)
+        return
+      const p = f.properties ?? {}
+      const link = p.id ? `<br><a href="/art/${esc(p.id)}" style="color:#d96a1e;font-weight:600">View details / edit →</a>` : ''
+      const popup = new maplibregl.Popup()
+        .setLngLat((f.geometry as any).coordinates)
+        .setHTML(`<b>${esc(p.name)}</b><br>${esc(p.address)}${link}${moveButton(p.canMove)}`)
+        .addTo(map)
+      wireMoveButton(popup, f)
     })
     // sun shadows (when the shade tool is active) — drawn under everything
     map.addSource('shadows', { type: 'geojson', data: shadowsGeoJson(props.camps, props.sunTime) })
@@ -1224,10 +1250,12 @@ onMounted(async () => {
       const link = safeLink(String(p.website ?? ''))
       if (link)
         bits.push(`<div style="margin-top:6px"><a href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">${esc(link.label)}</a></div>`)
-      new maplibregl.Popup({ maxWidth: '280px' })
+      bits.push(moveButton(p.canMove))
+      const popup = new maplibregl.Popup({ maxWidth: '280px' })
         .setLngLat((f.geometry as any).coordinates)
         .setHTML(`<div style="font-size:13px;line-height:1.45">${bits.join('')}</div>`)
         .addTo(map)
+      wireMoveButton(popup, f)
     })
 
     // Placement mode: only when the parent has armed a drop (clicked Drop/Edit)
