@@ -38,7 +38,7 @@ import urllib.request
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, 'lib/brc/planCity.ts')
 RAW = 'https://raw.githubusercontent.com/burningmantech/innovate-GIS-data/master/{year}/GeoJSON/{layer}.geojson'
-LAYERS = ('street_lines', 'city_blocks', 'plazas', 'trash_fence', 'toilets')
+LAYERS = ('street_lines', 'city_blocks', 'plazas', 'trash_fence', 'toilets', 'gate_road', 'dmz')
 
 # must mirror lib/brc/geocode.ts
 MAN = {'lat': 40.783242, 'lng': -119.207871}
@@ -227,12 +227,50 @@ for f in data['toilets']['features']:
     cls = (f['properties'] or {}).get('class')
     toilets.append({'c': [round(px, 1), round(py, 1)], 'l': TOILET_LABEL.get(cls, '')})
 
+# -------------------------------------------------------------- gate road ----
+# Gate Road as surveyed OUTSIDE the trash fence: three parallel lines running
+# from the 6:00 gate out to the highway. Two are the road edges and one is the
+# centreline; rather than trust FID order, find the centre as the line closest to
+# both others (edges sit ~61 m apart, the centre ~30 m from each).
+gate_lines = [conv(f['geometry']['coordinates'], 1.0) for f in data['gate_road']['features']]
+gate_lines = [dedupe(g) for g in gate_lines if len(dedupe(g)) >= 2]
+
+
+def line_gap(a, b):
+    ds = [min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in b) for p in a[::5]]
+    return sorted(ds)[len(ds) // 2]
+
+
+centre_i = 0
+if len(gate_lines) == 3:
+    spread = [sum(line_gap(gate_lines[i], gate_lines[j]) for j in range(3) if j != i) for i in range(3)]
+    centre_i = spread.index(min(spread))
+gate_road = [{'p': g, 'c': 1 if i == centre_i else 0} for i, g in enumerate(gate_lines)]
+print(f'\ngate road: {len(gate_road)} lines, centreline is index {centre_i}, '
+      f'{sum(len(g["p"]) for g in gate_road)} pts')
+
+# -------------------------------------------------------------------- DMZ ----
+# The Deep-Playa Music Zone: where the loud sound camps go, out past the 10:00
+# end of the city. One polygon.
+dmz = []
+if data['dmz']['features']:
+    g = data['dmz']['features'][0]['geometry']
+    ring = g['coordinates'][0] if g['type'] == 'Polygon' else g['coordinates'][0][0]
+    dmz = dedupe(conv(ring, 0.5))
+    if dmz and dmz[0] != dmz[-1]:
+        dmz.append(dmz[0])
+    a = 0.0
+    for i in range(len(dmz) - 1):
+        a += dmz[i][0] * dmz[i + 1][1] - dmz[i + 1][0] * dmz[i][1]
+    print(f'DMZ: {len(dmz)} pts, {abs(a) / 2 / 4046.86:.1f} acres')
+
 from collections import Counter as _C
 print('\ntoilet banks by class:', dict(_C((f['properties'] or {}).get('class') for f in data['toilets']['features'])))
 
 print(f'\nstreets {len(streets)} ({sum(len(s["p"]) for s in streets)} pts) · '
       f'blocks {len(blocks)} ({sum(len(b) for b in blocks)} pts) · '
-      f'plazas {len(plazas)} · fence {len(fence)} pts · toilets {len(toilets)}')
+      f'plazas {len(plazas)} · fence {len(fence)} pts · toilets {len(toilets)} · '
+      f'gate road {len(gate_road)} · dmz {len(dmz)} pts')
 
 # ------------------------------------------------------------------- emit ----
 def pts_ts(pts):
@@ -298,6 +336,18 @@ L.append("export const GIS_TOILETS: GisToilet[] = [")
 for t in toilets:
     L.append(f"  {{ c: [{t['c'][0]:g},{t['c'][1]:g}], l: '{t['l']}' }},")
 L.append("]")
+L.append("")
+L.append("/** Gate Road OUTSIDE the trash fence: the drive in from the highway to the 6:00")
+L.append(" *  gate, ~6 km of it. Three surveyed lines — two road edges about 61 m apart and")
+L.append(" *  the centreline between them, flagged `c: 1`, which is the one worth labelling. */")
+L.append("export interface GisGateRoad { p: number[][], c: number }")
+L.append("export const GIS_GATE_ROAD: GisGateRoad[] = [")
+for g in gate_road:
+    L.append(f"  {{ c: {g['c']}, p: {pts_ts(g['p'])} }},")
+L.append("]")
+L.append("")
+L.append("/** The Deep-Playa Music Zone, out past the 10:00 end of the city. */")
+L.append(f"export const GIS_DMZ: number[][] = {pts_ts(dmz)}")
 out = '\n'.join(L) + '\n'
 with open(OUT, 'w') as fh:
     fh.write(out)

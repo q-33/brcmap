@@ -741,6 +741,62 @@ onMounted(async () => {
       filter: ['in', ['get', 'kind'], ['literal', ['gate-ink', 'cc-ink']]],
       paint: { 'fill-color': '#101820' },
     })
+    // Gate Road beyond the fence — the drive in from the highway. Two edge lines
+    // so it reads as a road; thin, because it is context for the gate rather
+    // than something you navigate by once you are inside.
+    map.addLayer({
+      id: 'gate-road-outer',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'gate-road-outer'],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#8a7f6d', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 1.2, 16, 2.4] },
+    })
+    map.addLayer({
+      id: 'gate-road-outer-label',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'gate-road-centre'],
+      minzoom: 11,
+      layout: {
+        'text-field': 'Gate Road',
+        'symbol-placement': 'line',
+        'symbol-spacing': 400,
+        'text-size': 10,
+        'text-letter-spacing': 0.08,
+      },
+      paint: { 'text-color': '#6b6255', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
+    })
+    // The Deep-Playa Music Zone — a placement boundary, so an outline and a wash
+    // rather than a solid shape. Sits out past the 10:00 end of the city.
+    map.addLayer({
+      id: 'dmz-fill',
+      type: 'fill',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'dmz'],
+      paint: { 'fill-color': '#7c3aed', 'fill-opacity': 0.07 },
+    })
+    map.addLayer({
+      id: 'dmz-outline',
+      type: 'line',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'dmz'],
+      paint: { 'line-color': '#7c3aed', 'line-width': 1.2, 'line-opacity': 0.55, 'line-dasharray': [3, 2] },
+    })
+    map.addLayer({
+      id: 'dmz-label',
+      type: 'symbol',
+      source: 'grid',
+      filter: ['==', ['get', 'kind'], 'dmz-label'],
+      minzoom: 12.5,
+      layout: {
+        'text-field': 'Deep-Playa\nMusic Zone',
+        'text-size': 10,
+        'text-letter-spacing': 0.06,
+        'text-max-width': 10,
+      },
+      paint: { 'text-color': '#6d28d9', 'text-halo-color': '#f6f2ea', 'text-halo-width': 1.6 },
+    })
     // Airport Road — 5:00 branch out to the airport
     map.addLayer({
       id: 'airport-road',

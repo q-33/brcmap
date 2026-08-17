@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CIVIC_LANDMARKS, cityGridGeoJson, civicLandmarksGeoJson, getManPoint, toiletsGeoJson, washCorners } from './cityGeoJson'
 import { MAN, STREET_RADII, latLngToAddress } from './geocode'
 import { CENTER_CAMP_INK, PLAN_CENTER_CAMP, PLAN_RING_RADII } from './planCenterCamp'
-import { GIS_BLOCKS, GIS_FENCE, GIS_PLAZAS, GIS_RING_RADII, GIS_STREETS, GIS_TOILETS } from './planCity'
+import { GIS_BLOCKS, GIS_DMZ, GIS_FENCE, GIS_GATE_ROAD, GIS_PLAZAS, GIS_RING_RADII, GIS_STREETS, GIS_TOILETS } from './planCity'
 
 describe('cityGridGeoJson', () => {
   const fc = cityGridGeoJson()
@@ -324,5 +324,59 @@ describe('porta-potties', () => {
       .filter(r => r < STREET_RADII.K!)
     expect(inCity.length).toBeGreaterThanOrEqual(34)
     expect(Math.min(...inCity)).toBeGreaterThan(STREET_RADII.C! - 5)
+  })
+})
+
+describe('gate road beyond the fence, and the DMZ', () => {
+  const M_LAT = 111320
+  const M_LNG = M_LAT * Math.cos(MAN.lat * Math.PI / 180)
+  const radius = (c: number[]) => Math.hypot((c[0]! - MAN.lng) * M_LNG, (c[1]! - MAN.lat) * M_LAT)
+  const fc = cityGridGeoJson()
+  const kind = (k: string) => fc.features.filter(f => f.properties?.kind === k)
+
+  it('draws Gate Road as two edges and one labelled centreline', () => {
+    expect(GIS_GATE_ROAD.length).toBe(3)
+    expect(GIS_GATE_ROAD.filter(g => g.c).length).toBe(1)
+    expect(kind('gate-road-outer').length).toBe(2)
+    expect(kind('gate-road-centre').length).toBe(1)
+  })
+
+  it('runs from the fence out towards the highway', () => {
+    const pts = [...kind('gate-road-outer'), ...kind('gate-road-centre')]
+      .flatMap(f => (f.geometry as any).coordinates as number[][])
+    const rs = pts.map(radius)
+    // starts just outside the fence (~2,045 m) and reaches ~6.5 km out
+    expect(Math.min(...rs)).toBeGreaterThan(1900)
+    expect(Math.min(...rs)).toBeLessThan(2200)
+    expect(Math.max(...rs)).toBeGreaterThan(6000)
+  })
+
+  it('meets the in-city gate stub rather than floating off it', () => {
+    const stub = (kind('gate-road')[0]!.geometry as any).coordinates as number[][]
+    const end = stub.at(-1)!
+    const pts = kind('gate-road-centre').flatMap(f => (f.geometry as any).coordinates as number[][])
+    const gap = Math.min(...pts.map(p => Math.hypot((p[0]! - end[0]!) * M_LNG, (p[1]! - end[1]!) * M_LAT)))
+    expect(gap).toBeLessThan(60)
+  })
+
+  it('draws the DMZ as a closed area past the 10:00 end of the city', () => {
+    expect(GIS_DMZ.length).toBeGreaterThan(3)
+    expect(GIS_DMZ[0]).toEqual(GIS_DMZ.at(-1))
+    const ring = (kind('dmz')[0]!.geometry as any).coordinates[0] as number[][]
+    const rs = ring.map(radius)
+    // sits outside the outer street, well inside the fence
+    expect(Math.min(...rs)).toBeGreaterThan(STREET_RADII.J!)
+    expect(Math.max(...rs)).toBeLessThan(2400)
+  })
+
+  it('puts the DMZ label inside the DMZ', () => {
+    const ring = (kind('dmz')[0]!.geometry as any).coordinates[0] as number[][]
+    const label = (kind('dmz-label')[0]!.geometry as any).coordinates as number[]
+    const lngs = ring.map(p => p[0]!)
+    const lats = ring.map(p => p[1]!)
+    expect(label[0]!).toBeGreaterThan(Math.min(...lngs))
+    expect(label[0]!).toBeLessThan(Math.max(...lngs))
+    expect(label[1]!).toBeGreaterThan(Math.min(...lats))
+    expect(label[1]!).toBeLessThan(Math.max(...lats))
   })
 })

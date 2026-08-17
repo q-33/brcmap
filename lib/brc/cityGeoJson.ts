@@ -3,7 +3,7 @@ import type { BrcAddress } from './geocode'
 import { CITY_TIME_MAX, CITY_TIME_MIN, MAN, STREET_RADII, addressToLatLng, circleRing, radialPoint, streetName } from './geocode'
 import { GATE_INK } from './gateLines'
 import { CENTER_CAMP_INK } from './planCenterCamp'
-import { GIS_BLOCKS, GIS_FENCE, GIS_PLAZAS, GIS_STREETS, GIS_TOILETS } from './planCity'
+import { GIS_BLOCKS, GIS_DMZ, GIS_FENCE, GIS_GATE_ROAD, GIS_PLAZAS, GIS_STREETS, GIS_TOILETS } from './planCity'
 import { STREET_LINE_OFFSETS } from './streetLines'
 
 // The exact 2026 street network traced from the official plan PDF, re-centred
@@ -204,6 +204,28 @@ export function cityGridGeoJson(): FeatureCollection {
   for (const ring of GATE_INK) {
     const coords = ring.map(p => planToLngLat(p[0]!, p[1]!))
     push('gate-ink', { type: 'Polygon', coordinates: [coords] })
+  }
+
+  // 5c. Gate Road BEYOND the fence: the ~6 km drive in from the highway to the
+  // 6:00 gate, surveyed. Two edge lines make it read as a road rather than a
+  // route; the centreline carries the label and nothing else, so the corridor
+  // stays open. It meets the in-city stub above at the fence (both ~2,045 m out).
+  for (const g of GIS_GATE_ROAD) {
+    const coords = g.p.map(q => planToLngLat(q[0]!, q[1]!))
+    push(g.c ? 'gate-road-centre' : 'gate-road-outer', { type: 'LineString', coordinates: coords }, { name: 'Gate Road' })
+  }
+
+  // 5d. The Deep-Playa Music Zone — where the loud sound camps are placed, out
+  // past the 10:00 end of the city. Drawn as an outlined area, not a building:
+  // it is a placement boundary, and pretending it has walls would be a lie.
+  if (GIS_DMZ.length > 3) {
+    const ring = GIS_DMZ.map(q => planToLngLat(q[0]!, q[1]!))
+    push('dmz', { type: 'Polygon', coordinates: [ring] }, { name: 'Deep-Playa Music Zone' })
+    let cx = 0
+    let cy = 0
+    for (const q of GIS_DMZ.slice(0, -1)) { cx += q[0]!; cy += q[1]! }
+    const n = GIS_DMZ.length - 1
+    push('dmz-label', { type: 'Point', coordinates: planToLngLat(cx / n, cy / n) }, { name: 'Deep-Playa Music Zone' })
   }
 
   // Airport Road — branches off the 5:00 radial at the outer street (K) and runs
