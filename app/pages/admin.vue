@@ -266,26 +266,67 @@ onMounted(() => {
   onBeforeUnmount(() => { clearInterval(tick); clearInterval(poll) })
 })
 
-// --- Broadcast email to all users (prefilled with the rename announcement) ----
-const bcSubject = ref('burnermap.org is now brcmap.net — plus what’s new')
-const bcBody = ref(`BurnerMap (burnermap.org) is now BRC Map, at brcmap.net.
+// --- Broadcast email to all users (prefilled with the current announcement) ---
+const bcSubject = ref('Two weeks out: a much more accurate map, and one question for you')
+const bcBody = ref(`Gate opens in two weeks. Here is what has changed on brcmap.net since the rename.
 
-Why the change? Our project — a community fork of the Unofficial BRC Map — shared a name with burnermap.com, a separate, long-running project. To avoid confusion and to stop stepping on their name, we've renamed to BRC Map and moved to brcmap.net.
+FIRE AND SMOKE
 
-What's new:
-- Meshtastic support (new!): connect a LoRa radio over Bluetooth or USB to see your people live on the map and chat off-grid — no internet, no cell service. Setup lives in the in-app Guide.
-- Offline-first: install BRC Map to your home screen and the whole map, your GPS dot, and last-synced camps/art keep working with no signal on the playa.
-- Sun & shade planner: cast every camp's shadow at any date and time to plan for shade.
-- Live wind & dust risk: a wind-direction overlay driven by the live forecast.
-- Major burns & reminders: the Events page highlights the big burns, with day-of reminders.
-- Open events: anyone signed in can post an event now, not just camp leads.
+There are wildfires burning in the region right now, so the Live page has a new section for them: official National Weather Service alerts word for word, active fires with their distance and direction from the Man, size and containment, and the current air quality at the city.
 
-Nothing else changes — your account, camps, art, and events are all intact, and burnermap.org redirects to brcmap.net so old links still work.
+We are not an emergency service and nothing on that page decides whether anywhere is evacuated. It links straight to Nevada Emergency Management, Washoe County, InciWeb and the AirNow Fire and Smoke Map, and those are the ones to trust if you are driving in.
 
-Please update your bookmarks to brcmap.net when you get a chance.
+https://brcmap.net/live
 
-See you on the playa,
-The BRC Map team — brcmap.net`)
+THE MAP IS NOW THE REAL CITY
+
+The city used to be drawn from maths: perfect circles, evenly spaced radials, a Center Camp fitted by eye. It is now Burning Man's own surveyed GIS. Real block shapes, streets split at their true intersections, and two plazas at 2:00 and 10:00 that we had never drawn at all.
+
+Center Camp is traced from the official plan's own ink rather than approximated, so the dome, the V walkway and the cafe read the way they do on the printed map.
+
+Your camp pin has not moved. Addresses are computed the same way they always were.
+
+EMERGENCY SERVICES
+
+A Ranger wrote in to say our medical and Ranger pins at 3:00 and 9:00 were on the wrong street. They were, by a full block. Medical, the Ranger outposts and Rampart now sit on exact surveyed coordinates, and medical draws as the official BRC Emergency Services badge instead of a red dot that looked like every other camp.
+
+Eighteen other landmarks moved to their surveyed positions, the Temple by 158 metres. The gate complex is on the map for the first time: Box Office, Will Call, D Lot, Gate Actual, the Census checkpoint and Walk-In Camp.
+
+Porta-potties are on by default now, and they look like porta-potties.
+
+FINDING PEOPLE WITHOUT SERVICE
+
+BRC Map now joins Burntastic, the citywide Meshtastic mesh, on the same settings the event's own radios use. Bring a LoRa radio and your position rides the mesh with everyone else's, no cell service required.
+
+The GPS readout also got more useful. It tells you which side of the street you are on, names both streets when you are mid-block, and names the camp you are standing next to.
+
+ONE QUESTION FOR YOU
+
+We are working with the Burntastic folks on the Meshtastic side, and they have asked to include our map data in the official Meshtastic app, so a burner with a radio and no signal can still look up where a camp is.
+
+We would like to say yes. Here is exactly what would travel: the camp and art names, addresses and pins that are already public on brcmap.net. Nothing tied to your account goes with it. No email addresses, no account details, no live GPS positions. Only what any visitor to the map can already see.
+
+Your camp is included by default. If you would rather it stayed out, reply to this email and say so and we will exclude it before we send anything. You do not need to give a reason.
+
+THE LIVE PAGE
+
+- Temperatures and wind now show in Celsius and km/h alongside Fahrenheit and mph
+- Two more playa stations added to the radio list: The K-Hole 102.3 FM and Shouting Fire 99.5 FM, next to BMIR and GARS
+- The Wave added to the burn schedule, Wednesday 2 September at 11:01 PM
+
+CAMPS AND ART
+
+- Tap a camp pin and you now get the camp itself: what they do, where they are from, and a link to their site
+- Draw your camp's real footprint by hand on the map, and set its height, so the Sun and Shade tool casts a shadow that matches your actual build
+- Artists can edit their own artwork listings
+- Fixed the crash some of you hit opening the map inside the Facebook app
+
+Found something wrong? Reply to this email. The Ranger who wrote in about the medical stations moved four pins and found a real bug, and that is worth more than any amount of us staring at the code.
+
+See you out there.
+
+digit
+https://brcmap.net`)
 const bcBusy = ref<'self' | 'all' | ''>('')
 const bcResult = ref('')
 const bcOk = ref(false)
