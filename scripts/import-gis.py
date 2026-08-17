@@ -38,7 +38,7 @@ import urllib.request
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, 'lib/brc/planCity.ts')
 RAW = 'https://raw.githubusercontent.com/burningmantech/innovate-GIS-data/master/{year}/GeoJSON/{layer}.geojson'
-LAYERS = ('street_lines', 'city_blocks', 'plazas', 'trash_fence')
+LAYERS = ('street_lines', 'city_blocks', 'plazas', 'trash_fence', 'toilets')
 
 # must mirror lib/brc/geocode.ts
 MAN = {'lat': 40.783242, 'lng': -119.207871}
@@ -108,6 +108,22 @@ def conv(coords, eps):
     pts = [to_plan(c[0], c[1]) for c in coords]
     pts = rdp(pts, eps)
     return [[round(x, 1), round(y, 1)] for x, y in pts]
+
+
+def centroid(ring):
+    """Area-weighted centroid of a closed ring, in the ring's own units."""
+    a = cx = cy = 0.0
+    for i in range(len(ring) - 1):
+        x0, y0 = ring[i]
+        x1, y1 = ring[i + 1]
+        cross = x0 * y1 - x1 * y0
+        a += cross
+        cx += (x0 + x1) * cross
+        cy += (y0 + y1) * cross
+    a *= 0.5
+    if abs(a) < 1e-12:                      # degenerate: fall back to the mean
+        return (sum(p[0] for p in ring) / len(ring), sum(p[1] for p in ring) / len(ring))
+    return (cx / (6 * a), cy / (6 * a))
 
 
 def dedupe(ring):
@@ -196,9 +212,27 @@ fence = dedupe(conv(data['trash_fence']['features'][0]['geometry']['coordinates'
 if fence[0] != fence[-1]:
     fence.append(fence[0])
 
+# ---------------------------------------------------------------- toilets ----
+# The banks are surveyed as polygons (the fenced enclosure, 560 - 13,900 m2), but
+# on the map they want to be one icon you can walk to, so each is reduced to its
+# centroid. `class` says where it is; only the handful away from the city are
+# worth naming, and the rest are just "the potties".
+TOILET_LABEL = {'man': 'At the Man', 'temple': 'At the Temple', 'playa': 'Open playa'}
+toilets = []
+for f in data['toilets']['features']:
+    g = f['geometry']
+    ring = g['coordinates'][0] if g['type'] == 'Polygon' else g['coordinates'][0][0]
+    lng, lat = centroid(ring)
+    px, py = to_plan(lng, lat)
+    cls = (f['properties'] or {}).get('class')
+    toilets.append({'c': [round(px, 1), round(py, 1)], 'l': TOILET_LABEL.get(cls, '')})
+
+from collections import Counter as _C
+print('\ntoilet banks by class:', dict(_C((f['properties'] or {}).get('class') for f in data['toilets']['features'])))
+
 print(f'\nstreets {len(streets)} ({sum(len(s["p"]) for s in streets)} pts) · '
       f'blocks {len(blocks)} ({sum(len(b) for b in blocks)} pts) · '
-      f'plazas {len(plazas)} · fence {len(fence)} pts')
+      f'plazas {len(plazas)} · fence {len(fence)} pts · toilets {len(toilets)}')
 
 # ------------------------------------------------------------------- emit ----
 def pts_ts(pts):
@@ -255,6 +289,15 @@ for p in plazas:
 L.append("]")
 L.append("")
 L.append(f"export const GIS_FENCE: number[][] = {pts_ts(fence)}")
+L.append("")
+L.append("/** Porta-potty banks, one entry per surveyed enclosure, reduced to its centroid.")
+L.append(" *  `l` names the few that sit away from the city (the Man, the Temple, open")
+L.append(" *  playa); it is empty for the ordinary in-city rows. */")
+L.append("export interface GisToilet { c: number[], l: string }")
+L.append("export const GIS_TOILETS: GisToilet[] = [")
+for t in toilets:
+    L.append(f"  {{ c: [{t['c'][0]:g},{t['c'][1]:g}], l: '{t['l']}' }},")
+L.append("]")
 out = '\n'.join(L) + '\n'
 with open(OUT, 'w') as fh:
     fh.write(out)

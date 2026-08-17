@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { CIVIC_LANDMARKS, cityGridGeoJson, civicLandmarksGeoJson, getManPoint, washCorners } from './cityGeoJson'
-import { STREET_RADII, latLngToAddress } from './geocode'
+import { CIVIC_LANDMARKS, cityGridGeoJson, civicLandmarksGeoJson, getManPoint, toiletsGeoJson, washCorners } from './cityGeoJson'
+import { MAN, STREET_RADII, latLngToAddress } from './geocode'
 import { CENTER_CAMP_INK, PLAN_CENTER_CAMP, PLAN_RING_RADII } from './planCenterCamp'
-import { GIS_BLOCKS, GIS_FENCE, GIS_PLAZAS, GIS_RING_RADII, GIS_STREETS } from './planCity'
+import { GIS_BLOCKS, GIS_FENCE, GIS_PLAZAS, GIS_RING_RADII, GIS_STREETS, GIS_TOILETS } from './planCity'
 
 describe('cityGridGeoJson', () => {
   const fc = cityGridGeoJson()
@@ -287,5 +287,42 @@ describe('landmark overrides', () => {
     const fc = civicLandmarksGeoJson([{ name: 'Mobility Camp', lat: 40.78, lng: -119.21, note: 'corrected by Elise' }])
     const f = fc.features.find(x => x.properties?.name === 'Mobility Camp')!
     expect(f.properties?.note).toBe('corrected by Elise')
+  })
+})
+
+describe('porta-potties', () => {
+  const feats = toiletsGeoJson().features
+  const M_LAT = 111320
+  const M_LNG = M_LAT * Math.cos(MAN.lat * Math.PI / 180)
+  const radius = (c: number[]) => Math.hypot((c[0]! - MAN.lng) * M_LNG, (c[1]! - MAN.lat) * M_LAT)
+
+  it('draws one pin per surveyed 2026 bank', () => {
+    expect(GIS_TOILETS.length).toBe(45)
+    expect(feats.length).toBe(45)
+  })
+
+  it('names only the banks away from the city', () => {
+    // 30 in-city rows, 4 at the 2:00/10:00 portals and 7 beyond need no label;
+    // the Man, the Temple and the two open-playa banks do.
+    const labels = feats.map(f => String(f.properties?.label ?? '')).filter(Boolean).sort()
+    expect(labels).toEqual(['At the Man', 'At the Temple', 'Open playa', 'Open playa'])
+  })
+
+  it('puts every bank inside the trash fence', () => {
+    // the fence corners sit ~2,500 m out; nothing should render beyond them
+    const rs = feats.map(f => radius((f.geometry as any).coordinates))
+    expect(Math.min(...rs)).toBeGreaterThan(100)
+    expect(Math.max(...rs)).toBeLessThan(2500)
+  })
+
+  it('keeps the in-city rows in the walking blocks, not on the streets', () => {
+    // the two dense rows sit between C and D and between F and H — sanity-check
+    // that the bulk of them land in that band rather than on the Esplanade
+    const inCity = feats
+      .filter(f => !f.properties?.label)
+      .map(f => radius((f.geometry as any).coordinates))
+      .filter(r => r < STREET_RADII.K!)
+    expect(inCity.length).toBeGreaterThanOrEqual(34)
+    expect(Math.min(...inCity)).toBeGreaterThan(STREET_RADII.C! - 5)
   })
 })

@@ -895,7 +895,7 @@ onMounted(async () => {
       layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 10, 15, 12, 18, 17], 'text-offset': [0, -1.1], 'text-anchor': 'bottom' },
       paint: { 'text-color': '#1c2733', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
     })
-    // porta-potties (approx., from 2025 GIS) — small utility markers under everything
+    // porta-potties (official 2026 GIS) — small utility markers under everything
     map.addSource('toilets', { type: 'geojson', data: toiletsGeoJson() })
     map.addLayer({
       id: 'toilets',
@@ -930,8 +930,16 @@ onMounted(async () => {
       applyLayerVisibility()
     }).catch(() => { /* keep the green dot */ })
     map.on('click', 'toilets', (e) => {
-      if (map)
-        new maplibregl.Popup().setLngLat((e.features?.[0]?.geometry as any).coordinates).setHTML('<b>Porta-potties</b><br>approx. (2025 placement)').addTo(map)
+      const f = e.features?.[0]
+      if (!map || !f)
+        return
+      // most banks need no explaining; the outliers (the Man, the Temple, open
+      // playa) are the ones worth naming when you are looking from a distance
+      const label = String(f.properties?.label ?? '')
+      new maplibregl.Popup()
+        .setLngLat((f.geometry as any).coordinates)
+        .setHTML(`<b>Porta-potties</b>${label ? `<br>${esc(label)}` : ''}<br><span style="color:#6b6255">official 2026 placement</span>`)
+        .addTo(map)
     })
     // civic landmarks: airport, medical, ESD, DPW, Rangers, services… colour-coded
     const civicColor = [
