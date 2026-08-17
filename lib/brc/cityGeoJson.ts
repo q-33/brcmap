@@ -351,7 +351,7 @@ type CivicAt = BrcAddress | { time: number, radiusM: number } | { lng: number, l
  * rescue). They share the Medical layer because you want them together when you
  * need one, but they draw differently because they are not the same thing.
  */
-export interface CivicLandmark { name: string, category: CivicCategory, at: CivicAt, note?: string, kind?: 'hospital' }
+export interface CivicLandmark { name: string, category: CivicCategory, at: CivicAt, note?: string, kind?: 'hospital' | 'ranger' }
 
 function civicCoord(at: CivicAt): [number, number] | null {
   if ('street' in at) {
@@ -388,9 +388,9 @@ export const CIVIC_LANDMARKS: CivicLandmark[] = [
   { name: 'First Aid · 3:00', category: 'medical', at: { lat: 40.7761978, lng: -119.1989813 }, note: 'ESD Station 3 · medical + fire · 3:00 & C' },
   { name: 'First Aid · 9:00', category: 'medical', at: { lat: 40.7902956, lng: -119.2167879 }, note: 'ESD Station 9 · medical + fire · 9:00 & C' },
   // Safety (blue)
-  { name: 'Ranger · Berlin', category: 'safety', at: { lat: 40.7764827, lng: -119.1986123 }, note: 'Black Rock Ranger outpost · 3:00 & C' },
-  { name: 'Ranger · Tokyo', category: 'safety', at: { lat: 40.7900620, lng: -119.2172228 }, note: 'Black Rock Ranger outpost · 9:00 & C' },
-  { name: 'Ranger HQ', category: 'safety', at: { lat: 40.7799249, lng: -119.2163799 }, note: 'Black Rock Rangers headquarters · 6:30 & Esplanade' },
+  { name: 'Ranger · Berlin', category: 'safety', kind: 'ranger', at: { lat: 40.7764827, lng: -119.1986123 }, note: 'Black Rock Ranger outpost · 3:00 & C' },
+  { name: 'Ranger · Tokyo', category: 'safety', kind: 'ranger', at: { lat: 40.7900620, lng: -119.2172228 }, note: 'Black Rock Ranger outpost · 9:00 & C' },
+  { name: 'Ranger HQ', category: 'safety', kind: 'ranger', at: { lat: 40.7799249, lng: -119.2163799 }, note: 'Black Rock Rangers headquarters · 6:30 & Esplanade' },
   { name: 'Law Enforcement', category: 'safety', at: { lat: 40.7766646, lng: -119.2109608 }, note: 'BLM law-enforcement substation · 5:15 & Esplanade' },
   { name: 'GPE', category: 'safety', at: { time: 5.75, street: 'E' }, note: 'Gate, Perimeter & Exodus (The Black Hole) · also runs Gate Road outposts (approx.)' },
   // Services (teal)

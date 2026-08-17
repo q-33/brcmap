@@ -422,3 +422,32 @@ describe('medical: the hospital and the ESD stations are distinct', () => {
     expect(feats.filter(f => f.properties?.subtype === 'hospital' && f.properties?.category !== 'medical')).toHaveLength(0)
   })
 })
+
+describe('Ranger outposts get the Ranger badge', () => {
+  const feats = civicLandmarksGeoJson().features
+  const name = (f: any) => String(f.properties?.name)
+  const rangers = feats.filter(f => f.properties?.subtype === 'ranger')
+
+  it('badges the three Ranger posts and nothing else', () => {
+    expect(rangers.map(name).sort()).toEqual(['Ranger · Berlin', 'Ranger · Tokyo', 'Ranger HQ'].sort())
+  })
+
+  it('never badges BLM law enforcement as Rangers', () => {
+    // Rangers are volunteer mediators; the BLM substation is federal police.
+    // Someone in trouble reads this pin to decide who to approach.
+    const le = feats.find(f => name(f) === 'Law Enforcement')!
+    expect(le.properties?.subtype).not.toBe('ranger')
+    expect(le.properties?.category).toBe('safety')
+  })
+
+  it('keeps every badged pin out of the plain civic dots', () => {
+    // civic-dots draws whatever has no badge; a pin that is both would render
+    // twice, and one that is neither would vanish. Same class of bug as the ESD
+    // filter regression.
+    for (const f of feats) {
+      const badged = f.properties?.category === 'medical' || f.properties?.subtype === 'ranger'
+      const isDot = f.properties?.category !== 'medical' && f.properties?.subtype !== 'ranger'
+      expect(badged).toBe(!isDot)
+    }
+  })
+})

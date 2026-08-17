@@ -60,9 +60,11 @@ const CIVIC_CATEGORIES = ['medical', 'safety', 'services', 'transport']
 const CIVIC_BASE_FILTER: Record<string, any> = {
   // medical draws as a badge instead of a dot: the ESD emblem for emergency
   // services, a red cross for the hospital
-  'civic-dots': ['!=', ['get', 'category'], 'medical'],
+  // dots draw everything that has no badge of its own
+  'civic-dots': ['all', ['!=', ['get', 'category'], 'medical'], ['!=', ['get', 'subtype'], 'ranger']],
   'civic-esd': ['all', ['==', ['get', 'category'], 'medical'], ['!=', ['get', 'subtype'], 'hospital']],
   'civic-hospital': ['all', ['==', ['get', 'category'], 'medical'], ['==', ['get', 'subtype'], 'hospital']],
+  'civic-ranger': ['==', ['get', 'subtype'], 'ranger'],
   'civic-labels': null, // labels every visible category
 }
 function applyLayerVisibility() {
@@ -1121,6 +1123,40 @@ onMounted(async () => {
       // dropping medical off the map entirely.
       if (map)
         map.setFilter('civic-dots', null)
+    })
+    // Black Rock Rangers: their own mark, in the city's ink. Rangers are who you
+    // look for when something is wrong and it is not a medical emergency, so like
+    // ESD they get a badge rather than another coloured dot.
+    //
+    // The wordmark is deliberately dropped and only the mark drawn: at map sizes
+    // "BLACK ROCK / RANGER" is an illegible smudge, and civic-labels already
+    // prints the outpost's name underneath.
+    //
+    // NOT applied to the BLM law-enforcement substation. Rangers are volunteer
+    // community mediators and BLM LE are federal police; badging them alike would
+    // tell someone in trouble exactly the wrong thing.
+    map.loadImage('/ranger-badge.png').then(({ data }) => {
+      if (!map || map.hasImage('ranger-badge'))
+        return
+      map.addImage('ranger-badge', data)
+      map.addLayer({
+        id: 'civic-ranger',
+        type: 'symbol',
+        source: 'civic',
+        filter: CIVIC_BASE_FILTER['civic-ranger'],
+        layout: {
+          'icon-image': 'ranger-badge',
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.22, 15, 0.3, 18, 0.5],
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+      })
+      map.moveLayer('civic-ranger')
+      applyLayerVisibility()
+    }).catch(() => {
+      // fall back to the plain safety dot rather than losing the Rangers
+      if (map)
+        map.setFilter('civic-dots', ['!=', ['get', 'category'], 'medical'])
     })
     // Rampart draws as a red cross, not the ESD badge. They are different places
     // doing different jobs — one is the field hospital you are taken to, the
