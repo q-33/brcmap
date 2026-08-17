@@ -3,9 +3,13 @@ import QRCode from 'qrcode'
 import { PLAYA_CHANNELS } from '~~/lib/mesh/brcmapChannel'
 import { buildChannelUrl, randomPsk } from '~~/lib/mesh/channelSet'
 
-// Generate a Meshtastic channel QR/URL that puts a radio on the playa mesh:
-// Burntastic (primary — the citywide event channel, what positions ride) plus
-// BRC Map (secondary), optionally with a private crew channel. Client-only.
+// Generate a Meshtastic channel QR/URL that ADDS our channel(s) to a radio which
+// is already running Burning Mesh firmware: BRC Map, optionally with a private
+// crew channel. Client-only.
+//
+// It carries NO radio settings and never a primary channel — the firmware owns
+// the event's preset/frequency slot and the "Everyone" channel on 0, and
+// overriding either would drop the radio off the mesh. Scan as ADD, not Replace.
 const mode = ref<'public' | 'crew'>('public')
 const crewName = ref('My Crew')
 const crewPsk = ref<Uint8Array>(randomPsk())
@@ -19,8 +23,7 @@ async function regen() {
   busy.value = true
   err.value = ''
   try {
-    // Burntastic stays PRIMARY in both modes so positions always reach the
-    // citywide mesh; a crew channel is added as a further secondary.
+    // Both modes add secondaries only; the radio keeps Everyone on channel 0.
     const channels = mode.value === 'public'
       ? PLAYA_CHANNELS
       : [...PLAYA_CHANNELS, { name: (crewName.value.trim() || 'Crew').slice(0, 11), psk: crewPsk.value }]
@@ -72,13 +75,14 @@ async function copyUrl() {
 
     <p class="text-sm text-(--ui-text-muted)">
       <template v-if="mode === 'public'">
-        Puts you on <b>Burntastic</b>, the citywide event mesh — your position is visible to everyone
-        on it, and every Burntastic radio relays your traffic. Adds <b>BRC Map</b> as a second channel
-        for chat. Region US · SHORT_FAST · no internet needed.
+        Adds <b>BRC Map</b> as a channel on a radio already running the Burning Mesh firmware, so your
+        people show up on each other's map. Choose <b>Add</b>, not Replace — your <b>Everyone</b> channel
+        stays on 0. No radio settings are changed.
       </template>
       <template v-else>
         Everything above, plus a brand-new private channel just for your crew. Share the QR with them;
-        only people who scan it can read it. Burntastic stays primary, so you still show up citywide.
+        only people who scan it can read it. <b>Everyone</b> stays on channel 0 either way, so you can
+        still message anyone at the event.
       </template>
     </p>
 
@@ -116,9 +120,9 @@ async function copyUrl() {
     <div class="rounded-lg border border-(--ui-border) bg-(--ui-bg-muted)/40 p-3 text-sm text-(--ui-text-toned)">
       <p class="mb-1 font-semibold text-(--ui-text)">How to join</p>
       <ol class="list-decimal space-y-1 pl-5">
-        <li>Open the official <b>Meshtastic</b> app with your radio paired.</li>
-        <li><b>Scan this QR</b> (or open the link on that phone) — it sets the channel, region, and preset in one step.</li>
-        <li>Confirm the import. You'll now appear on the citywide Burntastic mesh{{ mode === 'crew' ? ', with your crew channel added too' : '' }}.</li>
+        <li>Flash the <b>Burning Mesh 2026</b> firmware first (see the steps above), then open the official <b>Meshtastic</b> app with your radio paired.</li>
+        <li><b>Scan this QR</b> (or open the link on that phone). It adds the channel only — your radio's region, preset and frequency slot are left exactly as the firmware set them.</li>
+        <li>Confirm as <b>Add</b> (never Replace). BRC Map lands as channel 1{{ mode === 'crew' ? ', with your crew channel added too' : '' }}.</li>
       </ol>
     </div>
   </div>

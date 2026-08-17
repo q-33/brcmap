@@ -51,55 +51,145 @@ const properties = [
         </p>
       </div>
 
+      <UCard class="mt-4" variant="subtle">
+        <div class="flex items-start gap-3">
+          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-5 shrink-0 text-amber-500" />
+          <p class="text-sm text-(--ui-text-muted)">
+            <strong class="text-(--ui-text)">New for 2026: you must flash the Burning Mesh firmware.</strong>
+            The event mesh changed its radio settings this year. Firmware from previous years
+            <strong class="text-(--ui-text)">will not connect</strong>, even if your radio worked last time.
+            If you set up your radio using our old instructions, redo step 1 below.
+          </p>
+        </div>
+      </UCard>
+
       <h3 class="mt-6 font-semibold text-(--ui-text)">What you need</h3>
       <ul class="mt-2 list-disc space-y-2 pl-5 text-(--ui-text-toned) leading-relaxed">
         <li>
-          A <strong class="text-(--ui-text)">Meshtastic radio</strong> — e.g. a Heltec LoRa32 V3, LILYGO
-          T-Beam, or T-Deck. Models with onboard <strong class="text-(--ui-text)">GPS</strong>
-          (T-Beam/T-Deck) put you on the map automatically.
+          A <strong class="text-(--ui-text)">Meshtastic radio</strong> — e.g. a SenseCAP T1000-E, Heltec
+          LoRa32 V3, LILYGO T-Beam, or T-Deck. Models with onboard
+          <strong class="text-(--ui-text)">GPS</strong> put you on the map automatically.
         </li>
         <li>
-          A phone or laptop running <strong class="text-(--ui-text)">Chrome or Edge</strong> (desktop, or
-          Android). Connecting a radio from the browser isn't possible on iPhone — see the note below.
+          A <strong class="text-(--ui-text)">USB data cable</strong> (charge-only cables won't work) and a
+          computer running <strong class="text-(--ui-text)">Chrome or Firefox</strong>, to flash the firmware.
         </li>
         <li>
-          Everyone in your group on the <strong class="text-(--ui-text)">same Meshtastic channel</strong>, so
-          your radios hear each other.
+          The official <strong class="text-(--ui-text)">Meshtastic</strong> app for iOS or Android.
         </li>
       </ul>
 
-      <h3 class="mt-6 font-semibold text-(--ui-text)">Set it up</h3>
+      <h3 class="mt-6 font-semibold text-(--ui-text)">1. Flash the Burning Mesh 2026 firmware</h3>
+      <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
+        <a href="https://burningmesh.org" target="_blank" rel="noopener noreferrer" class="text-primary underline">Burning Mesh</a>
+        runs the citywide mesh at Burning Man, and ships its own firmware with the event's radio settings
+        and a public <strong class="text-(--ui-text)">Everyone</strong> channel already built in. Flashing it
+        is what puts you on the same network as everyone else on playa.
+      </p>
+      <ol class="mt-3 list-decimal space-y-3 pl-5 text-(--ui-text-toned) leading-relaxed">
+        <li>Connect the radio to your computer with a USB data cable.</li>
+        <li>
+          Open <a href="https://burn.meshtastic.org" target="_blank" rel="noopener noreferrer" class="text-primary underline">burn.meshtastic.org</a>
+          in Chrome or Firefox.
+        </li>
+        <li>Select your device and the current <strong class="text-(--ui-text)">Burning Mesh 2.8.x</strong> firmware, then Flash.</li>
+        <li>
+          If the radio isn't detected, check the cable carries data, then put the radio into
+          bootloader / DFU mode.
+        </li>
+        <li>
+          <strong class="text-(--ui-text)">Factory reset after flashing</strong> if you upgraded from an older
+          version, installed a UF2 on an nRF52 device, or the radio hasn't been updated in about a year.
+          This activates Burning Man mode and clears stale settings.
+        </li>
+      </ol>
+      <UCard class="mt-4" variant="subtle">
+        <div class="flex items-start gap-3">
+          <UIcon name="i-lucide-globe" class="mt-0.5 size-5 shrink-0 text-amber-500" />
+          <p class="text-sm text-(--ui-text-muted)">
+            <strong class="text-(--ui-text)">United States only.</strong> This firmware uses frequencies that
+            are legal in the US and may not be legal elsewhere. Don't flash it — or power on a radio running
+            it — outside the United States.
+          </p>
+        </div>
+      </UCard>
+
+      <h3 class="mt-6 font-semibold text-(--ui-text)">2. Connect and name your radio</h3>
       <ol class="mt-2 list-decimal space-y-3 pl-5 text-(--ui-text-toned) leading-relaxed">
         <li>
-          <strong class="text-(--ui-text)">Prep the radio.</strong> Install the official
-          <strong class="text-(--ui-text)">Meshtastic</strong> app (iOS/Android) or web client, pair your
-          radio, and set the <strong class="text-(--ui-text)">region</strong> to
-          <strong class="text-(--ui-text)">US</strong> — with no region set, the radio won't transmit and
-          nothing will show up. Give it a short name so friends recognize you.
+          Open the Meshtastic app and connect to the radio over Bluetooth. On the T1000-E and most radios
+          without a screen the default PIN is
+          <code class="rounded bg-(--ui-bg-muted) px-1 py-0.5 text-sm">123456</code>.
         </li>
         <li>
-          <strong class="text-(--ui-text)">Join one channel.</strong> The default channel is fine, or create a
-          shared one and send friends its QR code / URL. All radios on the same channel form your group's mesh.
+          Under <strong class="text-(--ui-text)">Settings → LoRa</strong>, check the firmware set:
+          region <strong class="text-(--ui-text)">United States</strong>, preset
+          <strong class="text-(--ui-text)">Short Turbo</strong>, frequency slot
+          <strong class="text-(--ui-text)">33</strong>.
+          <strong class="text-(--ui-text)">Don't change these</strong> — the firmware locks in the event's
+          radio configuration, and altering the preset or frequency slot takes you off the mesh.
         </li>
         <li>
-          <strong class="text-(--ui-text)">Turn on position.</strong> Enable GPS, or set a
-          <strong class="text-(--ui-text)">fixed position</strong> in the Meshtastic app for a GPS-less radio,
-          so your dot appears for everyone else.
+          Under <strong class="text-(--ui-text)">Settings → User</strong>, set a long name and a short name
+          (up to four characters) so people recognise you, and save.
         </li>
         <li>
-          <strong class="text-(--ui-text)">Connect it to BRC Map.</strong> Open the map, tap the
-          <strong class="text-(--ui-text)">Mesh</strong> button (bottom-left), and choose
-          <strong class="text-(--ui-text)">Connect via Bluetooth</strong> or
-          <strong class="text-(--ui-text)">USB</strong>. Pick your radio in the browser prompt (the Bluetooth
-          pairing PIN is usually <code class="rounded bg-(--ui-bg-muted) px-1 py-0.5 text-sm">123456</code>).
+          Confirm <strong class="text-(--ui-text)">Everyone</strong> is channel 0 and leave it there. It's
+          public — anyone at the event can read it — but it's also what carries the node info and keys that
+          direct messages depend on. Remove it and you can't DM anyone.
+        </li>
+      </ol>
+
+      <h3 class="mt-6 font-semibold text-(--ui-text)">3. Add the BRC Map channel</h3>
+      <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
+        Scan our QR below to add <strong class="text-(--ui-text)">BRC Map</strong> as channel 1, alongside
+        Everyone. Choose <strong class="text-(--ui-text)">Add</strong>, never
+        <strong class="text-(--ui-text)">Replace</strong> — Replace would wipe the Everyone channel your
+        firmware just installed. Our code carries no radio settings, so it can't disturb what the firmware set.
+      </p>
+
+      <h3 class="mt-6 font-semibold text-(--ui-text)">4. Turn on position sharing</h3>
+      <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
+        The firmware sends automatic position broadcasts to the
+        <strong class="text-(--ui-text)">lowest-numbered channel that has position sharing enabled</strong>.
+        So leave it <strong class="text-(--ui-text)">off</strong> for Everyone on channel 0 and turn it
+        <strong class="text-(--ui-text)">on</strong> for BRC Map on channel 1 — your dot then rides our
+        channel and shows up on the map for everyone else who has it.
+      </p>
+      <ul class="mt-2 list-disc space-y-2 pl-5 text-(--ui-text-toned) leading-relaxed">
+        <li>
+          On iOS, open the BRC Map channel and enable
+          <strong class="text-(--ui-text)">Allow Position Requests</strong>, then pick
+          <strong class="text-(--ui-text)">Precise</strong> or
+          <strong class="text-(--ui-text)">Approximate</strong> location. A green arrow marks the channel
+          receiving automatic broadcasts.
         </li>
         <li>
-          <strong class="text-(--ui-text)">Find your people.</strong> Connected radios show in the
-          <strong class="text-(--ui-text)">People</strong> list and — once they have a fix — as
-          <span class="font-medium text-emerald-600 dark:text-emerald-400">green dots</span> on the map
+          If your radio has no GPS of its own, let the phone supply it — on iOS enable
+          <strong class="text-(--ui-text)">Share Location</strong> (and Always Allow for background
+          updates); on Android set Meshtastic's location permission to
+          <strong class="text-(--ui-text)">Allow all the time</strong> and enable
+          <strong class="text-(--ui-text)">Provide phone location to mesh</strong>.
+        </li>
+        <li>
+          Anyone holding a channel's key can see the positions shared on it. Share channel links and QR
+          codes only with people you trust.
+        </li>
+      </ul>
+
+      <h3 class="mt-6 font-semibold text-(--ui-text)">5. Connect it to BRC Map</h3>
+      <ol class="mt-2 list-decimal space-y-3 pl-5 text-(--ui-text-toned) leading-relaxed">
+        <li>
+          Open the map, tap the <strong class="text-(--ui-text)">Mesh</strong> button (bottom-left), and
+          choose <strong class="text-(--ui-text)">Connect via Bluetooth</strong> or
+          <strong class="text-(--ui-text)">USB</strong>.
+        </li>
+        <li>
+          Radios show in the <strong class="text-(--ui-text)">People</strong> list and — once they have a fix —
+          as <span class="font-medium text-emerald-600 dark:text-emerald-400">green dots</span> on the map
           (you're <span class="font-medium text-amber-600 dark:text-amber-400">amber</span>). Type in
-          <strong class="text-(--ui-text)">Mesh chat</strong> to message the whole mesh. It all keeps working
-          with no internet, and your people stay on the map even after you reload.
+          <strong class="text-(--ui-text)">Mesh chat</strong> to message the mesh. It all keeps working with
+          no internet, and your people stay on the map even after you reload.
         </li>
       </ol>
 
@@ -116,11 +206,27 @@ const properties = [
         </div>
       </UCard>
 
+      <UCard class="mt-4" variant="subtle">
+        <div class="flex items-start gap-3">
+          <UIcon name="i-lucide-book-open" class="mt-0.5 size-5 shrink-0 text-primary" />
+          <p class="text-sm text-(--ui-text-muted)">
+            Burning Mesh runs the network, not us — their
+            <a href="https://docs.burningmesh.org/en/guides/quick_start" target="_blank" rel="noopener noreferrer" class="text-primary underline">quick start</a>
+            and
+            <a href="https://docs.burningmesh.org/en/guides/camp_channels_and_locations" target="_blank" rel="noopener noreferrer" class="text-primary underline">camp channels guide</a>
+            are the authority on firmware and radio settings, including video walkthroughs and how to set up
+            a private channel for your camp. They also run a
+            <a href="https://discord.gg/ZSVADp77Sn" target="_blank" rel="noopener noreferrer" class="text-primary underline">Discord</a>.
+          </p>
+        </div>
+      </UCard>
+
       <h3 class="mt-8 font-semibold text-(--ui-text)">Join the BRC Map mesh</h3>
       <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
-        Scan this to put your radio on the shared BRC Map channel with sensible playa settings —
-        or spin up a private channel just for your crew. Everyone on the same channel shows up on
-        each other's map.
+        Scan this to add the shared <strong class="text-(--ui-text)">BRC Map</strong> channel to a radio
+        already running the Burning Mesh firmware — or spin up a private channel just for your crew.
+        Choose <strong class="text-(--ui-text)">Add</strong>, not Replace. Everyone on the same channel
+        shows up on each other's map.
       </p>
       <div class="mt-4 rounded-2xl border border-(--ui-border) p-4 sm:p-5">
         <ClientOnly>

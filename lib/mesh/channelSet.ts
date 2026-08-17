@@ -1,10 +1,13 @@
-import { BRCMAP_LORA } from './brcmapChannel'
-
 export interface MeshChannel { name: string, psk: Uint8Array }
 
 // Build a Meshtastic channel-set share URL (https://meshtastic.org/e/#…) for the
-// given channel(s) + the playa LoRa preset. Scanning it in the Meshtastic app (or
-// applying it to a connected radio) puts a stock device on the mesh.
+// given channel(s). Scanning it in the Meshtastic app ADDS them to a radio that
+// is already flashed with Burning Mesh firmware.
+//
+// NO lora_config is emitted, deliberately. Burning Mesh firmware locks the event's
+// radio settings (region, modem preset, frequency slot) and their docs say not to
+// change them; a share URL carrying lora_config would override those on the
+// receiving radio and drop it off the mesh. Channels only.
 //
 // Pass an ARRAY to publish several channels at once: `settings` is a repeated
 // field and its ORDER is the channel index, so settings[0] becomes the device's
@@ -15,10 +18,8 @@ export interface MeshChannel { name: string, psk: Uint8Array }
 // runtime dependency on the (heavy, browser-fragile) Meshtastic SDK — the field
 // numbers are verified byte-for-byte against the SDK encoder in channelSet.test.ts.
 //
-//   ChannelSet   { settings=1 (msg, repeated), lora_config=2 (msg) }
+//   ChannelSet   { settings=1 (msg, repeated), lora_config=2 (msg, NOT SENT) }
 //   ChannelSettings { psk=2 (bytes), name=3 (string) }
-//   LoRaConfig   { use_preset=1, modem_preset=2, region=7, hop_limit=8,
-//                  tx_enabled=9, channel_num=11, ignore_mqtt=104 }  (all varint)
 export function buildChannelUrl(channels: MeshChannel | MeshChannel[]): string {
   const list = Array.isArray(channels) ? channels : [channels]
   const encoded = list.map((channel) => {
@@ -28,19 +29,10 @@ export function buildChannelUrl(channels: MeshChannel | MeshChannel[]): string {
     return settings
   })
 
-  const lora: number[] = []
-  varintField(lora, 1, 1) // use_preset = true
-  varintField(lora, 2, BRCMAP_LORA.modemPreset) // LONG_FAST (0) is the proto default → omitted
-  varintField(lora, 7, BRCMAP_LORA.region)
-  varintField(lora, 8, BRCMAP_LORA.hopLimit)
-  varintField(lora, 9, 1) // tx_enabled = true
-  varintField(lora, 11, BRCMAP_LORA.channelNum)
-  varintField(lora, 104, BRCMAP_LORA.ignoreMqtt ? 1 : 0)
-
   const set: number[] = []
   for (const settings of encoded) // repeated field: emitted once per channel, in order
     bytesField(set, 1, settings)
-  bytesField(set, 2, lora)
+  // field 2 (lora_config) is intentionally absent — see the note above
 
   return `https://meshtastic.org/e/#${base64url(Uint8Array.from(set))}`
 }

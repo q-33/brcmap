@@ -1,29 +1,32 @@
-// The playa mesh channel set we hand out as a QR / share link.
+// The BRC Map channel we hand out as a QR / share link.
 //
-// PRIMARY = "Burntastic", the event's own channel, copied verbatim from Burning
-// Man's Burntastic firmware (github.com/meshtastic/burntastic, userPrefs.h).
-// Position + node-info broadcasts ride the PRIMARY channel, so joining this puts
-// our users on the SAME citywide mesh as every Burntastic radio on the playa —
-// seen by everyone, and relayed by every one of those nodes.
+// 2026 CHANGED HOW THIS WORKS. Burning Mesh (burningmesh.org) now ships its own
+// firmware, and it bakes in the event's radio settings and a primary channel
+// called "Everyone". Their docs are explicit: "Burning Mesh firmware locks in the
+// event's radio configuration. Do not change the Frequency Slot, Modem Preset, or
+// other frequency settings."
 //
-// SECONDARY = "BRC Map", our own community channel for app traffic. Secondary
-// channels carry text only, so BRC Map chat stays ours while positions stay
-// citywide. (Tight groups can add a private crew channel — see randomPsk().)
+// So we publish ONE channel and NO LoRa config. Scanning our link ADDS "BRC Map"
+// as a secondary channel and leaves the radio's event settings and its "Everyone"
+// primary untouched. Sending LoRa config here would knock a correctly-flashed
+// radio off the mesh, which is exactly what the 2025 version of this file did.
 //
-// Both PSKs are PUBLIC on purpose (shared community channels).
+// Positions: the current firmware sends automatic position broadcasts to the
+// LOWEST-numbered channel with position sharing enabled. The setup we document is
+// sharing OFF for Everyone (channel 0) and ON for BRC Map (channel 1), so our app
+// sees peers while citywide chat and DMs still work through Everyone.
 //
-// The LoRa radio settings MUST match Burntastic exactly or the radios are
-// physically incompatible: modem preset sets the spreading factor, and
-// channelNum sets the frequency slot. Burntastic runs SHORT_FAST on slot 15 —
-// SHORT_FAST (10.94 kbps vs LONG_FAST's 1.07) is the right call for a dense
-// event anyway, since slow presets keep packets on the air longer and congest
-// the channel once a mesh passes ~60 nodes.
-
-// Burntastic's published 32-byte AES256 key (CHANNEL_0_PSK_USERPREFS).
-export const BURNTASTIC_PSK = new Uint8Array([
-  0x38, 0x4B, 0xBC, 0xC0, 0x1D, 0xC0, 0x22, 0xD1, 0x81, 0xBF, 0x36, 0xB8, 0x61, 0x21, 0xE1, 0xFB,
-  0x96, 0xB7, 0x2E, 0x55, 0xBF, 0x74, 0x22, 0x7E, 0x9D, 0x6A, 0xFB, 0x48, 0xD6, 0x4C, 0xB1, 0xA1,
-])
+// Direct messages need a shared channel 0 — NodeInfo and public keys are exchanged
+// there — which is another reason we never replace it.
+//
+// The PSK below is PUBLIC on purpose: it is a shared community channel.
+//
+// HISTORY: through 2025 we published Burntastic (github.com/meshtastic/burntastic)
+// as primary, on SHORT_FAST / slot 15, copied from its userPrefs.h. That repo has
+// not been touched since August 2024 and its settings no longer match the event.
+// For 2026 Burning Mesh uses Short Turbo on slot 33. Do not resurrect those
+// constants; if the event's radio settings are ever needed again, read them from
+// docs.burningmesh.org, not from that repo.
 
 // Fixed 32-byte AES256 key for our own channel (published intentionally).
 export const BRCMAP_PSK = new Uint8Array([
@@ -31,18 +34,12 @@ export const BRCMAP_PSK = new Uint8Array([
   246, 113, 21, 194, 111, 159, 106, 91, 103, 11, 230, 5, 60, 154, 40, 214,
 ])
 
-export const BURNTASTIC_CHANNEL = { name: 'Burntastic', psk: BURNTASTIC_PSK }
 export const BRCMAP_CHANNEL = { name: 'BRC Map', psk: BRCMAP_PSK }
 
-// The channel set we publish: order matters — index 0 is PRIMARY.
-export const PLAYA_CHANNELS = [BURNTASTIC_CHANNEL, BRCMAP_CHANNEL]
-
-// LoRa config baked into every share URL. Enum values are the raw Meshtastic
-// protobuf numbers (so the URL builder needs no SDK at runtime).
-export const BRCMAP_LORA = {
-  region: 1, // meshtastic Config_LoRaConfig_RegionCode.US
-  modemPreset: 6, // meshtastic Config_LoRaConfig_ModemPreset.SHORT_FAST — matches Burntastic
-  channelNum: 15, // frequency slot 15 — matches Burntastic (LORACONFIG_CHANNEL_NUM_USERPREFS)
-  hopLimit: 3,
-  ignoreMqtt: true,
-} as const
+/**
+ * What our QR publishes: BRC Map alone, to be ADDED as a secondary.
+ *
+ * Never send this as a "Replace" — that would wipe the Everyone channel the
+ * firmware installed, and with it the ability to DM anyone at the event.
+ */
+export const PLAYA_CHANNELS = [BRCMAP_CHANNEL]
