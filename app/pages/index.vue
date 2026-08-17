@@ -151,6 +151,14 @@ function canMovePin(kind: 'camp' | 'art', row: any): boolean {
   return kind === 'camp' ? canManageCamps.value : isAdmin.value
 }
 
+// Arm the on-map boundary editor straight from a camp popup. Same destination as
+// the Camps page's "Edit boundary on map" button — the ?editCamp= query is what
+// the editor watches.
+function onPinEdit(p: { id: string, name: string }) {
+  if (p.id)
+    navigateTo({ query: { ...route.query, editCamp: p.id } })
+}
+
 async function onPinMove(p: { kind: 'camp' | 'art', id: string, name: string, lat: number, lng: number }) {
   try {
     await $fetch('/api/locations', {
@@ -213,7 +221,13 @@ const editCamp = computed(() => {
     return null
   // Boundary editing is open to camp managers (admin/Org) or the camp's owner
   // (any camp they own — Hubs may own several).
-  if (!canManageCamps.value && !(myCamps.value ?? []).some(c => c.id === id))
+  //
+  // Uses the SAME rule as the map popup's buttons, deliberately. This used to
+  // test myCamps, which is fetched lazily and is empty until you open the camp
+  // panel — so arriving straight from the map popup would have failed the check
+  // and the editor would simply never appear. Ownership is read off the camp row
+  // instead; the server re-checks on every save.
+  if (!canMovePin('camp', c))
     return null
   const loc = (c.locations ?? []).filter((l: any) => l.gpsLatitude != null && l.gpsLongitude != null)
     .sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt))[0]
@@ -750,7 +764,7 @@ const itemOptions = computed(() => [
     <div class="absolute inset-0">
       <ClientOnly>
         <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
-          @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" />
+          @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>
 

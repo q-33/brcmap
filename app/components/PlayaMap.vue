@@ -91,6 +91,7 @@ const emit = defineEmits<{
   footprintDraw: [[number, number][]]
   landmarkMove: [{ name: string, lat: number, lng: number }]
   pinMove: [{ kind: 'camp' | 'art', id: string, name: string, lat: number, lng: number }]
+  pinEdit: [{ id: string, name: string }]
 }>()
 
 const el = useTemplateRef<HTMLDivElement>('mapEl')
@@ -192,6 +193,8 @@ function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
         description: c.description ?? '',
         website: c.website ?? '',
         hometown: c.hometown ?? '',
+        // only used to word the button "Edit" vs "Add" boundary
+        frontageFt: c.frontageFt ?? 0,
       },
       geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
     })),
@@ -1244,14 +1247,24 @@ onMounted(async () => {
     }
     // Shared by the camp and art popups. The button only appears when the pin
     // says this viewer may move it; /api/locations checks again on save.
+    const BTN = 'padding:3px 10px;border:1px solid #d96a1e;border-radius:6px;background:#fff;color:#d96a1e;cursor:pointer;font:inherit'
     function moveButton(canMove: unknown): string {
       return canMove
-        ? `<br><button type="button" data-move-pin style="margin-top:8px;padding:3px 10px;border:1px solid #d96a1e;border-radius:6px;background:#fff;color:#d96a1e;cursor:pointer;font:inherit">Move this pin</button>`
+        ? `<div style="margin-top:8px"><button type="button" data-move-pin style="${BTN}">Move this pin</button></div>`
+        : ''
+    }
+    // Camps only: arms the on-map boundary editor (drag the pin, pull the edges,
+    // draw a footprint). Offered beside Move rather than only on the Camps page,
+    // because the pin you want to fix is the one you are already looking at.
+    function editButton(canMove: unknown, hasPlot: unknown): string {
+      return canMove
+        ? `<div style="margin-top:6px"><button type="button" data-edit-plot style="${BTN}">${hasPlot ? 'Edit' : 'Add'} boundary</button></div>`
         : ''
     }
     function wireMoveButton(popup: maplibregl.Popup, f: maplibregl.MapGeoJSONFeature): void {
-      popup.getElement()?.querySelector('[data-move-pin]')?.addEventListener('click', () => {
-        const p = f.properties ?? {}
+      const el = popup.getElement()
+      const p = f.properties ?? {}
+      el?.querySelector('[data-move-pin]')?.addEventListener('click', () => {
         popup.remove()
         startPinDrag(String(p.name ?? 'this pin'), (f.geometry as any).coordinates, at => emit('pinMove', {
           kind: p.kind === 'art' ? 'art' : 'camp',
@@ -1259,6 +1272,10 @@ onMounted(async () => {
           name: String(p.name ?? ''),
           ...at,
         }))
+      })
+      el?.querySelector('[data-edit-plot]')?.addEventListener('click', () => {
+        popup.remove()
+        emit('pinEdit', { id: String(p.id ?? ''), name: String(p.name ?? '') })
       })
     }
 
@@ -1370,6 +1387,7 @@ onMounted(async () => {
       if (link)
         bits.push(`<div style="margin-top:6px"><a href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">${esc(link.label)}</a></div>`)
       bits.push(moveButton(p.canMove))
+      bits.push(editButton(p.canMove, p.frontageFt))
       const popup = new maplibregl.Popup({ maxWidth: '280px' })
         .setLngLat((f.geometry as any).coordinates)
         .setHTML(`<div style="font-size:13px;line-height:1.45">${bits.join('')}</div>`)
