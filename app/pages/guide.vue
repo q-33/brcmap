@@ -142,8 +142,11 @@ const properties = [
 
       <h3 class="mt-6 font-semibold text-(--ui-text)">3. Add the BRC Map channel</h3>
       <p class="mt-2 text-(--ui-text-toned) leading-relaxed">
-        Scan our QR below to add <strong class="text-(--ui-text)">BRC Map</strong> as channel 1, alongside
-        Everyone. Choose <strong class="text-(--ui-text)">Add</strong>, never
+        <strong class="text-(--ui-text)">Connect the app to your radio first</strong> — a channel QR is
+        written straight to the connected device, and with nothing connected Meshtastic answers
+        “Connection failed. Not connected to any device.”
+        Then scan our QR below to add <strong class="text-(--ui-text)">BRC Map</strong> as channel 1,
+        alongside Everyone. Choose <strong class="text-(--ui-text)">Add</strong>, never
         <strong class="text-(--ui-text)">Replace</strong> — Replace would wipe the Everyone channel your
         firmware just installed. Our code carries no radio settings, so it can't disturb what the firmware set.
       </p>

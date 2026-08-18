@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import QRCode from 'qrcode'
-import { PLAYA_CHANNELS } from '~~/lib/mesh/brcmapChannel'
+import { BRCMAP_CHANNEL, PLAYA_CHANNELS } from '~~/lib/mesh/brcmapChannel'
 import { buildChannelUrl, randomPsk } from '~~/lib/mesh/channelSet'
 
 // Generate a Meshtastic channel QR/URL that ADDS our channel(s) to a radio which
@@ -44,6 +44,20 @@ onMounted(regen)
 function newCrewKey() {
   crewPsk.value = randomPsk()
 }
+// The Meshtastic app writes a scanned channel straight to the connected radio,
+// and its import sheet sometimes reports "Not connected to any device" even when
+// the app IS connected — typically when the sheet was opened by a deep link from
+// the camera. Adding the channel by hand always works, so publish the two values
+// that need typing rather than leaving people stuck on a QR that won't apply.
+const manualKey = computed(() => btoa(String.fromCharCode(...(mode.value === 'public' ? BRCMAP_CHANNEL.psk : crewPsk.value))))
+const manualName = computed(() => (mode.value === 'public' ? 'BRC Map' : (crewName.value.trim() || 'Crew').slice(0, 11)))
+const copiedKey = ref(false)
+async function copyKey() {
+  await navigator.clipboard?.writeText(manualKey.value).catch(() => {})
+  copiedKey.value = true
+  setTimeout(() => (copiedKey.value = false), 1500)
+}
+
 async function copyUrl() {
   await navigator.clipboard?.writeText(url.value).catch(() => {})
   copied.value = true
@@ -117,10 +131,58 @@ async function copyUrl() {
       </UButton>
     </div>
 
+    <!-- manual fallback: works even when the app's QR import refuses -->
+    <details class="rounded-lg border border-(--ui-border) bg-(--ui-bg-muted)/40 p-3 text-sm text-(--ui-text-toned)">
+      <summary class="cursor-pointer font-semibold text-(--ui-text)">
+        QR says “Not connected to any device”? Add it by hand
+      </summary>
+      <p class="mt-2">
+        The app writes a scanned channel straight to the radio, and its import screen sometimes reports no
+        device even while the app is connected. Typing the channel in always works. In the Meshtastic app:
+        <b>Settings → Channels → Add</b>, then:
+      </p>
+      <dl class="mt-2 space-y-1">
+        <div class="flex gap-2">
+          <dt class="w-16 shrink-0 text-(--ui-text-muted)">Name</dt>
+          <dd class="font-mono text-(--ui-text)">{{ manualName }}</dd>
+        </div>
+        <div class="flex gap-2">
+          <dt class="w-16 shrink-0 text-(--ui-text-muted)">Role</dt>
+          <dd class="text-(--ui-text)">Secondary</dd>
+        </div>
+        <div class="flex items-start gap-2">
+          <dt class="w-16 shrink-0 text-(--ui-text-muted)">Key</dt>
+          <dd class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <code class="min-w-0 flex-1 truncate rounded bg-(--ui-bg) px-1.5 py-1 font-mono text-xs">{{ manualKey }}</code>
+              <UButton
+                size="xs"
+                :icon="copiedKey ? 'i-lucide-check' : 'i-lucide-copy'"
+                color="neutral"
+                variant="soft"
+                @click="copyKey"
+              >
+                {{ copiedKey ? 'Copied' : 'Copy' }}
+              </UButton>
+            </div>
+          </dd>
+        </div>
+      </dl>
+      <p class="mt-2">
+        Leave the radio's region, modem preset and frequency slot exactly as the Burning Mesh firmware set
+        them. Adding a channel never changes those.
+      </p>
+    </details>
+
     <div class="rounded-lg border border-(--ui-border) bg-(--ui-bg-muted)/40 p-3 text-sm text-(--ui-text-toned)">
       <p class="mb-1 font-semibold text-(--ui-text)">How to join</p>
       <ol class="list-decimal space-y-1 pl-5">
-        <li>Flash the <b>Burning Mesh 2026</b> firmware first (see the steps above), then open the official <b>Meshtastic</b> app with your radio paired.</li>
+        <li>
+          Flash the <b>Burning Mesh 2026</b> firmware first (see the steps above), then open the official
+          <b>Meshtastic</b> app and <b>connect to your radio</b> — not just paired, actually connected, so
+          the node list is showing. Scanning a channel QR writes straight to the connected radio; with
+          nothing connected the app answers <i>“Connection failed. Not connected to any device.”</i>
+        </li>
         <li><b>Scan this QR</b> (or open the link on that phone). It adds the channel only — your radio's region, preset and frequency slot are left exactly as the firmware set them.</li>
         <li>Confirm as <b>Add</b> (never Replace). BRC Map lands as channel 1{{ mode === 'crew' ? ', with your crew channel added too' : '' }}.</li>
       </ol>
