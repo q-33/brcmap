@@ -13,3 +13,8 @@ tasks/
 
 # Claude Code personal overrides (permissions), not team config
 .claude/settings.local.json
+
+# Art Audio Tour source MP3s (320 kbps stereo, 273 MB). The transcoded 64 kbps
+# mono AAC in public/audio/tour IS committed — that is what the site serves.
+# Re-run scripts/build-audio-tour.mjs against this folder when the tour updates.
+Art Audio Tour/

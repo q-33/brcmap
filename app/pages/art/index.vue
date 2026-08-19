@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
 import { formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
+import { TOUR_EXTRAS, audioForArt } from '~~/lib/art/audioTour'
 
 // "7:30 & E" -> "7:30 & Eternal" (2026 themed names); falls back to raw string
 function namedAddress(s: string | null | undefined): string | null {
@@ -24,6 +25,10 @@ function currentLocation(a: Art): Loc | undefined {
   return [...a.locations].sort((x, y) => +new Date(y.createdAt) - +new Date(x.createdAt))[0]
 }
 
+// Burning Man's 2026 Art Audio Tour. Tracks are matched to artworks by name, so
+// a piece we list under a different title simply has no player — never a wrong one.
+const withAudio = computed(() => (artworks.value ?? []).filter(a => audioForArt(a.name)).length)
+
 useHead({ title: 'Art — BRC Map' })
 </script>
 
@@ -38,6 +43,27 @@ useHead({ title: 'Art — BRC Map' })
         <UBadge color="neutral" variant="subtle" class="shrink-0">{{ artworks?.length ?? 0 }} shown</UBadge>
       </div>
     </div>
+
+    <UCard variant="subtle" class="mb-6">
+      <div class="flex items-start gap-3">
+        <UIcon name="i-lucide-headphones" class="mt-0.5 size-5 shrink-0 text-primary" />
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-(--ui-text)">Art Audio Tour</p>
+          <p class="mt-0.5 text-sm text-(--ui-text-muted)">
+            Burning Man's official audio guide to the 2026 art, narrated piece by piece.
+            {{ withAudio }} of the artworks below have a track — look for the play button.
+          </p>
+          <div class="mt-3 space-y-2">
+            <div v-for="t in TOUR_EXTRAS" :key="t.n">
+              <p class="text-sm font-medium text-(--ui-text)">
+                {{ t.n === 0 ? 'Introduction' : 'The Theme — Axis Mundi, by Stewart Mangrum' }}
+              </p>
+              <AudioTourPlayer :track="t" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </UCard>
 
     <UInput
       v-model="q"
@@ -64,6 +90,9 @@ useHead({ title: 'Art — BRC Map' })
         <p v-if="a.description" class="mt-2 line-clamp-3 text-sm text-(--ui-text-muted)">{{ a.description }}</p>
         <p v-if="a.hometown" class="mt-1 text-xs text-(--ui-text-muted)">🏠 {{ a.hometown }}</p>
         <UBadge v-if="a.call" color="primary" variant="subtle" size="xs" class="mt-2" icon="i-lucide-megaphone">Open call</UBadge>
+        <div v-if="audioForArt(a.name)" class="mt-3 border-t border-(--ui-border) pt-2">
+          <AudioTourPlayer :track="audioForArt(a.name)!" />
+        </div>
       </UCard>
     </div>
 

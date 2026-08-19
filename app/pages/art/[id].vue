@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
+import { audioForArt } from '~~/lib/art/audioTour'
 
 function namedAddress(s: string | null | undefined): string | null {
   if (!s)
@@ -193,6 +194,13 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
       <p v-if="art.artist" class="mb-1 text-base text-(--ui-text-toned)">by {{ art.artist }}</p>
       <p v-if="currentLoc?.addressString" class="text-sm text-primary">📍 {{ namedAddress(currentLoc.addressString) }}</p>
       <p v-if="art.hometown" class="mt-1 text-sm text-(--ui-text-muted)">🏠 {{ art.hometown }}</p>
+      <div v-if="audioForArt(art.name)" class="mt-4 max-w-2xl rounded-xl border border-(--ui-border) bg-(--ui-bg-muted)/40 p-3">
+        <p class="mb-2 flex items-center gap-1.5 text-sm font-semibold text-(--ui-text)">
+          <UIcon name="i-lucide-headphones" class="size-4 text-primary" />
+          Art Audio Tour · track {{ audioForArt(art.name)!.n }}
+        </p>
+        <AudioTourPlayer :track="audioForArt(art.name)!" />
+      </div>
       <p v-if="art.description" class="mt-3 max-w-2xl whitespace-pre-line text-(--ui-text-muted)">{{ art.description }}</p>
       <div class="mt-3 flex flex-wrap gap-3">
         <UButton v-if="art.canManage" size="xs" color="primary" variant="solid" icon="i-lucide-pencil" @click="openEdit">Edit details</UButton>
