@@ -22,7 +22,16 @@ export default defineEventHandler(async (event) => {
   const rows = await db.query.camps.findMany({
     where,
     orderBy: [desc(camps.createdAt)],
-    limit: 200,
+    // Was 200, which silently dropped the OLDEST camps off the map once signups
+    // passed that number — a camp that had been placed for weeks would vanish the
+    // day someone else registered, and its owner could no longer edit it either,
+    // because the page looks the camp up in this very list. Reported by a camp at
+    // 9:30 & B whose row was fine the whole time.
+    //
+    // The map has to show every placed camp; a cap here is data loss, not paging.
+    // Kept as a very high ceiling rather than removed so a runaway insert can
+    // still never hand the browser an unbounded response.
+    limit: 5000,
     with: {
       owner: { columns: { id: true, displayName: true } },
       locations: {
