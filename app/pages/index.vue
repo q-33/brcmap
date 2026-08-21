@@ -33,9 +33,13 @@ const userMenu = computed(() => {
   // BM Org can place/move any camp from the Camps list (admins use the dashboard).
   if (canManageCamps.value && !isAdmin.value)
     tools.push({ label: 'Place camps', icon: 'i-lucide-map-pin', to: '/camps' })
+  // Partner projects building their own BRC Map layer (granted per account).
+  if (hasFeature('data-export'))
+    tools.push({ label: 'Data export', icon: 'i-lucide-download', to: '/export' })
   if (isAdmin.value)
     tools.push(
       { label: 'Admin dashboard', icon: 'i-lucide-shield', to: '/admin' },
+      { label: 'Data export', icon: 'i-lucide-download', to: '/export' },
       { label: 'Review queue', icon: 'i-lucide-inbox', to: { path: '/admin', query: { tab: 'queue' } } },
       { label: pendingClaims.value ? `Art claims (${pendingClaims.value})` : 'Art claims', icon: 'i-lucide-hand', to: { path: '/admin', query: { tab: 'claims' } } },
       { label: 'People & roles', icon: 'i-lucide-users', to: { path: '/admin', query: { tab: 'people' } } },

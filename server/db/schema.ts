@@ -104,6 +104,9 @@ export const camps = pgTable('camps', {
   frontageFt: doublePrecision('frontage_ft'),
   depthFt: doublePrecision('depth_ft'),
   hidden: boolean('hidden').notNull().default(false),
+  // Opt-out from third-party data exports (/api/export/*). The camp stays fully
+  // visible on brcmap.net; it just isn't handed to anyone else. See migration 0020.
+  excludeFromExport: boolean('exclude_from_export').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('camps_owner_idx').on(t.ownerId), index('camps_year_idx').on(t.year)])
