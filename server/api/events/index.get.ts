@@ -12,7 +12,10 @@ export default defineEventHandler(async (event) => {
   const rows = await db.query.events.findMany({
     where: includeAll ? undefined : gte(events.startsAt, nowIso),
     orderBy: [asc(events.startsAt)],
-    limit: 500,
+    // Imported guides are hundreds of events each — QueerBurners alone is 296.
+    // A cap here would silently drop the ones furthest out, the same way the
+    // camps list quietly lost its oldest camp. Bounded, but not in the way.
+    limit: 5000,
     with: {
       camp: {
         columns: { id: true, name: true, hidden: true },

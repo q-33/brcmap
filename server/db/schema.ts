@@ -10,9 +10,15 @@ export const events = pgTable('events', {
   description: text('description'),
   startsAt: timestamp('starts_at', { mode: 'string' }).notNull(),
   endsAt: timestamp('ends_at', { mode: 'string' }),
+  // Which guide this came from — 'user' for anything posted on the site. See
+  // lib/eventSources.ts and migration 0021.
+  source: text('source').notNull().default('user'),
+  // Imported guides name a venue we may have no camp row for; keep it as printed.
+  venue: text('venue'),
+  venueAddress: text('venue_address'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [index('events_camp_idx').on(t.campId), index('events_starts_idx').on(t.startsAt), index('events_owner_idx').on(t.ownerId)])
+}, t => [index('events_camp_idx').on(t.campId), index('events_starts_idx').on(t.startsAt), index('events_owner_idx').on(t.ownerId), index('events_source_idx').on(t.source)])
 
 // Mirrors db/migrations/0001_init.sql. The raw SQL migration is the source of
 // truth for DDL (PostGIS generated column, triggers); this gives typed queries.

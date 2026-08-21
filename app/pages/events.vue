@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { MAJOR_BURNS } from '~~/lib/burns'
+import { DEFAULT_ON, eventSource } from '~~/lib/eventSources'
 
 interface EventRow {
   id: string
@@ -10,6 +11,9 @@ interface EventRow {
   description: string | null
   startsAt: string
   endsAt: string | null
+  source: string | null
+  venue: string | null
+  venueAddress: string | null
   camp: { id: string, name: string, locations: { addressString: string | null, createdAt: string }[] } | null
 }
 
@@ -31,6 +35,18 @@ function parts(s: string) {
   return { dayKey: datePart!, day, time }
 }
 
+// Imported guides name a venue we may have no camp row for, so fall back to the
+// venue the guide printed rather than showing an event with nowhere to be.
+function venueOf(e: EventRow): { name: string, address: string | null } | null {
+  if (e.camp)
+    return { name: e.camp.name, address: campAddress(e) }
+  if (e.venue) {
+    const a = e.venueAddress ? parseAddress(e.venueAddress) : null
+    return { name: e.venue, address: a ? formatAddressNamed(a) : e.venueAddress }
+  }
+  return null
+}
+
 function campAddress(e: EventRow): string | null {
   if (!e.camp)
     return null
@@ -41,10 +57,26 @@ function campAddress(e: EventRow): string | null {
   return a ? formatAddressNamed(a) : loc.addressString
 }
 
+// Which guides are switched on. Persisted by <EventSourceToggles>.
+const enabledSources = ref<string[]>([...DEFAULT_ON])
+
+// Count per guide from the FULL list, so a toggle shows what it would add rather
+// than what is already on screen.
+const sourceCounts = computed(() => {
+  const c: Record<string, number> = {}
+  for (const e of events.value ?? []) {
+    const k = e.source || 'user'
+    c[k] = (c[k] ?? 0) + 1
+  }
+  return c
+})
+
+const visible = computed(() => (events.value ?? []).filter(e => enabledSources.value.includes(e.source || 'user')))
+
 // group events by day
 const grouped = computed(() => {
   const groups: { day: string, dayKey: string, items: EventRow[] }[] = []
-  for (const e of events.value ?? []) {
+  for (const e of visible.value) {
     const p = parts(e.startsAt)
     let g = groups.find(x => x.dayKey === p.dayKey)
     if (!g) {
@@ -197,6 +229,8 @@ useHead({ title: 'Events — BRC Map' })
       </ul>
     </section>
 
+    <EventSourceToggles v-model="enabledSources" :counts="sourceCounts" />
+
     <div v-if="grouped.length" class="space-y-8">
       <section v-for="g in grouped" :key="g.dayKey">
         <h2 class="font-display mb-3 text-lg font-semibold uppercase tracking-wide text-primary">{{ g.day }}</h2>
@@ -204,14 +238,25 @@ useHead({ title: 'Events — BRC Map' })
           <UCard v-for="e in g.items" :key="e.id">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="font-semibold">{{ e.title }}</p>
+                <p class="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
+                  <span>{{ e.title }}</span>
+                  <!-- which guide this came from; user-posted events need no badge -->
+                  <UBadge
+                    v-if="e.source && e.source !== 'user'"
+                    size="xs"
+                    variant="subtle"
+                    :color="eventSource(e.source)?.nsfw ? 'error' : 'neutral'"
+                  >
+                    {{ eventSource(e.source)?.emoji }} {{ eventSource(e.source)?.label }}
+                  </UBadge>
+                </p>
                 <p class="mt-0.5 text-sm text-(--ui-text-muted)">
                   <span class="text-primary">{{ parts(e.startsAt).time }}</span>
                   <span v-if="e.endsAt"> – {{ parts(e.endsAt).time }}</span>
-                  <template v-if="e.camp"> · hosted by <b class="text-(--ui-text)">{{ e.camp.name }}</b>
-                    <span v-if="campAddress(e)"> · 📍 {{ campAddress(e) }}</span>
+                  <template v-if="venueOf(e)"> · at <b class="text-(--ui-text)">{{ venueOf(e)!.name }}</b>
+                    <span v-if="venueOf(e)!.address"> · 📍 {{ venueOf(e)!.address }}</span>
                   </template>
-                  <span v-else class="font-medium text-primary"> · Official</span>
+                  <span v-else-if="!e.source || e.source === 'user'" class="font-medium text-primary"> · Official</span>
                 </p>
                 <p v-if="e.description" class="mt-2 text-sm text-(--ui-text-toned)">{{ e.description }}</p>
               </div>
