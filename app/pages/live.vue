@@ -24,11 +24,52 @@ interface Day {
   sunrise: string
   sunset: string
 }
-interface Weather { current: Current | null, days: Day[], updatedAt: string }
+interface StationReading {
+  key: string, label: string, owner: string, observedAt: string, fresh: boolean
+  tempF: number | null, feelsLikeF: number | null, humidity: number | null
+  windMph: number | null, gustMph: number | null, lullMph: number | null, windDirDeg: number | null
+  pressureInHg: number | null, pressureTrend: string | null, dewPointF: number | null
+  wbgtF: number | null, uv: number | null, precipTodayIn: number | null
+  lightningLast1hr: number | null, lightningLastDistanceMi: number | null
+}
+interface ExtendedDay { date: string, max: number, min: number, windMax: number, precip: number }
+interface Weather {
+  current: Current | null
+  days: Day[]
+  stations: StationReading[]
+  primary: 'station' | 'model'
+  extended: { model: string, days: ExtendedDay[] } | null
+  updatedAt: string
+}
 
 const { data, refresh, status } = await useFetch<Weather>('/api/weather')
 
 const cur = computed(() => data.value?.current ?? null)
+
+// The station we lead with: the freshest one still reporting. A station that has
+// gone quiet is kept out of the headline entirely — showing an hour-old gust as
+// "current" during a dust event is worse than showing the model.
+const station = computed(() => (data.value?.stations ?? []).find(s => s.fresh) ?? null)
+const staleStations = computed(() => (data.value?.stations ?? []).filter(s => !s.fresh))
+
+function agoLabel(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000))
+  if (mins < 1) return 'just now'
+  if (mins === 1) return '1 min ago'
+  if (mins < 60) return `${mins} min ago`
+  const h = Math.round(mins / 60)
+  return h === 1 ? '1 hour ago' : `${h} hours ago`
+}
+
+// Worth saying out loud when the station and the model disagree markedly — it is
+// usually the station that is right, and it is always worth knowing.
+const windGap = computed(() => {
+  const s = station.value?.windMph
+  const m = cur.value?.wind_speed_10m
+  if (s == null || m == null) return null
+  const diff = Math.round(s - m)
+  return Math.abs(diff) >= 8 ? diff : null
+})
 const curWmo = computed(() => cur.value ? wmo(cur.value.weather_code) : null)
 const dust = computed(() => cur.value ? dustRisk(cur.value.wind_gusts_10m) : null)
 
@@ -86,6 +127,84 @@ useHead({ title: 'Live — BRC Map' })
     </div>
     <p class="mb-8 text-(--ui-text-muted)">Weather, dust outlook, and radio for Black Rock City.</p>
 
+    <!-- On-playa station: leads whenever one is reporting, because a sensor in
+         the dust beats a model reading a 9 km grid square. -->
+    <UCard v-if="station" class="mb-4 ring-1 ring-primary/30">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <UIcon name="i-lucide-radio-tower" class="size-5 shrink-0 text-primary" />
+        <h2 class="font-display text-sm font-bold uppercase tracking-wide text-primary">On the playa now</h2>
+        <UBadge size="xs" color="primary" variant="subtle">{{ station.label }}</UBadge>
+        <span class="text-xs text-(--ui-text-muted)">measured here · {{ agoLabel(station.observedAt) }}</span>
+      </div>
+
+      <div class="mt-4 flex items-center gap-5">
+        <div class="flex-1">
+          <p v-if="station.tempF != null" class="font-display text-5xl font-bold leading-none">{{ Math.round(station.tempF) }}°F</p>
+          <p class="mt-1 text-(--ui-text-muted)">
+            <template v-if="station.tempF != null">{{ Math.round(toCelsius(station.tempF)) }}°C</template>
+            <template v-if="station.feelsLikeF != null"> · feels {{ tempBoth(station.feelsLikeF) }}</template>
+          </p>
+        </div>
+        <div v-if="station.windMph != null" class="text-right">
+          <p class="font-display text-3xl font-bold leading-none">{{ Math.round(station.windMph) }}<span class="text-lg"> mph</span></p>
+          <p class="text-xs text-(--ui-text-muted)">
+            {{ station.windDirDeg != null ? windDir(station.windDirDeg) : '' }}
+            <template v-if="station.gustMph != null"> · gusting {{ Math.round(station.gustMph) }}</template>
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        <div v-if="station.gustMph != null" class="rounded-lg border border-(--ui-border) p-2.5">
+          <p class="text-xs text-(--ui-text-muted)">Wind lull / gust</p>
+          <p class="font-semibold">{{ Math.round(station.lullMph ?? 0) }} – {{ Math.round(station.gustMph) }} mph</p>
+        </div>
+        <div v-if="station.humidity != null" class="rounded-lg border border-(--ui-border) p-2.5">
+          <p class="text-xs text-(--ui-text-muted)">Humidity</p>
+          <p class="font-semibold">{{ Math.round(station.humidity) }}%</p>
+          <p v-if="station.dewPointF != null" class="text-xs text-(--ui-text-muted)">dew pt {{ Math.round(station.dewPointF) }}°F</p>
+        </div>
+        <!-- the number heat-safety guidance is actually written against -->
+        <div v-if="station.wbgtF != null" class="rounded-lg border border-(--ui-border) p-2.5">
+          <p class="text-xs text-(--ui-text-muted)">Heat stress (WBGT)</p>
+          <p class="font-semibold">{{ Math.round(station.wbgtF) }}°F</p>
+        </div>
+        <div v-if="station.uv != null" class="rounded-lg border border-(--ui-border) p-2.5">
+          <p class="text-xs text-(--ui-text-muted)">UV index</p>
+          <p class="font-semibold">{{ Math.round(station.uv) }}</p>
+        </div>
+        <div v-if="station.pressureInHg != null" class="rounded-lg border border-(--ui-border) p-2.5">
+          <p class="text-xs text-(--ui-text-muted)">Pressure</p>
+          <p class="font-semibold">{{ station.pressureInHg.toFixed(2) }} inHg</p>
+          <p v-if="station.pressureTrend" class="text-xs text-(--ui-text-muted)">{{ station.pressureTrend }}</p>
+        </div>
+        <div v-if="station.precipTodayIn" class="rounded-lg border border-(--ui-border) p-2.5">
+          <p class="text-xs text-(--ui-text-muted)">Rain today</p>
+          <p class="font-semibold">{{ station.precipTodayIn.toFixed(2) }}"</p>
+        </div>
+      </div>
+
+      <!-- lightning is the one reading worth interrupting someone for -->
+      <div v-if="station.lightningLast1hr" class="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/10 p-2.5 text-sm">
+        <UIcon name="i-lucide-zap" class="mt-0.5 size-4 shrink-0 text-amber-500" />
+        <p class="text-(--ui-text-toned)">
+          <b>{{ station.lightningLast1hr }} lightning strike{{ station.lightningLast1hr === 1 ? '' : 's' }}</b> detected in the last hour<span v-if="station.lightningLastDistanceMi != null">, nearest about {{ Math.round(station.lightningLastDistanceMi) }} mi away</span>.
+        </p>
+      </div>
+
+      <p class="mt-3 text-xs text-(--ui-text-muted)">
+        Station brought to the playa by <b class="text-(--ui-text)">{{ station.owner }}</b>.
+        <template v-if="windGap">
+          Reading {{ Math.abs(windGap) }} mph {{ windGap > 0 ? 'windier' : 'calmer' }} than the forecast model right now — trust the station.
+        </template>
+      </p>
+    </UCard>
+
+    <p v-if="!station && staleStations.length" class="mb-4 rounded-lg border border-(--ui-border) p-3 text-sm text-(--ui-text-muted)">
+      <UIcon name="i-lucide-radio-tower" class="mr-1 inline size-4" />
+      {{ staleStations[0]!.label }} last reported {{ agoLabel(staleStations[0]!.observedAt) }} — showing the forecast model until it checks in again.
+    </p>
+
     <!-- current weather -->
     <UCard v-if="cur">
       <div class="flex items-center gap-5">
@@ -93,6 +212,7 @@ useHead({ title: 'Live — BRC Map' })
         <div class="flex-1">
           <p class="font-display text-5xl font-bold leading-none">{{ Math.round(cur.temperature_2m) }}°F</p>
           <p class="mt-1 text-(--ui-text-muted)">{{ Math.round(toCelsius(cur.temperature_2m)) }}°C · {{ curWmo?.label }} · feels {{ tempBoth(cur.apparent_temperature) }}</p>
+          <p v-if="station" class="mt-1 text-xs text-(--ui-text-muted)">Forecast model — the station above is measuring the real thing.</p>
         </div>
         <span
           v-if="dust"
@@ -139,6 +259,31 @@ useHead({ title: 'Live — BRC Map' })
         </div>
       </div>
       <p class="mt-2 text-xs text-(--ui-text-muted)">Gusts shown per day (dust signal). Source: Open-Meteo.</p>
+    </section>
+
+    <!-- The European model, out past the week. Deliberately quieter than the
+         7-day above: at ten days out this is for deciding what to pack, not
+         what to wear. Days already covered above are skipped. -->
+    <section v-if="data?.extended?.days?.length" class="mt-8">
+      <div class="mb-3 flex flex-wrap items-baseline gap-x-2">
+        <h2 class="font-display text-sm font-bold uppercase tracking-wide text-(--ui-text-muted)">Extended outlook</h2>
+        <span class="text-xs text-(--ui-text-muted)">{{ data.extended.model }}</span>
+      </div>
+      <div class="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-8">
+        <div
+          v-for="(d, i) in data.extended.days.filter(x => !data!.days.some(y => y.date === x.date))"
+          :key="d.date"
+          class="rounded-xl border border-dashed border-(--ui-border) p-2.5 text-center"
+        >
+          <p class="text-xs font-semibold">{{ dayName(d.date, i + 99) }}</p>
+          <p class="mt-1 text-sm"><b>{{ Math.round(d.max) }}°F</b> <span class="text-(--ui-text-muted)">{{ Math.round(d.min) }}°F</span></p>
+          <p class="text-xs text-(--ui-text-muted)">{{ Math.round(toCelsius(d.max)) }}° / {{ Math.round(toCelsius(d.min)) }}°C</p>
+          <p class="mt-1 text-xs" :style="{ color: dustRisk(d.windMax).color }">{{ Math.round(d.windMax) }} mph</p>
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-(--ui-text-muted)">
+        The European Centre's model, run out to fifteen days. Useful for packing; the week above is the one to plan around.
+      </p>
     </section>
 
     <!-- fire & smoke -->

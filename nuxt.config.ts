@@ -103,6 +103,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // server-only secret, read from DATABASE_URL env (.env / DO secret)
     databaseUrl: process.env.DATABASE_URL,
+    // Tempest (WeatherFlow) API key, for the local weather stations burners bring
+    // out. Server-only: the key reaches every station on the owner's account, so
+    // it never goes near the browser. Unset until someone hands us one — the
+    // weather page runs on Open-Meteo alone and says nothing about it.
+    tempestApiKey: process.env.TEMPEST_API_KEY ?? '',
     // nuxt-auth-utils session: bound the sealed cookie's lifetime so a captured
     // cookie can't be replayed indefinitely (there's no server-side revocation).
     session: {
