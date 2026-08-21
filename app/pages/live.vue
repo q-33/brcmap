@@ -33,11 +33,13 @@ interface StationReading {
   lightningLast1hr: number | null, lightningLastDistanceMi: number | null
 }
 interface ExtendedDay { date: string, max: number, min: number, windMax: number, precip: number }
+interface HourlyPoint { time: string, temp: number, wind: number, gust: number }
 interface Weather {
   current: Current | null
   days: Day[]
   stations: StationReading[]
   primary: 'station' | 'model'
+  hourly: { model: string, points: HourlyPoint[] } | null
   extended: { model: string, days: ExtendedDay[] } | null
   updatedAt: string
 }
@@ -51,6 +53,24 @@ const cur = computed(() => data.value?.current ?? null)
 // "current" during a dust event is worse than showing the model.
 const station = computed(() => (data.value?.stations ?? []).find(s => s.fresh) ?? null)
 const staleStations = computed(() => (data.value?.stations ?? []).filter(s => !s.fresh))
+
+// The next 36 hours of HRRR, and the worst gust in it — the thing worth knowing
+// before you decide whether today is a tie-everything-down day.
+const hourly = computed(() => data.value?.hourly?.points ?? [])
+const peakGust = computed(() => {
+  const next24 = hourly.value.slice(0, 24)
+  if (!next24.length) return null
+  return next24.reduce((a, b) => (b.gust > a.gust ? b : a))
+})
+
+function hourLabel(t: string): string {
+  const h = Number(t.slice(11, 13))
+  const ampm = h < 12 ? 'a' : 'p'
+  return `${((h + 11) % 12) + 1}${ampm}`
+}
+function isMidnight(t: string): boolean {
+  return t.slice(11, 13) === '00'
+}
 
 function agoLabel(iso: string): string {
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000))
@@ -244,6 +264,51 @@ useHead({ title: 'Live — BRC Map' })
     <UCard v-else>
       <p class="text-sm text-(--ui-text-muted)">Weather is unavailable right now.</p>
     </UCard>
+
+    <!-- Next 48 hours from HRRR. Leads on GUSTS rather than temperature: at 3 km
+         and re-run hourly this is the model that catches an afternoon wind ramp,
+         and wind is what decides whether the day goes well here. -->
+    <section v-if="hourly.length" class="mt-8">
+      <div class="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div class="flex flex-wrap items-baseline gap-x-2">
+          <h2 class="font-display text-sm font-bold uppercase tracking-wide text-(--ui-text-muted)">Next 48 hours</h2>
+          <span class="text-xs text-(--ui-text-muted)">{{ data!.hourly!.model }} · gusts by hour</span>
+        </div>
+        <p v-if="peakGust" class="text-xs">
+          <span class="text-(--ui-text-muted)">Peak gust in 24h:</span>
+          <b :style="{ color: dustRisk(peakGust.gust).color }">
+            {{ Math.round(peakGust.gust) }} mph at {{ hourLabel(peakGust.time) }}
+          </b>
+        </p>
+      </div>
+
+      <div class="overflow-x-auto pb-1">
+        <div class="flex min-w-max gap-1">
+          <div
+            v-for="p in hourly"
+            :key="p.time"
+            class="w-11 shrink-0 rounded-lg border p-1.5 text-center"
+            :class="isMidnight(p.time) ? 'border-(--ui-border) bg-(--ui-bg-muted)/60' : 'border-transparent'"
+          >
+            <p class="text-[10px] text-(--ui-text-muted)">{{ hourLabel(p.time) }}</p>
+            <!-- bar height is the gust, scaled against 50 mph -->
+            <div class="mx-auto mt-1 flex h-12 w-3 items-end overflow-hidden rounded-sm bg-(--ui-bg-muted)">
+              <div
+                class="w-full rounded-sm transition-all"
+                :style="{ height: `${Math.max(6, Math.min(100, (p.gust / 50) * 100))}%`, background: dustRisk(p.gust).color }"
+              />
+            </div>
+            <p class="mt-1 text-[11px] font-semibold tabular-nums">{{ Math.round(p.gust) }}</p>
+            <p class="text-[10px] text-(--ui-text-muted) tabular-nums">{{ Math.round(p.temp) }}°</p>
+          </div>
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-(--ui-text-muted)">
+        Bars are gusts in mph, coloured by dust risk; the number underneath is the temperature.
+        HRRR is NOAA's high-resolution model, re-run every hour — the best read on the next day or two,
+        and it deliberately does not go further.
+      </p>
+    </section>
 
     <!-- forecast -->
     <section v-if="data?.days?.length" class="mt-8">

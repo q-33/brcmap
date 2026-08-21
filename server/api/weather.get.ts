@@ -9,6 +9,12 @@ import { activeStations, isFresh } from '~~/lib/weather/stations'
 //     temperature and lightning that Open-Meteo simply does not carry.
 //     Open-Meteo's `current` is kept as the fallback and as a second opinion.
 //
+//   NEXT 48 HOURS what it will do this afternoon and tomorrow
+//     HRRR, NOAA's 3 km rapid-refresh model, re-run every hour. It is the one
+//     that actually resolves an afternoon wind ramp, which on this playa is the
+//     difference between tying down and losing a shade structure. Short range by
+//     design — it does not run past two days, and should not be asked to.
+//
 //   FORECAST      what it will do over the next week
 //     Open-Meteo's default blend. Unchanged, and still what the page leads with.
 //
@@ -20,6 +26,7 @@ import { activeStations, isFresh } from '~~/lib/weather/stations'
 // failed ECMWF call drops the extended strip, and the page keeps working.
 interface WeatherDay { date: string, code: number, max: number, min: number, windMax: number, gustMax: number, precip: number, sunrise: string, sunset: string }
 interface ExtendedDay { date: string, max: number, min: number, windMax: number, precip: number }
+interface HourlyPoint { time: string, temp: number, wind: number, gust: number }
 
 interface StationReading {
   key: string
@@ -51,6 +58,8 @@ interface WeatherResult {
   stations: StationReading[]
   /** which source the page should lead with */
   primary: 'station' | 'model'
+  /** HRRR, hour by hour, for the next two days */
+  hourly: { model: string, points: HourlyPoint[] } | null
   extended: { model: string, days: ExtendedDay[] } | null
   updatedAt: string
 }
@@ -70,6 +79,22 @@ async function openMeteo() {
     current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,precipitation_probability_max,sunrise,sunset',
     forecast_days: '7',
+  })
+  return ofetch<any>(`https://api.open-meteo.com/v1/forecast?${params}`, { timeout: 8000, retry: 1 })
+}
+
+// HRRR through Open-Meteo (models=gfs_hrrr). 3 km grid, hourly re-runs, 48 hours
+// of horizon. Requested separately so it can fail without touching the rest.
+async function hrrr() {
+  const params = new URLSearchParams({
+    latitude: LAT,
+    longitude: LON,
+    timezone: TZ,
+    temperature_unit: 'fahrenheit',
+    wind_speed_unit: 'mph',
+    models: 'gfs_hrrr',
+    hourly: 'temperature_2m,wind_speed_10m,wind_gusts_10m',
+    forecast_days: '2',
   })
   return ofetch<any>(`https://api.open-meteo.com/v1/forecast?${params}`, { timeout: 8000, retry: 1 })
 }
@@ -117,9 +142,10 @@ async function readStations(): Promise<StationReading[]> {
 }
 
 export default defineCachedEventHandler(async (): Promise<WeatherResult> => {
-  const [om, stations, ec] = await Promise.all([
+  const [om, stations, hr, ec] = await Promise.all([
     openMeteo(),
     readStations(),
+    hrrr().catch(() => null),
     ecmwf().catch(() => null),
   ])
 
@@ -135,6 +161,20 @@ export default defineCachedEventHandler(async (): Promise<WeatherResult> => {
     sunrise: d.sunrise[i],
     sunset: d.sunset[i],
   }))
+
+  // Only forward hours — nobody needs this morning's gusts at teatime, and the
+  // strip is meant to be read as "what happens next".
+  const hh = hr?.hourly
+  const nowMs = Date.now()
+  const points: HourlyPoint[] = (hh?.time ?? [])
+    .map((time: string, i: number) => ({
+      time,
+      temp: hh.temperature_2m[i],
+      wind: hh.wind_speed_10m[i],
+      gust: hh.wind_gusts_10m[i],
+    }))
+    .filter((p: HourlyPoint) => p.gust != null && Date.parse(`${p.time}:00`) >= nowMs - 3600_000)
+  const hourly = points.length ? { model: 'HRRR (NOAA, 3 km)', points: points.slice(0, 36) } : null
 
   const ed = ec?.daily
   const extended = ed?.time?.length
@@ -155,6 +195,7 @@ export default defineCachedEventHandler(async (): Promise<WeatherResult> => {
     days,
     stations,
     primary: stations.some(s => s.fresh) ? 'station' : 'model',
+    hourly,
     extended,
     updatedAt: new Date().toISOString(),
   }
