@@ -17,6 +17,40 @@ export default defineNuxtConfig({
         path: fileURLToPath(new URL('./shims/path.mjs', import.meta.url)),
         util: fileURLToPath(new URL('./shims/util.mjs', import.meta.url)),
       })
+      // Same package, same problem, different shape: tslog (bundled inside
+      // @meshtastic/core) calls process.cwd() UNGUARDED while formatting the
+      // file path in a log line. `process` does not exist in a browser, so that
+      // is a ReferenceError — "process is not defined" — and it fires the moment
+      // the mesh code logs anything, which is why Connect via Bluetooth died
+      // before it could reach the radio.
+      //
+      // Patched in that one file rather than by defining a global `process`.
+      // Inventing that global would tell every other library in the bundle it is
+      // running under Node, and several change behaviour on exactly that check.
+      // The package's other reference is a `typeof process` guard, which must
+      // keep seeing no process so it takes the browser path — so the rewrite is
+      // scoped to the single broken call.
+      config.plugins ??= []
+      config.plugins.push({
+        name: 'brcmap:meshtastic-no-process-cwd',
+        enforce: 'pre',
+        transform(code: string, id: string) {
+          if (!id.includes('@meshtastic') || !/(?<![\w.$])process(?![\w$])/.test(code))
+            return null
+          const patched = code
+            // there is no working directory in a browser; the result is only used
+            // to trim a prefix off a file path in a log line
+            .replace(/process\.cwd\(\)/g, '\'\'')
+            // Everything else becomes a property lookup on globalThis, which is
+            // merely `undefined` instead of a ReferenceError. That matters for
+            // `process?.version` in particular: optional chaining guards a null
+            // VALUE, not an undeclared NAME, so it throws just as hard on its own.
+            // `typeof globalThis.process` still reports "undefined", so the
+            // package's browser-detection guards keep choosing the browser path.
+            .replace(/(?<![\w.$])process(?![\w$])/g, 'globalThis.process')
+          return { code: patched, map: null }
+        },
+      })
     },
   },
   compatibilityDate: '2025-07-15',
