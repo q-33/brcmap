@@ -105,7 +105,29 @@ function clockTime(iso: string) {
 // Fire, smoke and official alerts around the city. Lazy + client-side so a slow
 // federal feed never holds up the weather above it.
 interface Fires { alerts: FireAlert[], incidents: FireIncident[], air: AirNow, updatedAt: string }
-const { data: fires } = await useFetch<Fires>('/api/fires', { server: false, lazy: true })
+const { data: fires, refresh: refreshFires } = await useFetch<Fires>('/api/fires', { server: false, lazy: true })
+
+// Keep the page current without anyone reloading it.
+//
+// Fire alerts and air quality are the reason: a Red Flag Warning read an hour
+// after it was fetched is worse than useless. Weather rides along at the same
+// cadence since a station reports every minute anyway.
+//
+// Five minutes matches the server cache, so polling costs a cheap cache hit
+// rather than a fresh round of federal API calls — and it only ticks while the
+// tab is actually visible, because battery and data are scarce out there.
+const REFRESH_MS = 5 * 60 * 1000
+const { lastAt: firesAt, refreshNow: refreshFiresNow } = useAutoRefresh(refreshFires, REFRESH_MS)
+const { lastAt: wxAt } = useAutoRefresh(refresh, REFRESH_MS)
+
+// Re-render the "x min ago" labels without re-fetching anything.
+const nowTick = ref(Date.now())
+onMounted(() => {
+  const t = setInterval(() => (nowTick.value = Date.now()), 30_000)
+  onBeforeUnmount(() => clearInterval(t))
+})
+const firesAgo = computed(() => (nowTick.value, agoText(firesAt.value)))
+const wxAgo = computed(() => (nowTick.value, agoText(wxAt.value)))
 const air = computed(() => aqiBand(fires.value?.air?.usAqi ?? null))
 // Only shout about a worse-later forecast when it crosses into a new band.
 const airLater = computed(() => {
@@ -143,9 +165,15 @@ useHead({ title: 'Live — BRC Map' })
   <UContainer class="max-w-3xl py-10 sm:py-14">
     <div class="mb-2 flex items-end justify-between gap-3">
       <h1 class="font-display text-3xl font-bold uppercase tracking-tight sm:text-4xl">Live on Playa</h1>
-      <UButton size="xs" variant="ghost" icon="i-lucide-refresh-cw" :loading="status === 'pending'" @click="refresh()">Refresh</UButton>
+      <div class="flex shrink-0 items-center gap-1.5 text-xs text-(--ui-text-muted)">
+        <span class="hidden sm:inline">updated {{ wxAgo }}</span>
+        <UButton size="xs" variant="ghost" icon="i-lucide-refresh-cw" :loading="status === 'pending'" @click="refresh()">Refresh</UButton>
+      </div>
     </div>
-    <p class="mb-8 text-(--ui-text-muted)">Weather, dust outlook, and radio for Black Rock City.</p>
+    <p class="mb-8 text-(--ui-text-muted)">
+      Weather, dust outlook, and radio for Black Rock City.
+      <span class="text-(--ui-text-muted)/80">This page refreshes itself every few minutes while it's open.</span>
+    </p>
 
     <!-- On-playa station: leads whenever one is reporting, because a sensor in
          the dust beats a model reading a 9 km grid square. -->
@@ -355,7 +383,14 @@ useHead({ title: 'Live — BRC Map' })
     <section v-if="fires" class="mt-10">
       <div class="mb-3 flex items-baseline justify-between gap-3">
         <h2 class="font-display text-xl font-semibold text-primary">Fire &amp; smoke</h2>
-        <span class="text-xs text-(--ui-text-muted)">updated {{ clockTime(fires.updatedAt) }}</span>
+        <span class="flex items-center gap-1.5 text-xs text-(--ui-text-muted)">
+          <span class="relative flex size-1.5">
+            <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+            <span class="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+          </span>
+          updated {{ firesAgo }}
+          <UButton size="xs" variant="ghost" icon="i-lucide-refresh-cw" aria-label="Refresh fire conditions" @click="refreshFiresNow()" />
+        </span>
       </div>
 
       <!-- official watches and warnings, verbatim from the National Weather Service -->
