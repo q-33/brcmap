@@ -50,6 +50,33 @@ export function activeStations(on: Date = new Date()): LocalStation[] {
 }
 
 /**
+ * How far from Black Rock City a "local" station may be and still count.
+ *
+ * The date window is not enough on its own. A station is a physical object in
+ * somebody's truck: Radar's is in Texas until he drives it out, and if he is
+ * delayed a day the calendar would happily start publishing Texas weather as
+ * playa conditions. So every observation is checked against where the station
+ * says it actually is, and one that is not on the playa is discarded no matter
+ * what the date says.
+ *
+ * 50 km covers the whole Black Rock Desert and Gerlach with room to spare, while
+ * rejecting anywhere someone might reasonably keep a station at home.
+ */
+export const MAX_STATION_KM = 50
+
+const EARTH_KM_PER_DEG = 111.32
+
+/** Flat-earth distance, which is plenty at this scale. */
+export function kmFromCity(lat: number, lng: number): number {
+  const dy = (lat - CITY.lat) * EARTH_KM_PER_DEG
+  const dx = (lng - CITY.lng) * EARTH_KM_PER_DEG * Math.cos((CITY.lat * Math.PI) / 180)
+  return Math.hypot(dx, dy)
+}
+
+/** Black Rock City, for the distance check. */
+export const CITY = { lat: 40.7864, lng: -119.2065 }
+
+/**
  * How stale an observation may be before we stop leading with it.
  *
  * Tempest reports about once a minute. Fifteen minutes of silence means the

@@ -1,5 +1,5 @@
 import { ofetch } from 'ofetch'
-import { activeStations, isFresh } from '~~/lib/weather/stations'
+import { MAX_STATION_KM, activeStations, isFresh, kmFromCity } from '~~/lib/weather/stations'
 
 // Weather for Black Rock City, from three sources that answer different questions.
 //
@@ -125,6 +125,23 @@ async function readStations(): Promise<StationReading[]> {
       const o = await latestObservation(s.stationId)
       if (!o)
         continue
+
+      // TWO gates, and the second is the one that matters.
+      //
+      // activeStations() has already checked the calendar. But a weather station
+      // is a physical object in somebody's truck: Radar's sits at his house in
+      // Texas until he drives it out, and if he leaves a day late the calendar
+      // would cheerfully start publishing Texas weather as playa conditions.
+      //
+      // So the station has to actually BE here. Anything reporting from outside
+      // the Black Rock Desert is dropped on the floor, whatever the date says. A
+      // station with no position is dropped too — unverifiable is not the same as
+      // fine.
+      if (o.lat == null || o.lng == null)
+        continue
+      if (kmFromCity(o.lat, o.lng) > MAX_STATION_KM)
+        continue
+
       out.push({
         key: s.key,
         label: s.label,

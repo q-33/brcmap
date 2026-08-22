@@ -19,6 +19,9 @@ export function tempestConfigured(): boolean {
 /** One reading, already converted to the units the site displays. */
 export interface TempestObservation {
   observedAt: string
+  /** where the station says it is, right now — see the distance check on ingest */
+  lat: number | null
+  lng: number | null
   tempF: number | null
   feelsLikeF: number | null
   humidity: number | null
@@ -76,7 +79,7 @@ export async function listStations(): Promise<{ station_id: number, name: string
  * quietly render 32° as freezing on a 90°F afternoon.
  */
 export async function latestObservation(stationId: number): Promise<TempestObservation | null> {
-  const r = await call<{ obs?: any[] }>(`/observations/station/${stationId}`, {
+  const r = await call<{ obs?: any[], latitude?: number, longitude?: number }>(`/observations/station/${stationId}`, {
     units_temp: 'c',
     units_wind: 'mps',
     units_pressure: 'mb',
@@ -88,6 +91,8 @@ export async function latestObservation(stationId: number): Promise<TempestObser
     return null
   return {
     observedAt: new Date(o.timestamp * 1000).toISOString(),
+    lat: r.latitude ?? null,
+    lng: r.longitude ?? null,
     tempF: cToF(o.air_temperature),
     feelsLikeF: cToF(o.feels_like),
     humidity: o.relative_humidity ?? null,
