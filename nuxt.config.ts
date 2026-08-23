@@ -18,11 +18,17 @@ export default defineNuxtConfig({
         util: fileURLToPath(new URL('./shims/util.mjs', import.meta.url)),
       })
       // Same package, same problem, different shape: tslog (bundled inside
-      // @meshtastic/core) calls process.cwd() UNGUARDED while formatting the
-      // file path in a log line. `process` does not exist in a browser, so that
-      // is a ReferenceError — "process is not defined" — and it fires the moment
-      // the mesh code logs anything, which is why Connect via Bluetooth died
-      // before it could reach the radio.
+      // @meshtastic/core) reaches for Node globals that a browser does not have,
+      // and every one is a ReferenceError that kills the mesh connection mid-flow.
+      // Two so far, both found only by users hitting them in order:
+      //
+      //   process   "process is not defined"  — killed Connect via Bluetooth
+      //             before the device chooser opened
+      //   Buffer    "Buffer is not defined"   — killed it at Pair, once the
+      //             chooser worked and logging actually ran
+      //
+      // Both are in tslog's value formatting, so they fire the moment the mesh
+      // code logs anything at all.
       //
       // Patched in that one file rather than by defining a global `process`.
       // Inventing that global would tell every other library in the bundle it is
@@ -32,10 +38,12 @@ export default defineNuxtConfig({
       // scoped to the single broken call.
       config.plugins ??= []
       config.plugins.push({
-        name: 'brcmap:meshtastic-no-process-cwd',
+        name: 'brcmap:meshtastic-node-globals',
         enforce: 'pre',
         transform(code: string, id: string) {
-          if (!id.includes('@meshtastic') || !/(?<![\w.$])process(?![\w$])/.test(code))
+          if (!id.includes('@meshtastic'))
+            return null
+          if (!/(?<![\w.$])(?:process|Buffer)(?![\w$])/.test(code))
             return null
           const patched = code
             // there is no working directory in a browser; the result is only used
@@ -48,6 +56,13 @@ export default defineNuxtConfig({
             // `typeof globalThis.process` still reports "undefined", so the
             // package's browser-detection guards keep choosing the browser path.
             .replace(/(?<![\w.$])process(?![\w$])/g, 'globalThis.process')
+            // `Buffer.isBuffer(x)` — tslog asking whether a value is a Node
+            // Buffer before pretty-printing it. In a browser the honest answer
+            // is always no, so fall back to a function that says so. Anchored on
+            // the exact call: the same file is full of `byteBuffer`, `txBuffer`
+            // and `ArrayBuffer`, none of which are the global and none of which
+            // must be touched.
+            .replace(/(?<![\w.$])Buffer\.isBuffer(?![\w$])/g, '(globalThis.Buffer?.isBuffer ?? (() => false))')
           return { code: patched, map: null }
         },
       })
@@ -137,6 +152,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // server-only secret, read from DATABASE_URL env (.env / DO secret)
     databaseUrl: process.env.DATABASE_URL,
+    // Burning Man Public API key (api.burningman.org). Server-only: their terms
+    // forbid disclosing it, so every call goes through /api/bm/* and the key is
+    // never bundled. Unset until they issue one — the proxies return 503 and the
+    // rest of the site is unaffected.
+    bmApiKey: process.env.BM_API_KEY ?? '',
     // Tempest (WeatherFlow) API key, for the local weather stations burners bring
     // out. Server-only: the key reaches every station on the owner's account, so
     // it never goes near the browser. Unset until someone hands us one — the
