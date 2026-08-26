@@ -205,40 +205,6 @@ function pinsGeoJson(pins: CampPin[]): GeoJSON.FeatureCollection {
 // way the wind is blowing (meteorological `dir` is where it blows FROM, so the
 // arrows point dir+180). Drawn as little arrow polylines so they render without
 // any sprite image. Empty when the wind layer is off / no reading.
-function windFieldGeoJson(wind: { dir: number, gusts: number, color: string } | null | undefined): GeoJSON.FeatureCollection {
-  if (!wind)
-    return { type: 'FeatureCollection', features: [] }
-  const [clng, clat] = getManPoint()
-  const M_LAT = 111320
-  const mLng = M_LAT * Math.cos((clat * Math.PI) / 180)
-  const bearing = ((wind.dir + 180) % 360) * Math.PI / 180 // radians, blows-to
-  const L = 230 // arrow length (m); barbs are a fraction of it
-  const ux = Math.sin(bearing) // east unit
-  const uy = Math.cos(bearing) // north unit
-  const off = (x: number, y: number, dE: number, dN: number): [number, number] => [x + dE / mLng, y + dN / M_LAT]
-  const features: GeoJSON.Feature[] = []
-  const stepM = 360 // grid spacing (m)
-  for (let dn = -1900; dn <= 1900; dn += stepM) {
-    for (let de = -2100; de <= 2100; de += stepM) {
-      const cx = clng + de / mLng
-      const cy = clat + dn / M_LAT
-      const tail = off(cx, cy, -ux * L / 2, -uy * L / 2)
-      const tip = off(cx, cy, ux * L / 2, uy * L / 2)
-      // two barbs, swept back ~140° from the shaft
-      const bA = bearing + (140 * Math.PI / 180)
-      const bB = bearing - (140 * Math.PI / 180)
-      const barbLen = L * 0.4
-      const barb1 = off(tip[0], tip[1], Math.sin(bA) * barbLen, Math.cos(bA) * barbLen)
-      const barb2 = off(tip[0], tip[1], Math.sin(bB) * barbLen, Math.cos(bB) * barbLen)
-      features.push({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'MultiLineString', coordinates: [[tail, tip], [barb1, tip, barb2]] },
-      })
-    }
-  }
-  return { type: 'FeatureCollection', features }
-}
 
 // Geometry of a camp plot at lat/lng with frontage/depth (feet): the box is
 // centred on the pin, frontage running tangentially (along the street) and depth
@@ -1322,19 +1288,6 @@ onMounted(async () => {
     map.addSource('edit-footprint', { type: 'geojson', data: editFootprintGeoJson(props.editFootprint) })
     map.addLayer({ id: 'edit-footprint-fill', type: 'fill', source: 'edit-footprint', paint: { 'fill-color': '#d96a1e', 'fill-opacity': 0.25 } })
     map.addLayer({ id: 'edit-footprint-outline', type: 'line', source: 'edit-footprint', paint: { 'line-color': '#d96a1e', 'line-width': 2.5 } })
-    // live wind arrows (when the Wind layer is on) — over the city, under the pins
-    map.addSource('wind', { type: 'geojson', data: windFieldGeoJson(props.wind) })
-    map.addLayer({
-      id: 'wind-arrows',
-      type: 'line',
-      source: 'wind',
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: {
-        'line-color': props.wind?.color ?? '#2563eb',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.1, 15, 2, 18, 3.5],
-        'line-opacity': 0.9,
-      },
-    })
     // camp plot footprints (appear as you zoom in) — drawn under the pins
     map.addSource('camp-plots', { type: 'geojson', data: campPlotsGeoJson(props.camps) })
     map.addLayer({
@@ -1398,6 +1351,7 @@ onMounted(async () => {
     // Placement mode: only when the parent has armed a drop (clicked Drop/Edit)
     // does tapping the map place/move a draggable pin at the EXACT point. Clicks
     // on an existing marker fall through to that marker's popup instead.
+    mountDust()
     const interactive = ['camps', 'art', 'toilets', 'civic-dots', 'civic-esd']
     map.on('click', (e) => {
       if (!map)
@@ -1513,11 +1467,106 @@ watch(() => props.sunTime, () => {
 })
 
 // redraw the wind arrows + recolor when the Wind layer toggles or the reading updates
-watch(() => props.wind, (w) => {
-  ;(map?.getSource('wind') as GeoJSONSource | undefined)?.setData(windFieldGeoJson(w))
-  if (map?.getLayer('wind-arrows'))
-    map.setPaintProperty('wind-arrows', 'line-color', w?.color ?? '#2563eb')
-}, { deep: true })
+// --- blowing dust ----------------------------------------------------------
+//
+// A canvas of drifting motes over the map, moving the way the wind is actually
+// blowing. Replaces the old arrow grid, which said the same thing in a way that
+// had to be switched on and read; this is understood without being looked at.
+//
+// Deliberately faint. This sits on top of the city people are trying to read,
+// so it must register at the edge of vision and never compete with a camp pin:
+// motes are 1–2 px at 8–28% opacity, and there are a few dozen, not thousands.
+//
+// Density and speed follow the real gusts, so a still afternoon is nearly bare
+// and a whiteout is unmistakable — the animation IS the reading.
+let dustCanvas: HTMLCanvasElement | null = null
+let dustRaf = 0
+let dustParts: { x: number, y: number, sp: number, a: number, r: number }[] = []
+
+function stopDust() {
+  if (dustRaf)
+    cancelAnimationFrame(dustRaf)
+  dustRaf = 0
+}
+
+function drawDust() {
+  if (!map || !dustCanvas)
+    return
+  const w = props.wind
+  const ctx = dustCanvas.getContext('2d')
+  if (!ctx)
+    return
+
+  stopDust()
+  const gusts = w?.gusts ?? 0
+  // Below a breeze there is nothing to show, and pretending otherwise is noise.
+  if (!w || gusts < 6) {
+    ctx.clearRect(0, 0, dustCanvas.width, dustCanvas.height)
+    dustParts = []
+    return
+  }
+
+  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  const cw = dustCanvas.clientWidth
+  const ch = dustCanvas.clientHeight
+  dustCanvas.width = cw * dpr
+  dustCanvas.height = ch * dpr
+  ctx.scale(dpr, dpr)
+
+  // ~30 motes in a stiff breeze, ~140 in a whiteout.
+  const count = Math.round(Math.min(140, 18 + gusts * 3.2))
+  dustParts = Array.from({ length: count }, () => ({
+    x: Math.random() * cw,
+    y: Math.random() * ch,
+    sp: 0.35 + Math.random() * 0.9,
+    a: 0.08 + Math.random() * 0.2,
+    r: Math.random() < 0.75 ? 1 : 1.8,
+  }))
+
+  // Meteorological direction is where the wind comes FROM; motes travel the
+  // opposite way. Screen y grows downward, hence the negated vertical term.
+  const rad = ((w.dir + 180) % 360) * Math.PI / 180
+  const ux = Math.sin(rad)
+  const uy = -Math.cos(rad)
+  const base = 0.5 + gusts * 0.07
+
+  const tick = () => {
+    ctx.clearRect(0, 0, cw, ch)
+    ctx.fillStyle = '#8a7f6d'
+    for (const p of dustParts) {
+      p.x += ux * base * p.sp
+      p.y += uy * base * p.sp
+      // wrap, so the field never thins out at an edge
+      if (p.x < -4) p.x = cw + 4
+      if (p.x > cw + 4) p.x = -4
+      if (p.y < -4) p.y = ch + 4
+      if (p.y > ch + 4) p.y = -4
+      ctx.globalAlpha = p.a
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.r, 0, 6.283)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
+    dustRaf = requestAnimationFrame(tick)
+  }
+  tick()
+}
+
+function mountDust() {
+  const container = map?.getContainer()
+  if (!container)
+    return
+  dustCanvas = document.createElement('canvas')
+  // Purely decorative: never intercept a tap meant for a camp pin.
+  dustCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;'
+    + 'pointer-events:none;z-index:2'
+  dustCanvas.setAttribute('aria-hidden', 'true')
+  container.appendChild(dustCanvas)
+  drawDust()
+  map?.on('resize', drawDust)
+}
+
+watch(() => props.wind, () => drawDust(), { deep: true })
 
 // keep art pins in sync
 watch(() => props.meshPeers, () => {
@@ -1554,7 +1603,12 @@ watch(() => props.editCamp?.id, () => {
     teardownEdit()
 })
 
-onBeforeUnmount(() => map?.remove())
+onBeforeUnmount(() => {
+  stopDust()
+  dustCanvas?.remove()
+  dustCanvas = null
+  map?.remove()
+})
 </script>
 
 <template>

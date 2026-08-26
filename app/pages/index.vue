@@ -287,24 +287,89 @@ const { data: gateData } = await useFetch<{ inbound: { status: GateStatus } | nu
 const gateRoadColor = computed(() => gateData.value?.inbound ? gateColor(gateData.value.inbound.status) : undefined)
 const gateStatusLabel = computed(() => gateData.value?.inbound ? GATE_STATUS_META[gateData.value.inbound.status].label : 'No data')
 
-// live weather → a compact pill (temp + gusts + dust) linking to /live.
-// client-only: this proxies an external API (Open-Meteo); never let a slow
-// upstream hang SSR / first paint.
-const { data: weatherData } = await useFetch<{ current: { temperature_2m: number, weather_code: number, wind_speed_10m: number, wind_gusts_10m: number, wind_direction_10m: number } | null }>('/api/weather', { server: false, lazy: true })
-const wx = computed(() => weatherData.value?.current ?? null)
+// Live weather → the compact pill, and the wind that drives the dust animation.
+//
+// The pill now leads with a STATION reading — a sensor inside the fence beats a
+// model reading a 9 km grid square, and BRC NOC is nominated to speak for the
+// city. It falls back to the model the moment no station is reporting.
+//
+// client-only: this proxies external APIs; never let a slow upstream hang SSR.
+interface PillStation {
+  label: string
+  fresh: boolean
+  tempF: number | null
+  windMph: number | null
+  gustMph: number | null
+  windDirDeg: number | null
+}
+const { data: weatherData } = await useFetch<{
+  current: { temperature_2m: number, weather_code: number, wind_speed_10m: number, wind_gusts_10m: number, wind_direction_10m: number } | null
+  stations: PillStation[]
+}>('/api/weather', { server: false, lazy: true })
 
-// --- live wind layer: a field of arrows across the playa + a readout ---------
-const windMode = ref(false)
+const wx = computed(() => weatherData.value?.current ?? null)
+const { temp: fmtTemp, wind: fmtWind, windUnit } = useUnits()
+
+/** The station the pill speaks with: the API already sorts the nominated one first. */
+const pillStation = computed(() => (weatherData.value?.stations ?? []).find(s => s.fresh) ?? null)
+
+/** What the pill shows, whichever source is answering. */
+const pill = computed(() => {
+  const st = pillStation.value
+  if (st && st.tempF != null) {
+    return {
+      tempF: st.tempF,
+      gustMph: st.gustMph ?? st.windMph ?? 0,
+      code: wx.value?.weather_code ?? 0,
+      source: st.label,
+      live: true,
+    }
+  }
+  const c = wx.value
+  if (!c)
+    return null
+  return { tempF: c.temperature_2m, gustMph: c.wind_gusts_10m, code: c.weather_code, source: 'forecast', live: false }
+})
+
+// BMIR, playable from the map. One <audio> element created on demand — nothing
+// is fetched until someone actually asks for it, which matters on playa data.
+const bmirPlaying = ref(false)
+const bmirLoading = ref(false)
+let bmirEl: HTMLAudioElement | null = null
+const BMIR_STREAM = 'https://bmir-ice.streamguys.com/live'
+
+async function toggleBmir() {
+  if (!bmirEl) {
+    bmirEl = new Audio(BMIR_STREAM)
+    bmirEl.preload = 'none'
+    bmirEl.addEventListener('playing', () => { bmirPlaying.value = true; bmirLoading.value = false })
+    bmirEl.addEventListener('pause', () => { bmirPlaying.value = false })
+    bmirEl.addEventListener('error', () => { bmirPlaying.value = false; bmirLoading.value = false })
+  }
+  if (bmirPlaying.value) {
+    bmirEl.pause()
+    return
+  }
+  bmirLoading.value = true
+  try {
+    await bmirEl.play()
+  }
+  catch {
+    bmirLoading.value = false
+  }
+}
+onBeforeUnmount(() => bmirEl?.pause())
+
+// Wind for the dust animation: the station's if we have one, else the model's.
 const windInfo = computed(() => {
+  const st = pillStation.value
+  if (st && st.windDirDeg != null && st.windMph != null)
+    return { dir: st.windDirDeg, speed: st.windMph, gusts: st.gustMph ?? st.windMph, ...dustRisk(st.gustMph ?? st.windMph), from: windDir(st.windDirDeg) }
   const c = wx.value
   if (!c || c.wind_direction_10m == null)
     return null
   return { dir: c.wind_direction_10m, speed: c.wind_speed_10m, gusts: c.wind_gusts_10m, ...dustRisk(c.wind_gusts_10m), from: windDir(c.wind_direction_10m) }
 })
-// passed to the map: null hides the arrows; otherwise direction + dust colour
-const windLayer = computed(() => (windMode.value && windInfo.value)
-  ? { dir: windInfo.value.dir, gusts: windInfo.value.gusts, color: windInfo.value.color }
-  : null)
 
 // map layer visibility (the legend doubles as the toggle control)
 // Porta-potties default OFF — the 2026 placement isn't known yet, so we don't
@@ -769,7 +834,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :wind="windLayer" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :wind="windInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
           @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>
@@ -910,10 +975,7 @@ const itemOptions = computed(() => [
           <UIcon name="i-lucide-sun" class="size-3.5" :class="shadowMode ? 'text-amber-400' : 'text-white/60'" />Sun &amp; shade
           <UIcon :name="shadowMode ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
         </button>
-        <button type="button" class="flex w-full items-center gap-1.5" :class="!windMode && 'opacity-40'" :disabled="!windInfo" @click="windMode = !windMode">
-          <UIcon name="i-lucide-wind" class="size-3.5" :class="windMode ? 'text-sky-300' : 'text-white/60'" />Live wind
-          <UIcon :name="windMode ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
-        </button>
+        
         <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.camps && 'opacity-40'" @click="layers.camps = !layers.camps">
           <span class="inline-block size-2 rounded-full" style="background:#d6336c" />Camps
           <UIcon :name="layers.camps ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
@@ -954,20 +1016,42 @@ const itemOptions = computed(() => [
 
     <!-- top-left stack: weather pill · live wind readout -->
     <div class="pointer-events-none absolute left-3 top-16 flex flex-col items-start gap-2">
-      <!-- weather pill -->
+      <!-- weather pill — a station inside the fence when one is reporting -->
       <NuxtLink
-        v-if="wx"
+        v-if="pill"
         to="/live"
         class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+        :title="pill.live ? `${pill.source} — measured on the playa` : 'Forecast model'"
       >
-        <UIcon :name="wmo(wx.weather_code).icon" class="size-4 text-primary" />
-        <span class="font-medium">{{ Math.round(wx.temperature_2m) }}°</span>
-        <span class="text-white/60">{{ Math.round(wx.wind_gusts_10m) }} mph</span>
-        <span class="size-2 rounded-full" :style="{ background: dustRisk(wx.wind_gusts_10m).color }" />
+        <UIcon :name="wmo(pill.code).icon" class="size-4 text-primary" />
+        <span class="font-medium">{{ fmtTemp(pill.tempF) }}</span>
+        <span class="text-white/60">{{ fmtWind(pill.gustMph) }} {{ windUnit }}</span>
+        <span class="size-2 rounded-full" :style="{ background: dustRisk(pill.gustMph).color }" />
+        <!-- a quiet mark that this is a real sensor, not a model -->
+        <span v-if="pill.live" class="relative flex size-1.5" aria-label="live station">
+          <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+          <span class="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
+        </span>
       </NuxtLink>
 
+      <!-- BMIR, one tap. The playa's own station; people want it while looking
+           at the map, not after navigating away to the Live page. -->
+      <button
+        type="button"
+        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+        :aria-label="bmirPlaying ? 'Stop BMIR' : 'Listen to BMIR 94.5'"
+        @click="toggleBmir"
+      >
+        <UIcon :name="bmirLoading ? 'i-lucide-loader-circle' : bmirPlaying ? 'i-lucide-pause' : 'i-lucide-radio'" :class="['size-4 text-primary', bmirLoading && 'animate-spin']" />
+        <span class="font-medium">BMIR</span>
+        <span class="text-white/60">94.5</span>
+        <span v-if="bmirPlaying" class="flex items-end gap-0.5" aria-hidden="true">
+          <span v-for="(h, i) in [7, 11, 5]" :key="i" class="w-0.5 animate-pulse rounded-full bg-emerald-400" :style="{ height: `${h}px`, animationDelay: `${i * 140}ms` }" />
+        </span>
+      </button>
+
       <!-- live wind readout (when the Wind layer is on) -->
-      <div v-if="windMode && windInfo" class="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
+      <div v-if="windInfo && windInfo.gusts >= 12" class="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
         <span class="flex size-7 shrink-0 items-center justify-center rounded-full" :style="{ background: `${windInfo.color}22` }">
           <UIcon name="i-lucide-arrow-up" class="size-5 transition-transform" :style="{ transform: `rotate(${(windInfo.dir + 135) % 360}deg)`, color: windInfo.color }" />
         </span>

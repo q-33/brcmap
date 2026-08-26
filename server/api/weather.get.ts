@@ -35,6 +35,8 @@ interface StationReading {
   label: string
   owner: string
   vendor: string
+  /** the station nominated to speak for the city */
+  preferred: boolean
   /** where it is, so the map can draw it */
   lat: number | null
   lng: number | null
@@ -166,6 +168,7 @@ async function readStations(): Promise<StationReading[]> {
         label: s.label || s.stationId,
         owner: s.owner || '',
         vendor: s.vendor,
+        preferred: s.preferred,
         kmFromCity: Math.round(km * 10) / 10,
         fresh: isFresh(Date.parse(o.observedAt)),
         observedAt: o.observedAt,
@@ -192,7 +195,16 @@ async function readStations(): Promise<StationReading[]> {
       // One dead station must not take the others — or the forecast — down.
     }
   }
-  return out.sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))
+  // The nominated station first, then freshest. "Whichever answered last" made
+  // the map's pill flip between stations minute to minute; a nomination holds
+  // steady, and still steps aside the moment that station stops reporting.
+  return out.sort((a, b) => {
+    const fa = a.fresh && a.preferred ? 1 : 0
+    const fb = b.fresh && b.preferred ? 1 : 0
+    if (fa !== fb)
+      return fb - fa
+    return Date.parse(b.observedAt) - Date.parse(a.observedAt)
+  })
 }
 
 export default defineCachedEventHandler(async (): Promise<WeatherResult> => {

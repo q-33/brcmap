@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AirNow, FireAlert, FireIncident } from '~~/lib/fires'
 import { aqiBand, describeIncident } from '~~/lib/fires'
-import { dustRisk, tempBoth, toCelsius, toKmh, windBoth, windDir, wmo } from '~~/lib/weather'
+import { dustRisk, windDir, wmo } from '~~/lib/weather'
 
 interface Current {
   temperature_2m: number
@@ -122,6 +122,10 @@ const { lastAt: firesAt, refreshNow: refreshFiresNow } = useAutoRefresh(refreshF
 const { lastAt: wxAt } = useAutoRefresh(refresh, REFRESH_MS)
 
 // Re-render the "x min ago" labels without re-fetching anything.
+// One switch for both scales: nobody wants Celsius alongside miles per hour.
+// Shared with the map pill, so changing it here changes it there.
+const { units, metric, temp: uTemp, wind: uWind, tempUnit, windUnit } = useUnits()
+
 const nowTick = ref(Date.now())
 onMounted(() => {
   const t = setInterval(() => (nowTick.value = Date.now()), 30_000)
@@ -167,6 +171,20 @@ useHead({ title: 'Live — BRC Map' })
     <div class="mb-2 flex items-end justify-between gap-3">
       <h1 class="font-display text-3xl font-bold uppercase tracking-tight sm:text-4xl">Live on Playa</h1>
       <div class="flex shrink-0 items-center gap-1.5 text-xs text-(--ui-text-muted)">
+        <div class="flex overflow-hidden rounded-full border border-(--ui-border) text-xs font-medium">
+          <button
+            type="button"
+            class="px-2.5 py-1 transition"
+            :class="!metric ? 'bg-primary text-inverted' : 'text-(--ui-text-muted) hover:bg-(--ui-bg-muted)'"
+            @click="units = 'imperial'"
+          >°F</button>
+          <button
+            type="button"
+            class="px-2.5 py-1 transition"
+            :class="metric ? 'bg-primary text-inverted' : 'text-(--ui-text-muted) hover:bg-(--ui-bg-muted)'"
+            @click="units = 'metric'"
+          >°C</button>
+        </div>
         <span class="hidden sm:inline">updated {{ wxAgo }}</span>
         <UButton size="xs" variant="ghost" icon="i-lucide-refresh-cw" :loading="status === 'pending'" @click="refresh()">Refresh</UButton>
       </div>
@@ -188,14 +206,11 @@ useHead({ title: 'Live — BRC Map' })
 
       <div class="mt-4 flex items-center gap-5">
         <div class="flex-1">
-          <p v-if="station.tempF != null" class="font-display text-5xl font-bold leading-none">{{ Math.round(station.tempF) }}°F</p>
-          <p class="mt-1 text-(--ui-text-muted)">
-            <template v-if="station.tempF != null">{{ Math.round(toCelsius(station.tempF)) }}°C</template>
-            <template v-if="station.feelsLikeF != null"> · feels {{ tempBoth(station.feelsLikeF) }}</template>
-          </p>
+          <p v-if="station.tempF != null" class="font-display text-5xl font-bold leading-none">{{ uTemp(station.tempF) }}{{ tempUnit.slice(1) }}</p>
+          <p v-if="station.feelsLikeF != null" class="mt-1 text-(--ui-text-muted)">feels {{ uTemp(station.feelsLikeF) }}</p>
         </div>
         <div v-if="station.windMph != null" class="text-right">
-          <p class="font-display text-3xl font-bold leading-none">{{ Math.round(station.windMph) }}<span class="text-lg"> mph</span></p>
+          <p class="font-display text-3xl font-bold leading-none">{{ uWind(station.windMph) }}<span class="text-lg"> {{ windUnit }}</span></p>
           <p class="text-xs text-(--ui-text-muted)">
             {{ station.windDirDeg != null ? windDir(station.windDirDeg) : '' }}
             <template v-if="station.gustMph != null"> · gusting {{ Math.round(station.gustMph) }}</template>
@@ -206,7 +221,7 @@ useHead({ title: 'Live — BRC Map' })
       <div class="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div v-if="station.gustMph != null" class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Wind lull / gust</p>
-          <p class="font-semibold">{{ Math.round(station.lullMph ?? 0) }} – {{ Math.round(station.gustMph) }} mph</p>
+          <p class="font-semibold">{{ uWind(station.lullMph ?? 0) }} – {{ uWind(station.gustMph) }} {{ windUnit }}</p>
         </div>
         <div v-if="station.humidity != null" class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Humidity</p>
@@ -274,8 +289,8 @@ useHead({ title: 'Live — BRC Map' })
       <div class="flex items-center gap-5">
         <UIcon :name="curWmo?.icon ?? 'i-lucide-cloud'" class="size-14 shrink-0 text-primary" />
         <div class="flex-1">
-          <p class="font-display text-5xl font-bold leading-none">{{ Math.round(cur.temperature_2m) }}°F</p>
-          <p class="mt-1 text-(--ui-text-muted)">{{ Math.round(toCelsius(cur.temperature_2m)) }}°C · {{ curWmo?.label }} · feels {{ tempBoth(cur.apparent_temperature) }}</p>
+          <p class="font-display text-5xl font-bold leading-none">{{ uTemp(cur.temperature_2m) }}{{ tempUnit.slice(1) }}</p>
+          <p class="mt-1 text-(--ui-text-muted)">{{ curWmo?.label }} · feels {{ uTemp(cur.apparent_temperature) }}</p>
           <p v-if="station" class="mt-1 text-xs text-(--ui-text-muted)">Forecast model — the station above is measuring the real thing.</p>
         </div>
         <span
@@ -287,13 +302,11 @@ useHead({ title: 'Live — BRC Map' })
       <div class="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Wind</p>
-          <p class="font-semibold">{{ Math.round(cur.wind_speed_10m) }} mph {{ windDir(cur.wind_direction_10m) }}</p>
-          <p class="text-xs text-(--ui-text-muted)">{{ Math.round(toKmh(cur.wind_speed_10m)) }} km/h</p>
+          <p class="font-semibold">{{ uWind(cur.wind_speed_10m) }} {{ windUnit }} {{ windDir(cur.wind_direction_10m) }}</p>
         </div>
         <div class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Gusts</p>
-          <p class="font-semibold">{{ Math.round(cur.wind_gusts_10m) }} mph</p>
-          <p class="text-xs text-(--ui-text-muted)">{{ Math.round(toKmh(cur.wind_gusts_10m)) }} km/h</p>
+          <p class="font-semibold">{{ uWind(cur.wind_gusts_10m) }} {{ windUnit }}</p>
         </div>
         <div class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Humidity</p>
@@ -321,7 +334,7 @@ useHead({ title: 'Live — BRC Map' })
         <p v-if="peakGust" class="text-xs">
           <span class="text-(--ui-text-muted)">Peak gust in 24h:</span>
           <b :style="{ color: dustRisk(peakGust.gust).color }">
-            {{ Math.round(peakGust.gust) }} mph at {{ hourLabel(peakGust.time) }}
+            {{ uWind(peakGust.gust) }} {{ windUnit }} at {{ hourLabel(peakGust.time) }}
           </b>
         </p>
       </div>
@@ -342,8 +355,8 @@ useHead({ title: 'Live — BRC Map' })
                 :style="{ height: `${Math.max(6, Math.min(100, (p.gust / 50) * 100))}%`, background: dustRisk(p.gust).color }"
               />
             </div>
-            <p class="mt-1 text-[11px] font-semibold tabular-nums">{{ Math.round(p.gust) }}</p>
-            <p class="text-[10px] text-(--ui-text-muted) tabular-nums">{{ Math.round(p.temp) }}°</p>
+            <p class="mt-1 text-[11px] font-semibold tabular-nums">{{ uWind(p.gust) }}</p>
+            <p class="text-[10px] text-(--ui-text-muted) tabular-nums">{{ uTemp(p.temp) }}</p>
           </div>
         </div>
       </div>
@@ -361,9 +374,8 @@ useHead({ title: 'Live — BRC Map' })
         <div v-for="(d, i) in data.days" :key="d.date" class="rounded-xl border border-(--ui-border) p-3 text-center">
           <p class="text-xs font-semibold">{{ dayName(d.date, i) }}</p>
           <UIcon :name="wmo(d.code).icon" class="mx-auto my-1.5 size-7 text-primary" />
-          <p class="text-sm"><b>{{ Math.round(d.max) }}°F</b> <span class="text-(--ui-text-muted)">{{ Math.round(d.min) }}°F</span></p>
-          <p class="text-xs text-(--ui-text-muted)"><b>{{ Math.round(toCelsius(d.max)) }}°C</b> {{ Math.round(toCelsius(d.min)) }}°C</p>
-          <p class="mt-1 text-xs" :style="{ color: dustRisk(d.gustMax).color }">{{ windBoth(d.gustMax) }}</p>
+          <p class="text-sm"><b>{{ uTemp(d.max) }}</b> <span class="text-(--ui-text-muted)">{{ uTemp(d.min) }}</span></p>
+          <p class="mt-1 text-xs" :style="{ color: dustRisk(d.gustMax).color }">{{ uWind(d.gustMax) }} {{ windUnit }}</p>
           <p v-if="d.precip > 5" class="text-xs text-(--ui-text-muted)">{{ d.precip }}% 🌧</p>
         </div>
       </div>
@@ -385,9 +397,8 @@ useHead({ title: 'Live — BRC Map' })
           class="rounded-xl border border-dashed border-(--ui-border) p-2.5 text-center"
         >
           <p class="text-xs font-semibold">{{ dayName(d.date, i + 99) }}</p>
-          <p class="mt-1 text-sm"><b>{{ Math.round(d.max) }}°F</b> <span class="text-(--ui-text-muted)">{{ Math.round(d.min) }}°F</span></p>
-          <p class="text-xs text-(--ui-text-muted)">{{ Math.round(toCelsius(d.max)) }}° / {{ Math.round(toCelsius(d.min)) }}°C</p>
-          <p class="mt-1 text-xs" :style="{ color: dustRisk(d.windMax).color }">{{ Math.round(d.windMax) }} mph</p>
+          <p class="mt-1 text-sm"><b>{{ uTemp(d.max) }}</b> <span class="text-(--ui-text-muted)">{{ uTemp(d.min) }}</span></p>
+          <p class="mt-1 text-xs" :style="{ color: dustRisk(d.windMax).color }">{{ uWind(d.windMax) }} {{ windUnit }}</p>
         </div>
       </div>
       <p class="mt-2 text-xs text-(--ui-text-muted)">

@@ -72,6 +72,8 @@ export const weatherStations = pgTable('weather_stations', {
   label: text('label'),
   owner: text('owner'),
   active: boolean('active').notNull().default(true),
+  /** the station whose reading speaks for the city — see migration 0023 */
+  preferred: boolean('preferred').notNull().default(false),
   activeFrom: text('active_from'),
   activeTo: text('active_to'),
   lat: doublePrecision('lat'),
