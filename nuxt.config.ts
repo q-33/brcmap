@@ -162,6 +162,10 @@ export default defineNuxtConfig({
     // it never goes near the browser. Unset until someone hands us one — the
     // weather page runs on Open-Meteo alone and says nothing about it.
     tempestApiKey: process.env.TEMPEST_API_KEY ?? '',
+    // Weather Underground PWS key, for the stations burners already publish to.
+    // Server-only and unset until someone hands us one; the weather page runs
+    // without it and says nothing about it.
+    wuApiKey: process.env.WU_API_KEY ?? '',
     // nuxt-auth-utils session: bound the sealed cookie's lifetime so a captured
     // cookie can't be replayed indefinitely (there's no server-side revocation).
     session: {

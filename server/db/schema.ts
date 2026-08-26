@@ -60,6 +60,29 @@ export const landmarkOverrides = pgTable('landmark_overrides', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Local weather stations on the playa, added by admins rather than by deploy.
+// See db/migrations/0022. lat/lng come from the vendor's own reply, never typed
+// in — the position is what decides whether a station is trusted.
+export const weatherStations = pgTable('weather_stations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /** 'wunderground' | 'tempest' */
+  vendor: text('vendor').notNull(),
+  /** the vendor's own id: a WU call sign like KNVGERLA2, or a Tempest integer */
+  stationId: text('station_id').notNull(),
+  label: text('label'),
+  owner: text('owner'),
+  active: boolean('active').notNull().default(true),
+  activeFrom: text('active_from'),
+  activeTo: text('active_to'),
+  lat: doublePrecision('lat'),
+  lng: doublePrecision('lng'),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  note: text('note'),
+  addedById: uuid('added_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('weather_stations_active_idx').on(t.active)])
+
 // Moderation / admin audit log.
 export const auditLog = pgTable('audit_log', {
   id: uuid('id').primaryKey().defaultRandom(),

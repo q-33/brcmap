@@ -1,5 +1,7 @@
 import { ofetch } from 'ofetch'
-import { MAX_STATION_KM, activeStations, isFresh, kmFromCity } from '~~/lib/weather/stations'
+import { and, eq } from 'drizzle-orm'
+import { MAX_STATION_KM, isFresh, kmFromCity } from '~~/lib/weather/stations'
+import { weatherStations } from '../db/schema'
 
 // Weather for Black Rock City, from three sources that answer different questions.
 //
@@ -32,6 +34,11 @@ interface StationReading {
   key: string
   label: string
   owner: string
+  vendor: string
+  /** where it is, so the map can draw it */
+  lat: number | null
+  lng: number | null
+  kmFromCity: number | null
   observedAt: string
   fresh: boolean
   tempF: number | null
@@ -117,44 +124,74 @@ async function ecmwf() {
 }
 
 async function readStations(): Promise<StationReading[]> {
-  if (!tempestConfigured())
+  const today = new Date().toISOString().slice(0, 10)
+  let rows: typeof weatherStations.$inferSelect[] = []
+  try {
+    rows = await useDb().select().from(weatherStations).where(eq(weatherStations.active, true))
+  }
+  catch {
+    // Table missing or DB unreachable — the forecast is still worth serving.
     return []
+  }
+
   const out: StationReading[] = []
-  for (const s of activeStations()) {
+  for (const s of rows) {
+    // An optional window, for a station whose owner knows when it goes up.
+    if (s.activeFrom && today < s.activeFrom)
+      continue
+    if (s.activeTo && today > s.activeTo)
+      continue
+
     try {
-      const o = await latestObservation(s.stationId)
+      let o: { observedAt: string, lat: number | null, lng: number | null, [k: string]: any } | null = null
+      if (s.vendor === 'wunderground' && wuConfigured())
+        o = await wuLatest(s.stationId)
+      else if (s.vendor === 'tempest' && tempestConfigured())
+        o = await latestObservation(Number(s.stationId))
       if (!o)
         continue
 
-      // TWO gates, and the second is the one that matters.
-      //
-      // activeStations() has already checked the calendar. But a weather station
-      // is a physical object in somebody's truck: Radar's sits at his house in
-      // Texas until he drives it out, and if he leaves a day late the calendar
-      // would cheerfully start publishing Texas weather as playa conditions.
-      //
-      // So the station has to actually BE here. Anything reporting from outside
-      // the Black Rock Desert is dropped on the floor, whatever the date says. A
-      // station with no position is dropped too — unverifiable is not the same as
-      // fine.
+      // The station has to actually BE here. A weather station is a physical
+      // object in somebody's truck: one registered a week early is still at
+      // home, and the calendar alone would happily publish its weather as playa
+      // conditions. No position means unverifiable, which is not the same as fine.
       if (o.lat == null || o.lng == null)
         continue
-      if (kmFromCity(o.lat, o.lng) > MAX_STATION_KM)
+      const km = kmFromCity(o.lat, o.lng)
+      if (km > MAX_STATION_KM)
         continue
 
       out.push({
-        key: s.key,
-        label: s.label,
-        owner: s.owner,
+        key: s.id,
+        label: s.label || s.stationId,
+        owner: s.owner || '',
+        vendor: s.vendor,
+        kmFromCity: Math.round(km * 10) / 10,
         fresh: isFresh(Date.parse(o.observedAt)),
-        ...o,
+        observedAt: o.observedAt,
+        lat: o.lat,
+        lng: o.lng,
+        tempF: o.tempF ?? null,
+        feelsLikeF: o.feelsLikeF ?? null,
+        humidity: o.humidity ?? null,
+        windMph: o.windMph ?? null,
+        gustMph: o.gustMph ?? null,
+        lullMph: o.lullMph ?? null,
+        windDirDeg: o.windDirDeg ?? null,
+        pressureInHg: o.pressureInHg ?? null,
+        pressureTrend: o.pressureTrend ?? null,
+        dewPointF: o.dewPointF ?? null,
+        wbgtF: o.wbgtF ?? null,
+        uv: o.uv ?? null,
+        precipTodayIn: o.precipTodayIn ?? null,
+        lightningLast1hr: o.lightningLast1hr ?? null,
+        lightningLastDistanceMi: o.lightningLastDistanceMi ?? null,
       })
     }
     catch {
       // One dead station must not take the others — or the forecast — down.
     }
   }
-  // Freshest first, so the page can simply take the head of the list.
   return out.sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))
 }
 

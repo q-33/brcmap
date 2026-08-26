@@ -26,6 +26,7 @@ interface Day {
 }
 interface StationReading {
   key: string, label: string, owner: string, observedAt: string, fresh: boolean
+  vendor: string, lat: number | null, lng: number | null, kmFromCity: number | null
   tempF: number | null, feelsLikeF: number | null, humidity: number | null
   windMph: number | null, gustMph: number | null, lullMph: number | null, windDirDeg: number | null
   pressureInHg: number | null, pressureTrend: string | null, dewPointF: number | null
@@ -247,6 +248,21 @@ useHead({ title: 'Live — BRC Map' })
         </template>
       </p>
     </UCard>
+
+    <!-- Where the readings are coming from. Several stations across the city say
+         something a single number cannot: that it is gusting at 9:00 and calm at
+         4:00. Only shown once more than one is reporting. -->
+    <section v-if="(data?.stations?.length ?? 0) > 1" class="mb-4">
+      <h2 class="mb-2 font-display text-sm font-bold uppercase tracking-wide text-(--ui-text-muted)">
+        Stations on the playa
+      </h2>
+      <ClientOnly>
+        <StationMap :stations="data!.stations" />
+        <template #fallback>
+          <div class="h-72 w-full animate-pulse rounded-xl border border-(--ui-border) bg-(--ui-bg-muted)/40 sm:h-96" />
+        </template>
+      </ClientOnly>
+    </section>
 
     <p v-if="!station && staleStations.length" class="mb-4 rounded-lg border border-(--ui-border) p-3 text-sm text-(--ui-text-muted)">
       <UIcon name="i-lucide-radio-tower" class="mr-1 inline size-4" />

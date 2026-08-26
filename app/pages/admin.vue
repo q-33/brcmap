@@ -48,6 +48,77 @@ const nowTick = ref(Date.now())
 const isOnline = (u: OnlineUser) => !!u.lastSeenAt && nowTick.value - +new Date(u.lastSeenAt) < ONLINE_MS
 const onlineCount = computed(() => (online.value ?? []).filter(isOnline).length)
 
+// --- Local weather stations -------------------------------------------------
+// Stations arrive mid-event, so they live in the database and are added here by
+// the vendor's own id rather than by editing code and waiting for a deploy.
+interface WxStation {
+  id: string
+  vendor: string
+  stationId: string
+  label: string | null
+  owner: string | null
+  active: boolean
+  lat: number | null
+  lng: number | null
+  lastSeenAt: string | null
+  note: string | null
+}
+const { data: stations, refresh: refreshStations } = await useFetch<WxStation[]>(
+  '/api/admin/weather/stations',
+  { default: () => [] },
+)
+const wxForm = reactive({ stationId: '', label: '', owner: '', note: '' })
+const wxBusy = ref(false)
+const wxMsg = ref('')
+const wxErr = ref('')
+
+async function addStation(allowFarAway = false) {
+  const id = wxForm.stationId.trim()
+  if (!id)
+    return
+  wxBusy.value = true
+  wxErr.value = ''
+  wxMsg.value = ''
+  try {
+    const r = await $fetch<any>('/api/admin/weather/stations', {
+      method: 'POST',
+      body: {
+        vendor: 'wunderground',
+        stationId: id,
+        label: wxForm.label.trim() || undefined,
+        owner: wxForm.owner.trim() || undefined,
+        note: wxForm.note.trim() || undefined,
+        allowFarAway,
+      },
+    })
+    wxMsg.value = `Added ${r.label} — ${r.km} km from the city, reading ${r.reading?.tempF ?? '?'}°F.`
+    wxForm.stationId = ''
+    wxForm.label = ''
+    wxForm.owner = ''
+    wxForm.note = ''
+    await refreshStations()
+  }
+  catch (e: any) {
+    wxErr.value = e?.data?.statusMessage ?? 'Could not add that station.'
+  }
+  finally {
+    wxBusy.value = false
+  }
+}
+
+async function removeStation(s: WxStation) {
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(`Remove ${s.label || s.stationId}?`))
+    return
+  try {
+    await $fetch(`/api/admin/weather/stations?id=${s.id}`, { method: 'DELETE' })
+    await refreshStations()
+  }
+  catch (e: any) {
+    wxErr.value = e?.data?.statusMessage ?? 'Could not remove that station.'
+  }
+}
+
 const tabs = computed(() => [
   { key: 'queue', label: 'Queue', n: queue.value?.length ?? 0 },
   { key: 'claims', label: 'Claims', n: claims.value?.length ?? 0 },
@@ -56,11 +127,12 @@ const tabs = computed(() => [
   { key: 'content', label: 'Content', n: undefined },
   { key: 'recent', label: 'Recent', n: undefined },
   { key: 'audit', label: 'Audit', n: undefined },
+  { key: 'weather', label: 'Weather', n: stations.value?.length ?? undefined },
   { key: 'broadcast', label: 'Broadcast', n: undefined },
 ] as const)
-type Tab = 'queue' | 'claims' | 'online' | 'people' | 'content' | 'recent' | 'audit' | 'broadcast'
+type Tab = 'queue' | 'claims' | 'online' | 'people' | 'content' | 'recent' | 'audit' | 'weather' | 'broadcast'
 const route = useRoute()
-const validTabs: Tab[] = ['queue', 'claims', 'online', 'people', 'content', 'recent', 'audit', 'broadcast']
+const validTabs: Tab[] = ['queue', 'claims', 'online', 'people', 'content', 'recent', 'audit', 'weather', 'broadcast']
 const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'queue')
 watch(() => route.query.tab, (t) => { if (validTabs.includes(t as Tab)) tab.value = t as Tab })
 const ctab = ref<'camps' | 'art' | 'events'>('camps')
@@ -567,6 +639,61 @@ useHead({ title: 'Admin — BRC Map' })
             <span class="shrink-0 text-xs text-(--ui-text-muted)">{{ rel(a.createdAt) }}</span>
           </li>
           <li v-if="!auditRows?.length" class="px-3 py-6 text-center text-sm text-(--ui-text-muted)">No activity logged yet.</li>
+        </ul>
+      </section>
+
+      <!-- WEATHER STATIONS -->
+      <section v-show="tab === 'weather'" class="mt-5">
+        <p class="mb-3 text-sm text-(--ui-text-muted)">
+          Local stations feeding the Live page. Add one by its Weather Underground station ID —
+          the call sign on its dashboard, like <code class="rounded bg-(--ui-bg-muted) px-1">KNVGERLA2</code>.
+          The ID is checked before it is saved, and the position comes from the station itself.
+        </p>
+
+        <form class="mb-4 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" @submit.prevent="addStation(false)">
+          <UInput v-model="wxForm.stationId" placeholder="Station ID (e.g. KNVGERLA2)" required />
+          <UInput v-model="wxForm.label" placeholder="Name shown on the map (optional)" />
+          <UInput v-model="wxForm.owner" placeholder="Who brought it (optional)" />
+          <UButton type="submit" :loading="wxBusy" icon="i-lucide-plus">Add</UButton>
+        </form>
+
+        <p v-if="wxMsg" class="mb-3 rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">{{ wxMsg }}</p>
+        <div v-if="wxErr" class="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-400">
+          {{ wxErr }}
+          <!-- a station in transit is a legitimate case, so offer it explicitly -->
+          <UButton
+            v-if="wxErr.includes('km from Black Rock City')"
+            size="xs"
+            variant="soft"
+            color="neutral"
+            class="ml-2"
+            @click="addStation(true)"
+          >
+            Add anyway
+          </UButton>
+        </div>
+
+        <ul class="divide-y divide-(--ui-border) rounded-xl border border-(--ui-border)">
+          <li v-for="st in stations" :key="st.id" class="flex items-start justify-between gap-3 px-3 py-2.5">
+            <div class="min-w-0">
+              <p class="font-medium">
+                {{ st.label || st.stationId }}
+                <UBadge size="xs" variant="subtle" color="neutral" class="ml-1">{{ st.stationId }}</UBadge>
+                <UBadge v-if="!st.active" size="xs" variant="subtle" color="warning" class="ml-1">off</UBadge>
+              </p>
+              <p class="text-xs text-(--ui-text-muted)">
+                <span v-if="st.owner">{{ st.owner }} · </span>
+                <span v-if="st.lat != null">{{ st.lat.toFixed(4) }}, {{ st.lng!.toFixed(4) }}</span>
+                <span v-else>position unknown</span>
+                <span v-if="st.lastSeenAt"> · last seen {{ new Date(st.lastSeenAt).toLocaleString() }}</span>
+              </p>
+              <p v-if="st.note" class="text-xs text-(--ui-text-muted)">{{ st.note }}</p>
+            </div>
+            <UButton icon="i-lucide-trash-2" size="xs" color="neutral" variant="ghost" :aria-label="`Remove ${st.label || st.stationId}`" @click="removeStation(st)" />
+          </li>
+          <li v-if="!stations?.length" class="px-3 py-6 text-center text-sm text-(--ui-text-muted)">
+            No stations yet. Add one above and it appears on the Live page.
+          </li>
         </ul>
       </section>
 
