@@ -2,7 +2,7 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoJSONSource, Map as MlMap, Marker } from 'maplibre-gl'
 import * as suncalcNs from 'suncalc'
-import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson, washCorners } from '~~/lib/brc/cityGeoJson'
+import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
 
 // Regular component (NOT .client) rendered inside <ClientOnly> by the parent.
 // MapLibre is dynamically imported in onMounted so it never loads during SSR.
@@ -37,7 +37,6 @@ function applyBasemap() {
       map!.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none')
   }
   set('blocks', !lines)
-  set('wash', !lines)
   set('street-edges', !lines)
   set('street-channels', !lines)
   set('street-lines', lines)
@@ -655,16 +654,12 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'block'],
       paint: { 'fill-color': '#fdfdfa', 'fill-opacity': 0.97 },
     })
-    // the blue camping wash — the OFFICIAL plan's gradient raster itself, baked
-    // as a georeferenced RGBA image (pixel-exact shading; streets healed so the
-    // vector channels below redraw them). Corners track the golden spike.
-    map.addSource('wash', { type: 'image', url: '/brc-wash.png', coordinates: washCorners() as [[number, number], [number, number], [number, number], [number, number]] })
-    map.addLayer({
-      id: 'wash',
-      type: 'raster',
-      source: 'wash',
-      paint: { 'raster-fade-duration': 0, 'raster-resampling': 'linear' },
-    })
+    // The blue camping wash from the official plan used to be drawn here as a
+    // georeferenced raster. Removed: it tinted most of the city and made the
+    // things people actually look for — pins, street names, the dust — harder
+    // to pick out. The blocks below carry the same information by being white
+    // against the playa, without colouring half the screen. /brc-wash.png and
+    // washCorners() are kept, so it can come back if it is ever wanted.
     // Streets in the official's EXACT print geometry, measured off the plan PDF
     // by sampling ink across three radials: each street is two 4.25 m black
     // strokes with a 4.75 m clear core, so a 13.25 m envelope and stroke centres

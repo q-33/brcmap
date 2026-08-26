@@ -1006,7 +1006,6 @@ const itemOptions = computed(() => [
           <UIcon :name="layers.transport ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
         </button>
         <ul class="space-y-0.5 border-t border-white/10 pt-1.5 text-white/50">
-          <li><span class="mr-1.5 inline-block size-2 rounded-full align-middle" style="background:#27a3df" />Camp blocks</li>
           <li><span class="mr-1.5 inline-block size-2 rounded-full bg-white align-middle" />The Man · Center Camp</li>
           <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
         </ul>
