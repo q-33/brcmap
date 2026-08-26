@@ -3,7 +3,7 @@ import type { GateStatus } from '~~/lib/gate'
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
 import { GATE_STATUS_META, gateColor } from '~~/lib/gate'
-import { dustRisk, windDir, wmo } from '~~/lib/weather'
+import { dustRisk, wmo } from '~~/lib/weather'
 
 function namedAddress(s: string | null | undefined): string {
   if (!s)
@@ -361,14 +361,17 @@ async function toggleBmir() {
 onBeforeUnmount(() => bmirEl?.pause())
 
 // Wind for the dust animation: the station's if we have one, else the model's.
+// Wind for the blowing-dust animation. Direction and gusts only: the readout
+// that used the speed, compass point and risk label is gone, and computing them
+// for nobody is just work the phone does for free.
 const windInfo = computed(() => {
   const st = pillStation.value
   if (st && st.windDirDeg != null && st.windMph != null)
-    return { dir: st.windDirDeg, speed: st.windMph, gusts: st.gustMph ?? st.windMph, ...dustRisk(st.gustMph ?? st.windMph), from: windDir(st.windDirDeg) }
+    return { dir: st.windDirDeg, gusts: st.gustMph ?? st.windMph, color: dustRisk(st.gustMph ?? st.windMph).color }
   const c = wx.value
   if (!c || c.wind_direction_10m == null)
     return null
-  return { dir: c.wind_direction_10m, speed: c.wind_speed_10m, gusts: c.wind_gusts_10m, ...dustRisk(c.wind_gusts_10m), from: windDir(c.wind_direction_10m) }
+  return { dir: c.wind_direction_10m, gusts: c.wind_gusts_10m, color: dustRisk(c.wind_gusts_10m).color }
 })
 
 // map layer visibility (the legend doubles as the toggle control)
@@ -1048,17 +1051,6 @@ const itemOptions = computed(() => [
           <span v-for="(h, i) in [7, 11, 5]" :key="i" class="w-0.5 animate-pulse rounded-full bg-emerald-400" :style="{ height: `${h}px`, animationDelay: `${i * 140}ms` }" />
         </span>
       </button>
-
-      <!-- live wind readout (when the Wind layer is on) -->
-      <div v-if="windInfo && windInfo.gusts >= 12" class="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
-        <span class="flex size-7 shrink-0 items-center justify-center rounded-full" :style="{ background: `${windInfo.color}22` }">
-          <UIcon name="i-lucide-arrow-up" class="size-5 transition-transform" :style="{ transform: `rotate(${(windInfo.dir + 135) % 360}deg)`, color: windInfo.color }" />
-        </span>
-        <div class="leading-tight">
-          <p class="text-sm"><b>{{ Math.round(windInfo.speed) }} mph</b> <span class="text-white/55">gusts {{ Math.round(windInfo.gusts) }}</span></p>
-          <p class="text-xs text-white/60">from the {{ windInfo.from }} · {{ windInfo.label }}</p>
-        </div>
-      </div>
     </div>
 
     <!-- bottom-right stack: compass rose · Meshtastic mesh.
