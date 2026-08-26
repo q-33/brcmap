@@ -1513,14 +1513,15 @@ function drawDust() {
   dustCanvas.height = ch * dpr
   ctx.scale(dpr, dpr)
 
-  // ~30 motes in a stiff breeze, ~140 in a whiteout.
-  const count = Math.round(Math.min(140, 18 + gusts * 3.2))
+  // ~36 motes in a stiff breeze, ~168 in a whiteout. Raised 20% from the first
+  // pass, which read as too faint to notice on a calm day.
+  const count = Math.round(Math.min(168, 21.6 + gusts * 3.84))
   dustParts = Array.from({ length: count }, () => ({
     x: Math.random() * cw,
     y: Math.random() * ch,
     sp: 0.35 + Math.random() * 0.9,
-    a: 0.08 + Math.random() * 0.2,
-    r: Math.random() < 0.75 ? 1 : 1.8,
+    a: 0.096 + Math.random() * 0.24,
+    r: Math.random() < 0.75 ? 1.2 : 2.16,
   }))
 
   // Meteorological direction is where the wind comes FROM; motes travel the
