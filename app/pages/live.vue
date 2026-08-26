@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { AirNow, FireAlert, FireIncident } from '~~/lib/fires'
-import { aqiBand, describeIncident } from '~~/lib/fires'
+import type { AirNow, FireAlert } from '~~/lib/fires'
+import { aqiBand } from '~~/lib/fires'
 import { dustRisk, windDir, wmo } from '~~/lib/weather'
 
 interface Current {
@@ -111,7 +111,7 @@ function clockTime(iso: string) {
 
 // Fire, smoke and official alerts around the city. Lazy + client-side so a slow
 // federal feed never holds up the weather above it.
-interface Fires { alerts: FireAlert[], incidents: FireIncident[], air: AirNow, updatedAt: string }
+interface Fires { alerts: FireAlert[], air: AirNow, updatedAt: string }
 const { data: fires, refresh: refreshFires } = await useFetch<Fires>('/api/fires', { server: false, lazy: true })
 
 // Keep the page current without anyone reloading it.
@@ -259,11 +259,6 @@ useHead({ title: 'Live — BRC Map' })
         <div v-if="data?.days?.[0]" class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Sun</p>
           <p class="font-semibold">{{ clockTime(data.days[0].sunrise) }} – {{ clockTime(data.days[0].sunset) }}</p>
-        </div>
-        <div v-if="station.pressureInHg != null" class="rounded-lg border border-(--ui-border) p-2.5">
-          <p class="text-xs text-(--ui-text-muted)">Pressure</p>
-          <p class="font-semibold">{{ station.pressureInHg.toFixed(2) }} inHg</p>
-          <p v-if="station.pressureTrend" class="text-xs text-(--ui-text-muted)">{{ station.pressureTrend }}</p>
         </div>
         <div v-if="station.precipTodayIn" class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Rain today</p>
@@ -431,10 +426,16 @@ useHead({ title: 'Live — BRC Map' })
       </p>
     </section>
 
-    <!-- fire & smoke -->
-    <section v-if="fires" class="mt-10">
+    <!-- Alerts and air quality.
+         The list of distant fires used to live here too. It was removed once
+         the nearby fire was out: a table of incidents 60-90 miles away is not
+         actionable from the playa, and the agencies linked below track them
+         properly. What stays is what changes how the day goes here — an official
+         warning, or air you can taste.
+         The whole section hides itself when there is neither. -->
+    <section v-if="fires && (fires.alerts.length || (fires.air.usAqi ?? 0) > 50 || airLater)" class="mt-10">
       <div class="mb-3 flex items-baseline justify-between gap-3">
-        <h2 class="font-display text-xl font-semibold text-primary">Fire &amp; smoke</h2>
+        <h2 class="font-display text-xl font-semibold text-primary">Alerts &amp; air quality</h2>
         <span class="flex items-center gap-1.5 text-xs text-(--ui-text-muted)">
           <span class="relative flex size-1.5">
             <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
@@ -461,7 +462,7 @@ useHead({ title: 'Live — BRC Map' })
         <p v-if="a.area" class="mt-1 text-xs opacity-80">{{ a.area }}</p>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div>
         <!-- air quality -->
         <UCard>
           <div class="flex items-center gap-2">
@@ -481,28 +482,6 @@ useHead({ title: 'Live — BRC Map' })
           </p>
         </UCard>
 
-        <!-- nearest active fires -->
-        <UCard>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-flame" class="size-5 text-primary" />
-            <h3 class="font-semibold">Active fires nearby</h3>
-          </div>
-          <p v-if="!fires.incidents.length" class="mt-2 text-sm text-(--ui-text-muted)">
-            No active incidents reported within 300 km.
-          </p>
-          <ul v-else class="mt-2 space-y-2">
-            <li v-for="f in fires.incidents" :key="f.name + f.km" class="text-sm">
-              <div class="flex items-baseline justify-between gap-2">
-                <span class="font-semibold">{{ f.name }}</span>
-                <span class="shrink-0 text-xs text-(--ui-text-muted)">{{ Math.round(f.km) }} km {{ f.bearing }}</span>
-              </div>
-              <p class="text-xs text-(--ui-text-muted)">
-                {{ describeIncident(f) }}<span v-if="f.county"> · {{ f.county }}, {{ f.state }}</span>
-              </p>
-            </li>
-          </ul>
-          <p class="mt-3 text-xs text-(--ui-text-muted)">Distance and bearing are from the Man. Source: NIFC.</p>
-        </UCard>
       </div>
 
       <div class="mt-4 rounded-xl border border-(--ui-border) bg-(--ui-bg-muted) px-4 py-3 text-sm">
