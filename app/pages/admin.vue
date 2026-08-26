@@ -67,6 +67,12 @@ const { data: stations, refresh: refreshStations } = await useFetch<WxStation[]>
   '/api/admin/weather/stations',
   { default: () => [] },
 )
+// Which providers have a key. Asked up front so the panel can say "no key yet"
+// rather than letting someone type an ID and read a vague failure.
+const { data: wxStatus } = await useFetch<{ wunderground: boolean, tempest: boolean }>(
+  '/api/admin/weather/status',
+  { default: () => ({ wunderground: false, tempest: false }) },
+)
 const wxForm = reactive({ stationId: '', label: '', owner: '', note: '' })
 const wxBusy = ref(false)
 const wxMsg = ref('')
@@ -99,7 +105,13 @@ async function addStation(allowFarAway = false) {
     await refreshStations()
   }
   catch (e: any) {
-    wxErr.value = e?.data?.statusMessage ?? 'Could not add that station.'
+    // Show what the server actually said. The previous fallback swallowed a
+    // perfectly clear "no API key configured" and left an admin guessing.
+    const code = e?.data?.statusCode ?? e?.statusCode
+    const said = e?.data?.statusMessage || e?.data?.message || e?.message
+    wxErr.value = said
+      ? (code ? `${said} (${code})` : said)
+      : `Could not reach the server (${code ?? 'no response'}).`
   }
   finally {
     wxBusy.value = false
@@ -650,11 +662,20 @@ useHead({ title: 'Admin — BRC Map' })
           The ID is checked before it is saved, and the position comes from the station itself.
         </p>
 
+        <div v-if="!wxStatus?.wunderground" class="mb-4 flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2.5 text-sm">
+          <UIcon name="i-lucide-key-round" class="mt-0.5 size-4 shrink-0 text-amber-500" />
+          <p class="text-(--ui-text-toned)">
+            <b class="text-(--ui-text)">No Weather Underground key yet.</b>
+            Stations cannot be added until <code class="rounded bg-(--ui-bg-muted) px-1">WU_API_KEY</code>
+            is set in the app environment. A free key comes with any Weather Underground PWS account.
+          </p>
+        </div>
+
         <form class="mb-4 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" @submit.prevent="addStation(false)">
           <UInput v-model="wxForm.stationId" placeholder="Station ID (e.g. KNVGERLA2)" required />
           <UInput v-model="wxForm.label" placeholder="Name shown on the map (optional)" />
           <UInput v-model="wxForm.owner" placeholder="Who brought it (optional)" />
-          <UButton type="submit" :loading="wxBusy" icon="i-lucide-plus">Add</UButton>
+          <UButton type="submit" :loading="wxBusy" :disabled="!wxStatus?.wunderground" icon="i-lucide-plus">Add</UButton>
         </form>
 
         <p v-if="wxMsg" class="mb-3 rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">{{ wxMsg }}</p>
