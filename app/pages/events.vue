@@ -20,7 +20,20 @@ interface EventRow {
 const { loggedIn, user } = useUserSession()
 const { isAdmin } = useMe()
 
-const { data: events, refresh } = await useFetch<EventRow[]>('/api/events')
+// Which guides are switched on. Persisted by <EventSourceToggles>; declared
+// before the fetch because the fetch depends on it.
+const enabledSources = ref<string[]>([...DEFAULT_ON])
+
+// Only the guides asked for come down the wire. Burning Man's own directory is
+// 6,500 occurrences on its own, so fetching everything and hiding most of it
+// would spend a lot of playa LTE on events nobody switched on.
+const { data: payload, refresh } = await useFetch<{ events: EventRow[], counts: Record<string, number> }>(
+  '/api/events',
+  { query: { sources: computed(() => enabledSources.value.join(',')) } },
+)
+const events = computed(() => payload.value?.events ?? [])
+// Counts come back for every guide regardless, so a toggle can say what it would add.
+const sourceCounts = computed(() => payload.value?.counts ?? {})
 
 // playa wall-clock formatting (no timezone conversion — parse the string parts)
 function parts(s: string) {
@@ -57,21 +70,9 @@ function campAddress(e: EventRow): string | null {
   return a ? formatAddressNamed(a) : loc.addressString
 }
 
-// Which guides are switched on. Persisted by <EventSourceToggles>.
-const enabledSources = ref<string[]>([...DEFAULT_ON])
-
-// Count per guide from the FULL list, so a toggle shows what it would add rather
-// than what is already on screen.
-const sourceCounts = computed(() => {
-  const c: Record<string, number> = {}
-  for (const e of events.value ?? []) {
-    const k = e.source || 'user'
-    c[k] = (c[k] ?? 0) + 1
-  }
-  return c
-})
-
-const visible = computed(() => (events.value ?? []).filter(e => enabledSources.value.includes(e.source || 'user')))
+// The server already filtered; this only guards the moment between a toggle
+// flipping and the refetch landing.
+const visible = computed(() => events.value.filter(e => enabledSources.value.includes(e.source || 'user')))
 
 // group events by day
 const grouped = computed(() => {

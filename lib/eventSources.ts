@@ -34,6 +34,14 @@ export const EVENT_SOURCES: EventSource[] = [
     tone: 'primary',
   },
   {
+    key: 'official',
+    label: 'Official Burning Man',
+    emoji: '🔥',
+    blurb: "Every event in Burning Man's own directory. Thousands of them.",
+    defaultOn: false,
+    tone: 'orange',
+  },
+  {
     key: 'queer',
     label: 'Queer Events',
     emoji: '🏳️‍🌈',
