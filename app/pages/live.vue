@@ -92,7 +92,13 @@ const windGap = computed(() => {
   return Math.abs(diff) >= 8 ? diff : null
 })
 const curWmo = computed(() => cur.value ? wmo(cur.value.weather_code) : null)
-const dust = computed(() => cur.value ? dustRisk(cur.value.wind_gusts_10m) : null)
+// Dust risk follows the STATION's gusts when one is reporting. It is a claim
+// about what the wind is doing right now, so it should come from the thing
+// measuring the wind right now, not from a model of it.
+const dust = computed(() => {
+  const g = station.value?.gustMph ?? station.value?.windMph ?? cur.value?.wind_gusts_10m
+  return g == null ? null : dustRisk(g)
+})
 
 function dayName(d: string, i: number) {
   if (i === 0)
@@ -202,12 +208,25 @@ useHead({ title: 'Live — BRC Map' })
         <h2 class="font-display text-sm font-bold uppercase tracking-wide text-primary">On the playa now</h2>
         <UBadge size="xs" color="primary" variant="subtle">{{ station.label }}</UBadge>
         <span class="text-xs text-(--ui-text-muted)">measured here · {{ agoLabel(station.observedAt) }}</span>
+        <!-- dust risk was the one thing worth keeping from the model card's
+             header; it is computed from gusts, so the station's own gusts drive
+             it now rather than the forecast's -->
+        <span
+          v-if="dust"
+          class="ml-auto rounded-full px-3 py-1 text-sm font-semibold text-white"
+          :style="{ background: dust.color }"
+        >{{ dust.label }}</span>
       </div>
 
       <div class="mt-4 flex items-center gap-5">
         <div class="flex-1">
           <p v-if="station.tempF != null" class="font-display text-5xl font-bold leading-none">{{ uTemp(station.tempF) }}{{ tempUnit.slice(1) }}</p>
-          <p v-if="station.feelsLikeF != null" class="mt-1 text-(--ui-text-muted)">feels {{ uTemp(station.feelsLikeF) }}</p>
+          <p class="mt-1 text-(--ui-text-muted)">
+            <!-- the sky itself still comes from the model: a thermometer cannot
+                 tell you it is overcast -->
+            <template v-if="curWmo">{{ curWmo.label }}</template>
+            <template v-if="station.feelsLikeF != null"> · feels {{ uTemp(station.feelsLikeF) }}</template>
+          </p>
         </div>
         <div v-if="station.windMph != null" class="text-right">
           <p class="font-display text-3xl font-bold leading-none">{{ uWind(station.windMph) }}<span class="text-lg"> {{ windUnit }}</span></p>
@@ -236,6 +255,10 @@ useHead({ title: 'Live — BRC Map' })
         <div v-if="station.uv != null" class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">UV index</p>
           <p class="font-semibold">{{ Math.round(station.uv) }}</p>
+        </div>
+        <div v-if="data?.days?.[0]" class="rounded-lg border border-(--ui-border) p-2.5">
+          <p class="text-xs text-(--ui-text-muted)">Sun</p>
+          <p class="font-semibold">{{ clockTime(data.days[0].sunrise) }} – {{ clockTime(data.days[0].sunset) }}</p>
         </div>
         <div v-if="station.pressureInHg != null" class="rounded-lg border border-(--ui-border) p-2.5">
           <p class="text-xs text-(--ui-text-muted)">Pressure</p>
@@ -284,14 +307,16 @@ useHead({ title: 'Live — BRC Map' })
       {{ staleStations[0]!.label }} last reported {{ agoLabel(staleStations[0]!.observedAt) }} — showing the forecast model until it checks in again.
     </p>
 
-    <!-- current weather -->
-    <UCard v-if="cur">
+    <!-- The forecast model's current conditions — shown ONLY when no station is
+         reporting. With sensors inside the fence, printing a modelled
+         temperature beside a measured one invited people to wonder which was
+         right, and the answer was always the station. -->
+    <UCard v-if="cur && !station">
       <div class="flex items-center gap-5">
         <UIcon :name="curWmo?.icon ?? 'i-lucide-cloud'" class="size-14 shrink-0 text-primary" />
         <div class="flex-1">
           <p class="font-display text-5xl font-bold leading-none">{{ uTemp(cur.temperature_2m) }}{{ tempUnit.slice(1) }}</p>
           <p class="mt-1 text-(--ui-text-muted)">{{ curWmo?.label }} · feels {{ uTemp(cur.apparent_temperature) }}</p>
-          <p v-if="station" class="mt-1 text-xs text-(--ui-text-muted)">Forecast model — the station above is measuring the real thing.</p>
         </div>
         <span
           v-if="dust"
@@ -318,7 +343,7 @@ useHead({ title: 'Live — BRC Map' })
         </div>
       </div>
     </UCard>
-    <UCard v-else>
+    <UCard v-else-if="!cur && !station">
       <p class="text-sm text-(--ui-text-muted)">Weather is unavailable right now.</p>
     </UCard>
 
