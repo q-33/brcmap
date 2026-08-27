@@ -53,7 +53,7 @@ export const EVENT_SOURCES: EventSource[] = [
     key: 'kink',
     label: 'Kink / Sensual',
     emoji: '🖤',
-    blurb: 'Adult play, workshops and parties. 18+.',
+    blurb: "From the Burning Man Kinky Database. Adult play, workshops and parties. 18+.",
     defaultOn: false,
     nsfw: true,
     tone: 'rose',
