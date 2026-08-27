@@ -117,6 +117,14 @@ function reset() {
         class="text-xs text-(--ui-text-muted)"
       >
         <span class="mr-1">{{ s.emoji }}</span>{{ s.blurb }}
+        <!-- the guide's own PDF, for reading offline or printing. Sizes are
+             shown because 22 MB over playa LTE is a decision, not a click. -->
+        <a
+          v-if="s.pdf"
+          :href="s.pdf.href"
+          download
+          class="ml-1 whitespace-nowrap text-primary underline underline-offset-2 hover:no-underline"
+        >{{ s.pdf.label }}<span class="text-(--ui-text-muted)"> ({{ s.pdf.size }})</span></a>
       </p>
     </TransitionGroup>
   </section>

@@ -22,6 +22,8 @@ export interface EventSource {
   nsfw?: boolean
   /** tailwind colour stem for the pill, e.g. 'violet' */
   tone: string
+  /** the guide's own PDF, offered beside the blurb once the toggle is on */
+  pdf?: { href: string, label: string, size: string }
 }
 
 export const EVENT_SOURCES: EventSource[] = [
@@ -48,6 +50,7 @@ export const EVENT_SOURCES: EventSource[] = [
     blurb: 'From the QueerBurners Event Guide 2026.',
     defaultOn: false,
     tone: 'pink',
+    pdf: { href: '/guides/queerburners-2026.pdf', label: 'Download the PDF', size: '22 MB' },
   },
   {
     key: 'kink',
@@ -62,10 +65,10 @@ export const EVENT_SOURCES: EventSource[] = [
     key: 'librarian',
     label: 'Rock Star Librarian',
     emoji: '📚',
-    blurb: 'The legendary spreadsheet. Landing soon.',
+    blurb: "Who's playing where, all week, from the Rock Star Librarian music guide.",
     defaultOn: false,
-    comingSoon: true,
     tone: 'amber',
+    pdf: { href: '/guides/rock-star-librarian-2026.pdf', label: 'Download the PDF', size: '2.4 MB' },
   },
 ]
 
