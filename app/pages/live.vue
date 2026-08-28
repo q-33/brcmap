@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
 import type { AirNow, FireAlert } from '~~/lib/fires'
 import { aqiBand } from '~~/lib/fires'
 import { dustRisk, windDir, wmo } from '~~/lib/weather'
@@ -162,12 +163,13 @@ function alertWindow(iso: string | null) {
 }
 
 // BMIR streams only during the event window (Aug 30 – Sep 7, 2026).
-const BMIR_STREAM = 'https://stream.revma.ihrhls.com/zc8378'
+// Shared with the map's BMIR button — see lib/radio.ts.
+const BMIR_STREAM = BMIR.stream
 // Shouting Fire runs year round. Their own player still points at a bmir-ice
 // host (Bobzilla ran BMIR before starting this), which is confusing and
 // http-only; this is the same Icecast mount on their TLS host, so the player
 // is not blocked as mixed content.
-const SHOUTING_FIRE_STREAM = 'https://shoutingfire-ice.streamguys1.com/live'
+const SHOUTING_FIRE_STREAM = SHOUTING_FIRE.stream
 
 useHead({ title: 'Live — BRC Map' })
 </script>

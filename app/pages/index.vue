@@ -3,6 +3,7 @@ import type { GateStatus } from '~~/lib/gate'
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
 import { GATE_STATUS_META, gateColor } from '~~/lib/gate'
+import { BMIR } from '~~/lib/radio'
 import { dustRisk, wmo } from '~~/lib/weather'
 
 function namedAddress(s: string | null | undefined): string {
@@ -336,7 +337,10 @@ const pill = computed(() => {
 const bmirPlaying = ref(false)
 const bmirLoading = ref(false)
 let bmirEl: HTMLAudioElement | null = null
-const BMIR_STREAM = 'https://bmir-ice.streamguys.com/live'
+// Shared with /live — see lib/radio.ts. This button pointed at a host that
+// does not answer, so it silently did nothing while the same station played
+// fine on the Live page.
+const BMIR_STREAM = BMIR.stream
 
 async function toggleBmir() {
   if (!bmirEl) {
