@@ -60,8 +60,13 @@ useHead({ title: 'Art — BRC Map' })
             <h2 class="font-display text-xl font-semibold text-primary">Art Audio Tour</h2>
             <p class="mt-0.5 text-sm text-(--ui-text-muted)">
               Burning Man's official audio guide to the 2026 art, narrated piece by piece.
-              Start with the introduction, then follow the tracks in order.
+              Play it straight through, or pick out a single piece below.
             </p>
+            <!-- the whole tour, hands-free, above the individual tracks -->
+            <div class="mt-3">
+              <AudioTourPlayAll />
+            </div>
+
             <div class="mt-3 space-y-2">
               <div v-for="t in TOUR_EXTRAS" :key="t.n">
                 <p class="text-sm font-medium text-(--ui-text)">
