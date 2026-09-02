@@ -532,7 +532,7 @@ useHead({ title: 'Live — BRC Map' })
           <p class="mt-1 text-sm text-(--ui-text-muted)">Gate Advisory Radio Station — Gate Road & SR-447 traffic, wait times, and Exodus advisories.</p>
           <div class="mt-3 rounded-lg bg-(--ui-bg-muted) px-3 py-2.5 text-sm">
             <p class="font-semibold">On-playa only · tune to 95.1 FM</p>
-            <p class="mt-0.5 text-xs text-(--ui-text-muted)">No online stream. For live gate status from here, see the <NuxtLink to="/gate" class="text-primary underline">Gate page</NuxtLink>.</p>
+            <p class="mt-0.5 text-xs text-(--ui-text-muted)">No online stream.</p>
           </div>
         </UCard>
         <UCard>

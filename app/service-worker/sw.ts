@@ -44,14 +44,14 @@ setCatchHandler(async ({ request }) => {
   return Response.error()
 })
 
-// Read-only public data (camps, art, gate, weather, toilets, events): NetworkFirst
+// Read-only public data (camps, art, weather, toilets, events): NetworkFirst
 // so it refreshes online and serves the last-synced copy offline. Auth/mutating
 // routes are intentionally NOT cached.
 // `ignoreSearch` so the list pages' search-param requests (e.g. /api/camps?q=)
 // still match the base copy cached by the map / the pre-sync — otherwise the query
 // string makes a different cache key and the list is empty offline.
 registerRoute(
-  ({ url, request }) => request.method === 'GET' && /^\/api\/(camps|art|gate|weather|toilets|events)\b/.test(url.pathname),
+  ({ url, request }) => request.method === 'GET' && /^\/api\/(camps|art|weather|toilets|events)\b/.test(url.pathname),
   new NetworkFirst({
     cacheName: 'brcmap-api',
     networkTimeoutSeconds: 4,

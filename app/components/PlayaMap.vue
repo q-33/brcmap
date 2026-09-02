@@ -14,7 +14,7 @@ export interface EditCamp { id: string, name: string, lat: number, lng: number, 
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
 export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, gateColor?: string, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
 
 function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
   return {
@@ -722,16 +722,8 @@ onMounted(async () => {
       filter: ['==', ['get', 'kind'], 'fence'],
       paint: { 'line-color': '#e1241a', 'line-width': mFactorFloor(4.25, 0.9), 'line-dasharray': [5, 2.5, 1.2, 2.5] },
     })
-    // 6:00 gate road — a status overlay only: invisible until a live gate
-    // colour is set (the road itself renders as a street channel), but always
-    // carries the "Gate Road" label below.
-    map.addLayer({
-      id: 'gate-road',
-      type: 'line',
-      source: 'grid',
-      filter: ['==', ['get', 'kind'], 'gate-road'],
-      paint: { 'line-color': props.gateColor ?? '#1c2733', 'line-width': 3, 'line-opacity': props.gateColor ? 0.85 : 0 },
-    })
+    // 6:00 gate road — label only. The road itself renders as a street
+    // channel; this carries the "Gate Road" name along it.
     map.addLayer({
       id: 'gate-road-label',
       type: 'symbol',
@@ -1572,14 +1564,6 @@ watch(() => props.artPins, () => {
   const src = map?.getSource('art') as GeoJSONSource | undefined
   src?.setData(pinsGeoJson(props.artPins ?? []))
 }, { deep: true })
-
-// recolor the gate road when the live Gate Road condition changes
-watch(() => props.gateColor, (c) => {
-  if (!map?.getLayer('gate-road'))
-    return
-  map.setPaintProperty('gate-road', 'line-color', c ?? '#1c2733')
-  map.setPaintProperty('gate-road', 'line-width', c ? 3 : 1.6)
-})
 
 // fly to a focused camp when it changes after load (initial focus is applied in
 // the load handler above, since this can fire before the map exists)

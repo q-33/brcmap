@@ -39,11 +39,7 @@ mark your camp's location before you arrive and update it once you have service 
   admins can edit any.
 - **Art & open calls** — register artworks, mark their location, and post an open
   **call** for community contributions (owner-moderated).
-- **Claim your art** — an artist can request ownership of an existing ownerless artwork;
-  an admin approves the claim through the site.
 - **Events** — camps announce planned events; browse them grouped by day.
-- **Gate Road conditions** — the GPE crew posts live inbound/exodus status; a
-  green/yellow/red widget on the map links to the full board.
 - **In-app messaging** — 1:1 direct messages between users ("Message the organizer"
   on any camp/art), an inbox with unread badges, and a **Message the Admin** chat. An
   optional email nudge fires on the first unread.
@@ -66,12 +62,11 @@ mark your camp's location before you arrive and update it once you have service 
 
 ### Accounts & moderation
 - **Auth** — email/password sessions (`nuxt-auth-utils`) with self-service password reset.
-- **Roles** — `user` / `gpe` (Gate Road) / `tco` (theme-camp organizer) /
+- **Roles** — `user` / `tco` (theme-camp organizer) /
   `hubs` (runs multiple camps; can place/edit any camp) / `org` (Burning Man Org) /
   `admin`, applied live without re-login.
-- **Admin panel** — moderation queue, people & roles, content management
-  (edit/hide/delete camps, art, events), art-claim review, a who's-online view, a recent
-  submissions feed, and an audit log.
+- **Admin panel** — people & roles, content management (edit/hide/delete camps, art,
+  events), a who's-online view, a recent submissions feed, and an audit log.
 - **Camp moderation from the list** — Hubs/Org/admins can edit a camp's details from the
   public Camps list; admins can delete camps created in error.
 - **Convert art to camp** — an admin tool to fix pins dropped as art that should be camps.

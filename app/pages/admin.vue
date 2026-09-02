@@ -13,20 +13,16 @@ interface Content {
   art: { id: string, name: string, year: number, owner: string | null, locations: number, contributions: number, pending: number, hidden: boolean, artist: string | null, description: string | null, website: string | null, contactEmail: string | null, hometown: string | null }[]
   events: { id: string, title: string, camp: string | null, startsAt: string }[]
 }
-interface QueueItem { id: string, body: string, language: string | null, mediaUrl: string | null, authorName: string | null, createdAt: string, artId: string | null, artName: string }
-interface ClaimItem { id: string, message: string | null, createdAt: string, artId: string | null, artName: string, artArtist: string | null, claimant: string, claimantEmail: string | null }
 interface OnlineUser { id: string, email: string, displayName: string | null, role: string, lastSeenAt: string | null }
 interface Recent { type: string, id: string, label: string, createdAt: string }
 interface Audit { id: string, action: string, actor: string, targetType: string | null, targetId: string | null, detail: string | null, createdAt: string }
 
 const { loggedIn } = useUserSession()
-const { me, isAdmin, refreshMe } = useMe()
+const { me, isAdmin } = useMe()
 const myId = computed(() => me.value?.id)
 
 const { data: users, refresh: refreshUsers } = await useFetch<AdminUser[]>('/api/admin/users', { immediate: false, default: () => [] })
 const { data: content, refresh: refreshContent } = await useFetch<Content>('/api/admin/content', { immediate: false, default: () => ({ camps: [], art: [], events: [] }) })
-const { data: queue, refresh: refreshQueue } = await useFetch<QueueItem[]>('/api/admin/contributions', { immediate: false, default: () => [] })
-const { data: claims, refresh: refreshClaims } = await useFetch<ClaimItem[]>('/api/admin/claims', { immediate: false, default: () => [] })
 const { data: online, refresh: refreshOnline } = await useFetch<OnlineUser[]>('/api/admin/online', { immediate: false, default: () => [] })
 const { data: recent, refresh: refreshRecent } = await useFetch<Recent[]>('/api/admin/recent', { immediate: false, default: () => [] })
 const { data: auditRows, refresh: refreshAudit } = await useFetch<Audit[]>('/api/admin/audit', { immediate: false, default: () => [] })
@@ -34,8 +30,6 @@ watch(isAdmin, (v) => {
   if (v) {
     refreshUsers()
     refreshContent()
-    refreshQueue()
-    refreshClaims()
     refreshOnline()
     refreshRecent()
     refreshAudit()
@@ -132,8 +126,6 @@ async function removeStation(s: WxStation) {
 }
 
 const tabs = computed(() => [
-  { key: 'queue', label: 'Queue', n: queue.value?.length ?? 0 },
-  { key: 'claims', label: 'Claims', n: claims.value?.length ?? 0 },
   { key: 'online', label: 'Online', n: onlineCount.value },
   { key: 'people', label: 'People', n: users.value?.length ?? 0 },
   { key: 'content', label: 'Content', n: undefined },
@@ -142,10 +134,10 @@ const tabs = computed(() => [
   { key: 'weather', label: 'Weather', n: stations.value?.length ?? undefined },
   { key: 'broadcast', label: 'Broadcast', n: undefined },
 ] as const)
-type Tab = 'queue' | 'claims' | 'online' | 'people' | 'content' | 'recent' | 'audit' | 'weather' | 'broadcast'
+type Tab = 'online' | 'people' | 'content' | 'recent' | 'audit' | 'weather' | 'broadcast'
 const route = useRoute()
-const validTabs: Tab[] = ['queue', 'claims', 'online', 'people', 'content', 'recent', 'audit', 'weather', 'broadcast']
-const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'queue')
+const validTabs: Tab[] = ['online', 'people', 'content', 'recent', 'audit', 'weather', 'broadcast']
+const tab = ref<Tab>(validTabs.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : 'online')
 watch(() => route.query.tab, (t) => { if (validTabs.includes(t as Tab)) tab.value = t as Tab })
 const ctab = ref<'camps' | 'art' | 'events'>('camps')
 
@@ -328,20 +320,6 @@ async function saveArtEdit() {
   }
 }
 
-async function moderate(c: QueueItem, status: 'published' | 'hidden') {
-  busy.value = c.id
-  try { await $fetch(`/api/art/contributions/${c.id}`, { method: 'PATCH', body: { status } }); await refreshQueue(); await refreshAudit() }
-  catch (e: any) { msg.value = e?.data?.statusMessage ?? 'Could not moderate' }
-  finally { busy.value = '' }
-}
-
-async function decideClaim(c: ClaimItem, status: 'approved' | 'rejected') {
-  busy.value = c.id
-  try { await $fetch(`/api/admin/claims/${c.id}`, { method: 'PATCH', body: { status } }); await Promise.all([refreshClaims(), refreshContent(), refreshAudit(), refreshMe()]) }
-  catch (e: any) { msg.value = e?.data?.statusMessage ?? 'Could not update claim' }
-  finally { busy.value = '' }
-}
-
 // Keep the Online view live: re-tick "now" so the dots/labels update, and
 // re-poll the presence list while that tab is open.
 onMounted(() => {
@@ -469,56 +447,6 @@ useHead({ title: 'Admin — BRC Map' })
         </UButton>
       </div>
       <p v-if="msg" class="mt-2 text-xs text-(--ui-text-muted)">{{ msg }}</p>
-
-      <!-- QUEUE -->
-      <section v-show="tab === 'queue'" class="mt-5">
-        <p class="mb-3 text-sm text-(--ui-text-muted)">Art contributions awaiting review.</p>
-        <div v-if="queue?.length" class="space-y-2">
-          <UCard v-for="c in queue" :key="c.id">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="whitespace-pre-line text-sm">{{ c.body }}</p>
-                <p class="mt-1 text-xs text-(--ui-text-muted)">
-                  <NuxtLink v-if="c.artId" :to="`/art/${c.artId}`" class="text-primary">{{ c.artName }}</NuxtLink>
-                  <span v-else>{{ c.artName }}</span>
-                  <span v-if="c.language"> · {{ c.language }}</span> · {{ c.authorName || 'Anonymous' }} · {{ rel(c.createdAt) }}
-                </p>
-                <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary underline">attached link ↗</a>
-              </div>
-              <div class="flex shrink-0 gap-1">
-                <UButton size="xs" color="primary" variant="soft" :loading="busy === c.id" @click="moderate(c, 'published')">Approve</UButton>
-                <UButton size="xs" color="neutral" variant="ghost" :loading="busy === c.id" @click="moderate(c, 'hidden')">Hide</UButton>
-              </div>
-            </div>
-          </UCard>
-        </div>
-        <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">Nothing waiting. 🎉</p>
-      </section>
-
-      <!-- CLAIMS -->
-      <section v-show="tab === 'claims'" class="mt-5">
-        <p class="mb-3 text-sm text-(--ui-text-muted)">Artists requesting to manage an artwork. Approving transfers ownership to them and notifies them.</p>
-        <div v-if="claims?.length" class="space-y-2">
-          <UCard v-for="c in claims" :key="c.id">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-sm font-medium">
-                  <NuxtLink v-if="c.artId" :to="`/art/${c.artId}`" class="text-primary">{{ c.artName }}</NuxtLink>
-                  <span v-else>{{ c.artName }}</span>
-                  <span v-if="c.artArtist" class="text-(--ui-text-muted)"> · by {{ c.artArtist }}</span>
-                </p>
-                <p class="mt-0.5 text-xs text-(--ui-text-muted)">Claimed by {{ c.claimant }}<span v-if="c.claimantEmail"> · {{ c.claimantEmail }}</span> · {{ rel(c.createdAt) }}</p>
-                <p v-if="c.message" class="mt-2 whitespace-pre-line rounded-md bg-(--ui-bg-muted) px-2.5 py-1.5 text-sm">{{ c.message }}</p>
-              </div>
-              <div class="flex shrink-0 gap-1">
-                <UButton size="xs" color="primary" variant="soft" :loading="busy === c.id" @click="decideClaim(c, 'approved')">Approve</UButton>
-                <UButton size="xs" color="neutral" variant="ghost" :loading="busy === c.id" @click="decideClaim(c, 'rejected')">Reject</UButton>
-              </div>
-            </div>
-          </UCard>
-        </div>
-        <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">No pending claims. 🎉</p>
-      </section>
 
       <!-- ONLINE (presence) -->
       <section v-show="tab === 'online'" class="mt-5">

@@ -53,16 +53,6 @@ export const artCallSchema = z.object({
   call: z.string().max(2000).optional().or(z.literal('')),
 })
 
-// An artist's request to claim an ownerless artwork (optional identity note).
-export const artClaimSchema = z.object({
-  message: z.string().trim().max(1000).optional().or(z.literal('')),
-})
-
-// Admin decision on a claim.
-export const claimModerateSchema = z.object({
-  status: z.enum(['approved', 'rejected']),
-})
-
 // A community contribution to an artwork's open call (logged-in users only).
 export const artContributionSchema = z.object({
   body: z.string().trim().min(1).max(2000),
@@ -91,20 +81,12 @@ export const eventSchema = z.object({
 
 // Admin: set a user's role.
 export const roleSchema = z.object({
-  role: z.enum(['user', 'gpe', 'admin', 'org', 'tco', 'hubs']),
+  role: z.enum(['user', 'admin', 'org', 'tco', 'hubs']),
 })
 
 // Admin: set the full set of a user's granted feature flags.
 export const featuresSchema = z.object({
   features: z.array(z.string().max(64)).max(50),
-})
-
-// A GPE-posted Gate Road condition for one direction.
-export const gateConditionSchema = z.object({
-  direction: z.enum(['inbound', 'exodus']),
-  status: z.enum(['open', 'light', 'moderate', 'heavy', 'hold', 'closed']),
-  waitLabel: z.string().trim().max(40).optional().or(z.literal('')),
-  note: z.string().trim().max(280).optional().or(z.literal('')),
 })
 
 // Owner edits to their camp's details (not location/year).
