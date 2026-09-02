@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dustRisk, tempBoth, toCelsius, toKmh, windBoth } from './weather'
+import { dustRisk, rainIntensity, tempBoth, toCelsius, toKmh, windBoth } from './weather'
 
 // The weather API asks Open-Meteo for Fahrenheit and mph, so everything metric
 // on the Live page is converted here. Worth pinning: a wrong factor would read
@@ -30,5 +30,51 @@ describe('unit conversion', () => {
     expect(dustRisk(35).label).toBe('High dust risk')
     expect(dustRisk(34).label).toBe('Dusty — goggles up')
     expect(Math.round(toKmh(35))).toBe(56)
+  })
+})
+
+// The map's rain animation is driven entirely by this, so a code landing in the
+// wrong bucket is a wrong sky over the city.
+describe('rain intensity from WMO codes', () => {
+  it('reads a dry sky as no rain', () => {
+    for (const code of [0, 1, 2, 3, 45, 48])
+      expect(rainIntensity(code)).toBe(0)
+  })
+
+  it('grades rain by how hard it is falling', () => {
+    expect(rainIntensity(51)).toBe(1) // light drizzle
+    expect(rainIntensity(61)).toBe(1) // light rain
+    expect(rainIntensity(63)).toBe(2) // moderate rain
+    expect(rainIntensity(65)).toBe(3) // heavy rain
+  })
+
+  it('treats showers on the same scale as steady rain', () => {
+    expect(rainIntensity(80)).toBe(1)
+    expect(rainIntensity(81)).toBe(2)
+    expect(rainIntensity(82)).toBe(3)
+  })
+
+  it('puts every thunderstorm at the top of the scale', () => {
+    for (const code of [95, 96, 99])
+      expect(rainIntensity(code)).toBe(3)
+  })
+
+  // Snow is not rain. Animating it as rain would misreport the weather, and on
+  // this playa the difference decides whether you can drive out.
+  it('does not animate snow as rain', () => {
+    for (const code of [71, 73, 75, 77, 85, 86])
+      expect(rainIntensity(code)).toBe(0)
+  })
+
+  it('treats an unknown code as dry rather than guessing', () => {
+    expect(rainIntensity(-1)).toBe(0)
+    expect(rainIntensity(999)).toBe(0)
+  })
+
+  // Every wet code the app can label must also animate, or the pill says rain
+  // while the map shows a clear sky.
+  it('animates every rain-ish code the WMO table labels', () => {
+    for (const code of [51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99])
+      expect(rainIntensity(code)).toBeGreaterThan(0)
   })
 })

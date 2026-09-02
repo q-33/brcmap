@@ -2,7 +2,7 @@
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
 import { BMIR } from '~~/lib/radio'
-import { dustRisk, wmo } from '~~/lib/weather'
+import { dustRisk, rainIntensity, wmo } from '~~/lib/weather'
 
 function namedAddress(s: string | null | undefined): string {
   if (!s)
@@ -364,6 +364,18 @@ const windInfo = computed(() => {
   if (!c || c.wind_direction_10m == null)
     return null
   return { dir: c.wind_direction_10m, gusts: c.wind_gusts_10m, color: dustRisk(c.wind_gusts_10m).color }
+})
+
+// Rain for the map animation. Always the model's WMO code, even when a station
+// is speaking for the city otherwise: stations report rain accumulated today,
+// which stays high long after the sky clears, so it cannot answer "is it raining
+// right now". Null when it is dry, so the canvas skips the field entirely.
+const rainInfo = computed(() => {
+  const code = wx.value?.weather_code
+  if (code == null)
+    return null
+  const level = rainIntensity(code)
+  return level ? { level } : null
 })
 
 // map layer visibility (the legend doubles as the toggle control)
@@ -829,7 +841,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
           @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>

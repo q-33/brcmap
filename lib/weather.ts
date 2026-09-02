@@ -53,6 +53,43 @@ export function windBoth(mph: number): string {
   return `${Math.round(mph)} mph / ${Math.round(toKmh(mph))} km/h`
 }
 
+/**
+ * Is it raining right now, and how hard — read off the WMO code, which is the
+ * one field that answers the question directly. Station sensors report rain
+ * ACCUMULATED today, which stays high for hours after the sky clears, so they
+ * can't drive an animation that claims to show what is falling this minute.
+ *
+ * 0 none · 1 drizzle or light rain · 2 steady · 3 heavy, or a thunderstorm.
+ *
+ * Snow codes deliberately return 0. Snow falls nothing like rain, and animating
+ * it as rain would be a confident lie about what is happening outside the tent.
+ */
+export function rainIntensity(code: number): 0 | 1 | 2 | 3 {
+  switch (code) {
+    case 51: // light drizzle
+    case 53: // moderate drizzle
+    case 56: // light freezing drizzle
+    case 61: // light rain
+    case 80: // slight rain showers
+      return 1
+    case 55: // dense drizzle
+    case 57: // dense freezing drizzle
+    case 63: // moderate rain
+    case 66: // light freezing rain
+    case 81: // moderate rain showers
+      return 2
+    case 65: // heavy rain
+    case 67: // heavy freezing rain
+    case 82: // violent rain showers
+    case 95: // thunderstorm
+    case 96: // thunderstorm with slight hail
+    case 99: // thunderstorm with heavy hail
+      return 3
+    default:
+      return 0
+  }
+}
+
 // Playa-specific dust heuristic from wind gusts (mph). Whiteouts are the real
 // hazard on the playa, so this is the most useful read of the forecast.
 export function dustRisk(gustMph: number): { label: string, color: string } {
