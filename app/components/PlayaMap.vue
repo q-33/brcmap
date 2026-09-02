@@ -14,7 +14,7 @@ export interface EditCamp { id: string, name: string, lat: number, lng: number, 
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
 export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
 
 function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
   return {
@@ -1338,7 +1338,7 @@ onMounted(async () => {
     // Placement mode: only when the parent has armed a drop (clicked Drop/Edit)
     // does tapping the map place/move a draggable pin at the EXACT point. Clicks
     // on an existing marker fall through to that marker's popup instead.
-    mountDust()
+    mountWeather()
     const interactive = ['camps', 'art', 'toilets', 'civic-dots', 'civic-esd']
     map.on('click', (e) => {
       if (!map)
@@ -1454,107 +1454,173 @@ watch(() => props.sunTime, () => {
 })
 
 // redraw the wind arrows + recolor when the Wind layer toggles or the reading updates
-// --- blowing dust ----------------------------------------------------------
+// --- blowing dust + rain ----------------------------------------------------
 //
-// A canvas of drifting motes over the map, moving the way the wind is actually
-// blowing. Replaces the old arrow grid, which said the same thing in a way that
-// had to be switched on and read; this is understood without being looked at.
+// One canvas of live weather over the map: dust drifting the way the wind is
+// actually blowing, and rain falling when the model says it is raining. Both
+// share a single canvas and a single animation frame — two RAF loops on a phone
+// that is already rendering a map is a battery bill for no visual gain.
 //
-// Deliberately faint. This sits on top of the city people are trying to read,
-// so it must register at the edge of vision and never compete with a camp pin:
-// motes are 1–2 px at 8–28% opacity, and there are a few dozen, not thousands.
+// A calm day still reads calm: at a light breeze this is a few dozen faint
+// motes, and it must never compete with a camp pin. What changed is the top end.
+// Density, opacity, speed AND streak length now all climb with the gusts, where
+// the first version scaled density alone and capped it around 38 mph — which is
+// why a whiteout and a stiff breeze looked identical. The reading used to stop
+// exactly where it started to matter.
 //
-// Density and speed follow the real gusts, so a still afternoon is nearly bare
-// and a whiteout is unmistakable — the animation IS the reading.
-let dustCanvas: HTMLCanvasElement | null = null
-let dustRaf = 0
+// Motes elongate into streaks as the wind gets up. That is what sells speed:
+// more dots just look like more dots, but a streak is legibly moving fast.
+let wxCanvas: HTMLCanvasElement | null = null
+let wxRaf = 0
 let dustParts: { x: number, y: number, sp: number, a: number, r: number }[] = []
+let rainParts: { x: number, y: number, sp: number, len: number, a: number }[] = []
 
-function stopDust() {
-  if (dustRaf)
-    cancelAnimationFrame(dustRaf)
-  dustRaf = 0
+function stopWeather() {
+  if (wxRaf)
+    cancelAnimationFrame(wxRaf)
+  wxRaf = 0
 }
 
-function drawDust() {
-  if (!map || !dustCanvas)
+function drawWeather() {
+  if (!map || !wxCanvas)
     return
-  const w = props.wind
-  const ctx = dustCanvas.getContext('2d')
+  const ctx = wxCanvas.getContext('2d')
   if (!ctx)
     return
 
-  stopDust()
-  const gusts = w?.gusts ?? 0
+  stopWeather()
+  const w = props.wind
   // Below a breeze there is nothing to show, and pretending otherwise is noise.
-  if (!w || gusts < 6) {
-    ctx.clearRect(0, 0, dustCanvas.width, dustCanvas.height)
+  const gusts = w && w.gusts >= 6 ? w.gusts : 0
+  const rainLevel = props.rain?.level ?? 0
+
+  if (!gusts && !rainLevel) {
+    ctx.clearRect(0, 0, wxCanvas.width, wxCanvas.height)
     dustParts = []
+    rainParts = []
     return
   }
 
   const dpr = Math.min(2, window.devicePixelRatio || 1)
-  const cw = dustCanvas.clientWidth
-  const ch = dustCanvas.clientHeight
-  dustCanvas.width = cw * dpr
-  dustCanvas.height = ch * dpr
+  const cw = wxCanvas.clientWidth
+  const ch = wxCanvas.clientHeight
+  wxCanvas.width = cw * dpr
+  wxCanvas.height = ch * dpr
   ctx.scale(dpr, dpr)
 
-  // ~36 motes in a stiff breeze, ~168 in a whiteout. Raised 20% from the first
-  // pass, which read as too faint to notice on a calm day.
-  const count = Math.round(Math.min(168, 21.6 + gusts * 3.84))
-  dustParts = Array.from({ length: count }, () => ({
+  // 0 at the 6 mph floor, 1 by 45 mph. Everything about the dust rides on this,
+  // so the whole effect keeps intensifying across the range that matters rather
+  // than flattening out halfway up it.
+  const gust01 = Math.min(1, Math.max(0, (gusts - 6) / 39))
+
+  // ~50 motes in a stiff breeze, ~360 in a whiteout (was 36 → 168).
+  const dustCount = gusts ? Math.round(50 + gust01 * 310) : 0
+  // Opacity now scales too. This is the single biggest reason high wind used to
+  // read as weak: every mote sat at the same faint alpha no matter the gusts.
+  const dustAlpha = 0.14 + gust01 * 0.30
+  dustParts = Array.from({ length: dustCount }, () => ({
     x: Math.random() * cw,
     y: Math.random() * ch,
-    sp: 0.35 + Math.random() * 0.9,
-    a: 0.096 + Math.random() * 0.24,
-    r: Math.random() < 0.75 ? 1.2 : 2.16,
+    sp: 0.45 + Math.random() * 1.0,
+    a: dustAlpha * (0.55 + Math.random() * 0.75),
+    r: Math.random() < 0.72 ? 1.1 : 2.4,
   }))
 
   // Meteorological direction is where the wind comes FROM; motes travel the
   // opposite way. Screen y grows downward, hence the negated vertical term.
-  const rad = ((w.dir + 180) % 360) * Math.PI / 180
+  const rad = (((w?.dir ?? 0) + 180) % 360) * Math.PI / 180
   const ux = Math.sin(rad)
   const uy = -Math.cos(rad)
-  const base = 0.5 + gusts * 0.07
+  const dustSpeed = 1.1 + gusts * 0.16
+  // How far back each mote smears. Near-round at a breeze, a long streak in a
+  // blow — the length IS the wind speed, read without a legend.
+  const trail = 0.7 + gust01 * 1.9
+
+  // Rain falls fast and hard, and on this playa it is the weather that decides
+  // whether anyone can drive. It gets to be more assertive than the dust.
+  const rainCount = rainLevel ? Math.round(90 + rainLevel * 85) : 0
+  const rainSpeed = 9 + rainLevel * 3.5
+  const rainLen = 9 + rainLevel * 5
+  const rainAlpha = 0.22 + rainLevel * 0.07
+  // Wind pushes rain off vertical; a hard crosswind lays it right over.
+  const slant = Math.max(-0.85, Math.min(0.85, ux * Math.min(1, gusts / 32)))
+  rainParts = Array.from({ length: rainCount }, () => ({
+    x: Math.random() * cw,
+    y: Math.random() * ch,
+    sp: 0.75 + Math.random() * 0.5,
+    len: rainLen * (0.7 + Math.random() * 0.6),
+    a: rainAlpha * (0.6 + Math.random() * 0.7),
+  }))
+
+  ctx.lineCap = 'round'
 
   const tick = () => {
     ctx.clearRect(0, 0, cw, ch)
-    ctx.fillStyle = '#8a7f6d'
+
+    ctx.strokeStyle = '#8a7f6d'
     for (const p of dustParts) {
-      p.x += ux * base * p.sp
-      p.y += uy * base * p.sp
+      const vx = ux * dustSpeed * p.sp
+      const vy = uy * dustSpeed * p.sp
+      p.x += vx
+      p.y += vy
       // wrap, so the field never thins out at an edge
-      if (p.x < -4) p.x = cw + 4
-      if (p.x > cw + 4) p.x = -4
-      if (p.y < -4) p.y = ch + 4
-      if (p.y > ch + 4) p.y = -4
+      if (p.x < -24) p.x = cw + 24
+      if (p.x > cw + 24) p.x = -24
+      if (p.y < -24) p.y = ch + 24
+      if (p.y > ch + 24) p.y = -24
+      ctx.globalAlpha = p.a
+      ctx.lineWidth = p.r * 1.7
+      ctx.beginPath()
+      ctx.moveTo(p.x, p.y)
+      ctx.lineTo(p.x - vx * trail, p.y - vy * trail)
+      ctx.stroke()
+    }
+
+    ctx.strokeStyle = '#5f83a8'
+    ctx.lineWidth = 1.3
+    for (const p of rainParts) {
+      const vy = rainSpeed * p.sp
+      const vx = slant * vy
+      p.x += vx
+      p.y += vy
+      // Rain only ever falls, so it respawns at the top rather than wrapping —
+      // a drop reappearing at the bottom and climbing would read as wrong even
+      // if nobody could say why.
+      if (p.y > ch + p.len) {
+        p.y = -p.len
+        p.x = Math.random() * cw
+      }
+      if (p.x < -32) p.x = cw + 32
+      if (p.x > cw + 32) p.x = -32
       ctx.globalAlpha = p.a
       ctx.beginPath()
-      ctx.arc(p.x, p.y, p.r, 0, 6.283)
-      ctx.fill()
+      ctx.moveTo(p.x, p.y)
+      ctx.lineTo(p.x - vx * (p.len / vy), p.y - p.len)
+      ctx.stroke()
     }
+
     ctx.globalAlpha = 1
-    dustRaf = requestAnimationFrame(tick)
+    wxRaf = requestAnimationFrame(tick)
   }
   tick()
 }
 
-function mountDust() {
+function mountWeather() {
   const container = map?.getContainer()
   if (!container)
     return
-  dustCanvas = document.createElement('canvas')
+  wxCanvas = document.createElement('canvas')
   // Purely decorative: never intercept a tap meant for a camp pin.
-  dustCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;'
+  wxCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;'
     + 'pointer-events:none;z-index:2'
-  dustCanvas.setAttribute('aria-hidden', 'true')
-  container.appendChild(dustCanvas)
-  drawDust()
-  map?.on('resize', drawDust)
+  wxCanvas.setAttribute('aria-hidden', 'true')
+  container.appendChild(wxCanvas)
+  drawWeather()
+  map?.on('resize', drawWeather)
 }
 
-watch(() => props.wind, () => drawDust(), { deep: true })
+watch(() => props.wind, () => drawWeather(), { deep: true })
+watch(() => props.rain, () => drawWeather(), { deep: true })
 
 // keep art pins in sync
 watch(() => props.meshPeers, () => {
@@ -1584,9 +1650,9 @@ watch(() => props.editCamp?.id, () => {
 })
 
 onBeforeUnmount(() => {
-  stopDust()
-  dustCanvas?.remove()
-  dustCanvas = null
+  stopWeather()
+  wxCanvas?.remove()
+  wxCanvas = null
   map?.remove()
 })
 </script>
