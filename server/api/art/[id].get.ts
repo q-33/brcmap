@@ -1,6 +1,6 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { canManageAnyCamp } from '~~/lib/roles'
-import { art, artClaims } from '../../db/schema'
+import { art } from '../../db/schema'
 
 // Public: one artwork with its locations, open call, and contributions.
 // Anyone sees published contributions; the owner also sees pending/hidden ones.
@@ -36,21 +36,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Art not found' })
   const contributions = (row.contributions ?? []).filter(c => isOwner || c.status === 'published')
 
-  // The viewer's own latest claim on this (ownerless) artwork, so the page can
-  // show "claim pending / not approved" and gate the Claim button.
-  let myClaim: { status: string } | null = null
-  if (viewer && !row.ownerId) {
-    const c = await db.query.artClaims.findFirst({
-      where: and(eq(artClaims.artId, id), eq(artClaims.claimantId, viewer.id)),
-      orderBy: [desc(artClaims.createdAt)],
-      columns: { status: true },
-    })
-    myClaim = c ? { status: c.status } : null
-  }
-
   // Admins/Org can manage (edit) any artwork, like they can any camp.
   const canManage = isOwner || canManageAnyCamp(viewer?.role)
-  const out = { ...row, isOwner, canManage, contributions, myClaim } as Record<string, unknown>
+  const out = { ...row, isOwner, canManage, contributions } as Record<string, unknown>
   // The contact email / legacy url are only for someone who can manage the
   // artwork (its owner, or an admin/Org) — strip for everyone else. (Managers
   // need contactEmail so the edit form doesn't blank it on save.)

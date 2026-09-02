@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import type { GateStatus } from '~~/lib/gate'
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
-import { GATE_STATUS_META, gateColor } from '~~/lib/gate'
 import { BMIR } from '~~/lib/radio'
 import { dustRisk, wmo } from '~~/lib/weather'
 
@@ -18,7 +16,7 @@ interface CampPin { id?: string, kind?: 'camp' | 'art', canMove?: 0 | 1, name: s
 definePageMeta({ layout: false })
 
 const { loggedIn, user, fetch: refreshSession } = useUserSession()
-const { hasFeature, refreshMe, isAdmin, isGpe, canManageCamps, canMultiCamp, unreadMessages, pendingClaims } = useMe()
+const { hasFeature, refreshMe, isAdmin, canManageCamps, canMultiCamp, unreadMessages } = useMe()
 
 // account dropdown — quick links to messages + the admin/GPE tools + log out
 const userMenu = computed(() => {
@@ -29,8 +27,6 @@ const userMenu = computed(() => {
     to: '/messages',
   }])
   const tools: any[] = []
-  if (isGpe.value)
-    tools.push({ label: 'Gate conditions', icon: 'i-lucide-traffic-cone', to: '/gate' })
   // BM Org can place/move any camp from the Camps list (admins use the dashboard).
   if (canManageCamps.value && !isAdmin.value)
     tools.push({ label: 'Place camps', icon: 'i-lucide-map-pin', to: '/camps' })
@@ -43,8 +39,6 @@ const userMenu = computed(() => {
   if (isAdmin.value)
     tools.push(
       { label: 'Admin dashboard', icon: 'i-lucide-shield', to: '/admin' },
-      { label: 'Review queue', icon: 'i-lucide-inbox', to: { path: '/admin', query: { tab: 'queue' } } },
-      { label: pendingClaims.value ? `Art claims (${pendingClaims.value})` : 'Art claims', icon: 'i-lucide-hand', to: { path: '/admin', query: { tab: 'claims' } } },
       { label: 'People & roles', icon: 'i-lucide-users', to: { path: '/admin', query: { tab: 'people' } } },
       { label: 'Audit log', icon: 'i-lucide-scroll-text', to: { path: '/admin', query: { tab: 'audit' } } },
     )
@@ -281,12 +275,6 @@ async function saveEdit() {
     editSaving.value = false
   }
 }
-
-// live Gate Road condition → colour the gate road + a status dot.
-// client-only: a non-critical status pill shouldn't block SSR / first paint.
-const { data: gateData } = await useFetch<{ inbound: { status: GateStatus } | null }>('/api/gate', { server: false, lazy: true })
-const gateRoadColor = computed(() => gateData.value?.inbound ? gateColor(gateData.value.inbound.status) : undefined)
-const gateStatusLabel = computed(() => gateData.value?.inbound ? GATE_STATUS_META[gateData.value.inbound.status].label : 'No data')
 
 // Live weather → the compact pill, and the wind that drives the dust animation.
 //
@@ -841,7 +829,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :gate-color="gateRoadColor" :wind="windInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
           @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>
@@ -956,17 +944,8 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- lower-left stack: gate status widget above the layers panel -->
+    <!-- lower-left stack: the layers panel -->
     <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
-      <NuxtLink
-        to="/gate"
-        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-      >
-        <UIcon name="i-lucide-traffic-cone" class="size-4 text-primary" />
-        <span class="font-medium">Gate</span>
-        <span class="text-white/60">{{ gateStatusLabel }}</span>
-        <span class="size-2.5 rounded-full ring-1 ring-white/20" :style="{ background: gateRoadColor ?? '#6b7280' }" />
-      </NuxtLink>
       <!-- layers panel (doubles as the legend) -->
       <div class="pointer-events-auto w-44 overflow-hidden rounded-xl border border-white/10 bg-[#26211a]/85 text-xs text-white shadow-lg backdrop-blur-xl">
       <button type="button" class="flex w-full items-center gap-1.5 px-3 py-2 font-display font-semibold" @click="panelOpen = !panelOpen">
@@ -1058,7 +1037,7 @@ const itemOptions = computed(() => [
     </div>
 
     <!-- bottom-right stack: compass rose · Meshtastic mesh.
-         Anchored at bottom-4 to line up with the bottom-left (gate/layers) stack. -->
+         Anchored at bottom-4 to line up with the bottom-left layers stack. -->
     <div class="pointer-events-none absolute bottom-4 right-3 flex flex-col items-end gap-2">
       <CompassRose />
       <!-- Meshtastic mesh radio -->

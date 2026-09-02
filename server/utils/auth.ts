@@ -1,7 +1,6 @@
 import type { H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
 import { users } from '../db/schema'
-import { canPostGate } from '~~/lib/roles'
 
 // The session user shape we store via setUserSession. A typed helper avoids the
 // fragile #auth-utils interface augmentation (its internal User binds to a
@@ -30,17 +29,6 @@ export async function getFreshUser(event: H3Event): Promise<SessionUser | null> 
   if (!u)
     return null
   return { ...u, features: await loadUserFeatures(u.id) }
-}
-
-// Require a role allowed to post Gate Road conditions — GPE crew, BM Org
-// officials, or admins. Checked against the live DB role.
-export async function requireGpe(event: H3Event): Promise<SessionUser> {
-  const user = await getFreshUser(event)
-  if (!user)
-    throw createError({ statusCode: 401, statusMessage: 'Not signed in' })
-  if (!canPostGate(user.role))
-    throw createError({ statusCode: 403, statusMessage: 'GPE access required' })
-  return user
 }
 
 // Require an admin — role assignment + content moderation. Live DB role.

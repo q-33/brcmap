@@ -30,7 +30,7 @@ export const users = pgTable('users', {
   displayName: text('display_name'),
   playaName: text('playa_name'),
   // 'user' (default) | 'tco' (theme camp organizer — create/manage own camp) |
-  // 'gpe' (post gate conditions) | 'org' (BM Org — manage any camp + gate) | 'admin'
+  // 'org' (BM Org — manage any camp) | 'admin'
   role: text('role').notNull().default('user'),
   // Updated on each /api/me call (load + heartbeat) for the admin presence view.
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
@@ -95,17 +95,6 @@ export const auditLog = pgTable('audit_log', {
   detail: text('detail'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('audit_log_created_idx').on(t.createdAt)])
-
-// Gate Road traffic conditions, append-only; newest row per direction is current.
-export const gateConditions = pgTable('gate_conditions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  direction: text('direction').notNull(), // 'inbound' | 'exodus'
-  status: text('status').notNull(), // open|light|moderate|heavy|hold|closed
-  waitLabel: text('wait_label'),
-  note: text('note'),
-  updatedById: uuid('updated_by_id').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [index('gate_conditions_dir_idx').on(t.direction, t.createdAt)])
 
 // In-app 1:1 direct messages. A conversation is the set of messages between a
 // given pair of users (derived, not a stored row).
@@ -194,26 +183,6 @@ export const artContributions = pgTable('art_contributions', {
   check('art_contributions_status_chk', sql`status in ('pending', 'published', 'hidden')`),
 ])
 
-// An artist's request to claim (own) an official, ownerless artwork. An admin
-// approves through the site; approval sets art.ownerId = claimantId.
-// status: 'pending' (awaiting review) | 'approved' | 'rejected'.
-export const artClaims = pgTable('art_claims', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  artId: uuid('art_id').notNull().references(() => art.id, { onDelete: 'cascade' }),
-  claimantId: uuid('claimant_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  message: text('message'),
-  status: text('status').notNull().default('pending'),
-  reviewedById: uuid('reviewed_by_id').references(() => users.id, { onDelete: 'set null' }),
-  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [
-  index('art_claims_status_idx').on(t.status),
-  index('art_claims_art_idx').on(t.artId, t.status),
-  index('art_claims_claimant_idx').on(t.claimantId),
-  check('art_claims_status_chk', sql`status in ('pending', 'approved', 'rejected')`),
-])
-
 // Single-use password-reset tokens (only the SHA-256 hash is stored).
 export const passwordResetTokens = pgTable('password_reset_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -260,7 +229,6 @@ export const eventsRelations = relations(events, ({ one }) => ({
 export const artRelations = relations(art, ({ many, one }) => ({
   locations: many(locations),
   contributions: many(artContributions),
-  claims: many(artClaims),
   owner: one(users, { fields: [art.ownerId], references: [users.id] }),
 }))
 
@@ -269,18 +237,8 @@ export const artContributionsRelations = relations(artContributions, ({ one }) =
   contributor: one(users, { fields: [artContributions.contributorId], references: [users.id] }),
 }))
 
-export const artClaimsRelations = relations(artClaims, ({ one }) => ({
-  art: one(art, { fields: [artClaims.artId], references: [art.id] }),
-  claimant: one(users, { fields: [artClaims.claimantId], references: [users.id] }),
-  reviewer: one(users, { fields: [artClaims.reviewedById], references: [users.id] }),
-}))
-
 export const auditLogRelations = relations(auditLog, ({ one }) => ({
   actor: one(users, { fields: [auditLog.actorId], references: [users.id] }),
-}))
-
-export const gateConditionsRelations = relations(gateConditions, ({ one }) => ({
-  updatedBy: one(users, { fields: [gateConditions.updatedById], references: [users.id] }),
 }))
 
 export const messagesRelations = relations(messages, ({ one }) => ({
