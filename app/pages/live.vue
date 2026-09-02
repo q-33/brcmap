@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
+import { BMIR, SHOUTING_FIRE, WEBCAST } from '~~/lib/radio'
 import type { AirNow, FireAlert } from '~~/lib/fires'
 import { aqiBand } from '~~/lib/fires'
 import { dustRisk, windDir, wmo } from '~~/lib/weather'
+
+// The webcast player is only inserted once someone asks for it. An eager
+// YouTube iframe is over a megabyte before a single frame plays, and this page
+// gets opened on playa data — same rule the BMIR button follows on the map.
+const webcastOn = ref(false)
 
 interface Current {
   temperature_2m: number
@@ -201,6 +206,43 @@ useHead({ title: 'Live — BRC Map' })
       Weather, dust outlook, and radio for Black Rock City.
       <span class="text-(--ui-text-muted)/80">This page refreshes itself every few minutes while it's open.</span>
     </p>
+
+    <!-- The official webcast. Top of the page because when it is live, it is the
+         most direct answer this page can give: here is the city, right now. -->
+    <section class="mb-8">
+      <div class="mb-3 flex items-center gap-2">
+        <UIcon name="i-lucide-video" class="size-5 text-primary" />
+        <h2 class="font-display text-lg font-bold uppercase tracking-wide">The webcast</h2>
+        <a :href="WEBCAST.watch" target="_blank" rel="noopener noreferrer" class="ml-auto text-xs text-(--ui-text-muted) underline">Open on YouTube ↗</a>
+      </div>
+      <div class="relative aspect-video overflow-hidden rounded-xl border border-(--ui-border) bg-black">
+        <iframe
+          v-if="webcastOn"
+          :src="WEBCAST.embed"
+          :title="WEBCAST.name"
+          class="absolute inset-0 size-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen
+        />
+        <button
+          v-else
+          type="button"
+          class="group absolute inset-0 flex flex-col items-center justify-center gap-3 text-white transition hover:bg-white/5"
+          :aria-label="`Play ${WEBCAST.name}`"
+          @click="webcastOn = true"
+        >
+          <span class="flex size-14 items-center justify-center rounded-full bg-primary/90 shadow-lg transition group-hover:scale-105">
+            <UIcon name="i-lucide-play" class="size-7 translate-x-0.5" />
+          </span>
+          <span class="px-6 text-center text-sm font-medium">{{ WEBCAST.name }}</span>
+        </button>
+      </div>
+      <p class="mt-2 text-xs text-(--ui-text-muted)">
+        Nothing loads until you tap play — the player is a big download, and out there that matters.
+        The stream is only up while the event is running.
+      </p>
+    </section>
 
     <!-- On-playa station: leads whenever one is reporting, because a sensor in
          the dust beats a model reading a 9 km grid square. -->
