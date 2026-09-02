@@ -72,6 +72,14 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/ui', 'nuxt-auth-utils', '@vite-pwa/nuxt'],
   css: ['~/assets/css/main.css'],
+  // /gate carried the Gate Road conditions board, retired because the GPE crew
+  // never posted to it. Bookmarks and the printed-guide links outlive the page,
+  // so point them at /live, which still carries the GARS 95.1 gate-traffic card.
+  // 302 rather than 301: a permanent redirect is cached by the browser for good,
+  // and reviving the board later shouldn't need every past visitor to clear it.
+  routeRules: {
+    '/gate': { redirect: { to: '/live', statusCode: 302 } },
+  },
   // Offline-first PWA: installable, and (once opened online) the app shell + map
   // code + last-synced data are cached so the whole city map works with no signal
   // on the playa. Custom service worker in service-worker/sw.ts.
