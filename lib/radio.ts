@@ -1,4 +1,4 @@
-// Playa radio stream URLs, in one place.
+// Playa live media — the radio streams and the official webcast — in one place.
 //
 // They lived in two files and drifted: the map's BMIR button pointed at
 // bmir-ice.streamguys.com, a host that does not answer at all, while /live
@@ -37,3 +37,21 @@ export const SHOUTING_FIRE: RadioStation = {
 }
 
 export const RADIO_STATIONS: RadioStation[] = [BMIR, SHOUTING_FIRE]
+
+/**
+ * The official Burning Man webcast. Video rather than radio, but it answers the
+ * same question the streams do — what is happening out there right now — so it
+ * lives beside them instead of inline in the page.
+ *
+ * The ID changes every year. When the next one is announced, this is the only
+ * line that needs editing.
+ */
+export const WEBCAST = {
+  key: 'bm-webcast',
+  name: '2026 Burning Man Live Webcast from Black Rock City',
+  videoId: 'Z8b1Be-HUGU',
+  watch: 'https://www.youtube.com/watch?v=Z8b1Be-HUGU',
+  // youtube-nocookie serves the same player without setting a tracking cookie
+  // until playback actually starts.
+  embed: 'https://www.youtube-nocookie.com/embed/Z8b1Be-HUGU?autoplay=1&rel=0',
+}
