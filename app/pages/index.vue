@@ -956,8 +956,20 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- lower-left stack: BMIR above the layers panel -->
+    <!-- lower-left stack: the webcast and BMIR above the layers panel -->
     <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
+      <!-- The official webcast, one tap away from the map. Deliberately a link
+           rather than an inline player: video over the city you are trying to
+           read is the wrong trade, and the player is a big download that /live
+           already gates behind a tap. -->
+      <NuxtLink
+        to="/live"
+        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+        aria-label="Watch the Burning Man live stream on the Live page"
+      >
+        <UIcon name="i-lucide-video" class="size-4 text-primary" />
+        <span class="font-medium">Live Stream</span>
+      </NuxtLink>
       <!-- BMIR, one tap. The playa's own station; people want it while looking
            at the map, not after navigating away to the Live page. -->
       <button
