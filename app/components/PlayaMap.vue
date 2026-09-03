@@ -1468,11 +1468,20 @@ watch(() => props.sunTime, () => {
 // why a whiteout and a stiff breeze looked identical. The reading used to stop
 // exactly where it started to matter.
 //
-// Motes elongate into streaks as the wind gets up. That is what sells speed:
-// more dots just look like more dots, but a streak is legibly moving fast.
+// Force is carried by density, speed and how much each mote billows — NOT by
+// drawing something with a point on it. An earlier pass smeared every mote into
+// a hard-edged capsule, and a few hundred of those all aimed the same way stops
+// reading as air and starts reading as a volley of darts flying at the city.
+// Wrong feeling entirely: dust on the playa is something you are inside, not
+// something incoming.
+//
+// So each mote is a soft head with a tail that fades out behind it, and it
+// meanders across the wind instead of tracking it dead straight. Nothing has an
+// edge to it, nothing points. The reading is unchanged — a whiteout is still
+// unmistakable — but it billows rather than strafes.
 let wxCanvas: HTMLCanvasElement | null = null
 let wxRaf = 0
-let dustParts: { x: number, y: number, sp: number, a: number, r: number }[] = []
+let dustParts: { x: number, y: number, sp: number, a: number, r: number, ph: number, wr: number }[] = []
 let rainParts: { x: number, y: number, sp: number, len: number, a: number }[] = []
 
 function stopWeather() {
@@ -1524,6 +1533,10 @@ function drawWeather() {
     sp: 0.45 + Math.random() * 1.0,
     a: dustAlpha * (0.55 + Math.random() * 0.75),
     r: Math.random() < 0.72 ? 1.1 : 2.4,
+    // Its own wander: phase so the field never pulses in unison, and rate so
+    // some motes curl lazily while others skitter.
+    ph: Math.random() * 6.283,
+    wr: 0.008 + Math.random() * 0.022,
   }))
 
   // Meteorological direction is where the wind comes FROM; motes travel the
@@ -1532,9 +1545,16 @@ function drawWeather() {
   const ux = Math.sin(rad)
   const uy = -Math.cos(rad)
   const dustSpeed = 1.1 + gusts * 0.16
-  // How far back each mote smears. Near-round at a breeze, a long streak in a
-  // blow — the length IS the wind speed, read without a legend.
-  const trail = 0.7 + gust01 * 1.9
+  // How far the fading tail reaches. Shorter than the old hard streak — length
+  // was doing the work that softness does better, and the long version is what
+  // made these look like projectiles.
+  const trail = 0.5 + gust01 * 1.2
+  // Sideways wander, across the wind. Rises with the gusts: a breeze drifts, a
+  // blow churns. This is what makes the field read as turbulent air.
+  const wander = 0.18 + gust01 * 0.85
+  // Perpendicular to the wind, for that wander.
+  const px = -uy
+  const py = ux
 
   // Rain falls fast and hard, and on this playa it is the weather that decides
   // whether anyone can drive. It gets to be more assertive than the dust.
@@ -1554,26 +1574,41 @@ function drawWeather() {
 
   ctx.lineCap = 'round'
 
+  let frame = 0
+
   const tick = () => {
     ctx.clearRect(0, 0, cw, ch)
+    frame++
 
     ctx.strokeStyle = '#8a7f6d'
+    ctx.fillStyle = '#8a7f6d'
     for (const p of dustParts) {
       const vx = ux * dustSpeed * p.sp
       const vy = uy * dustSpeed * p.sp
-      p.x += vx
-      p.y += vy
+      // Wander across the wind. The mote still goes where the wind goes; it
+      // just gets there loosely, which is the difference between air moving and
+      // something being fired.
+      const drift = Math.sin(frame * p.wr + p.ph) * wander
+      p.x += vx + px * drift
+      p.y += vy + py * drift
       // wrap, so the field never thins out at an edge
       if (p.x < -24) p.x = cw + 24
       if (p.x > cw + 24) p.x = -24
       if (p.y < -24) p.y = ch + 24
       if (p.y > ch + 24) p.y = -24
-      ctx.globalAlpha = p.a
-      ctx.lineWidth = p.r * 1.7
+      // Tail first, at a third of the mote's opacity and thinner than the head,
+      // so it reads as something trailing off rather than as a shaft.
+      ctx.globalAlpha = p.a * 0.33
+      ctx.lineWidth = p.r * 1.1
       ctx.beginPath()
       ctx.moveTo(p.x, p.y)
       ctx.lineTo(p.x - vx * trail, p.y - vy * trail)
       ctx.stroke()
+      // Then the head: a soft round mote, the brightest thing in the pair.
+      ctx.globalAlpha = p.a
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.r * 0.95, 0, 6.283)
+      ctx.fill()
     }
 
     ctx.strokeStyle = '#5f83a8'
