@@ -956,7 +956,7 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- lower-left stack: the webcast and BMIR above the layers panel -->
+    <!-- lower-left stack: the webcast above the layers panel -->
     <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
       <!-- The official webcast, one tap away from the map. Deliberately a link
            rather than an inline player: video over the city you are trying to
@@ -970,21 +970,6 @@ const itemOptions = computed(() => [
         <UIcon name="i-lucide-video" class="size-4 text-primary" />
         <span class="font-medium">Live Stream</span>
       </NuxtLink>
-      <!-- BMIR, one tap. The playa's own station; people want it while looking
-           at the map, not after navigating away to the Live page. -->
-      <button
-        type="button"
-        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-        :aria-label="bmirPlaying ? 'Stop BMIR' : 'Listen to BMIR 94.5'"
-        @click="toggleBmir"
-      >
-        <UIcon :name="bmirLoading ? 'i-lucide-loader-circle' : bmirPlaying ? 'i-lucide-pause' : 'i-lucide-radio'" :class="['size-4 text-primary', bmirLoading && 'animate-spin']" />
-        <span class="font-medium">BMIR</span>
-        <span class="text-white/60">94.5</span>
-        <span v-if="bmirPlaying" class="flex items-end gap-0.5" aria-hidden="true">
-          <span v-for="(h, i) in [7, 11, 5]" :key="i" class="w-0.5 animate-pulse rounded-full bg-emerald-400" :style="{ height: `${h}px`, animationDelay: `${i * 140}ms` }" />
-        </span>
-      </button>
       <!-- layers panel (doubles as the legend) -->
       <div class="pointer-events-auto w-44 overflow-hidden rounded-xl border border-white/10 bg-[#26211a]/85 text-xs text-white shadow-lg backdrop-blur-xl">
       <button type="button" class="flex w-full items-center gap-1.5 px-3 py-2 font-display font-semibold" @click="panelOpen = !panelOpen">
@@ -1038,7 +1023,7 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- top-left stack: weather pill -->
+    <!-- top-left stack: weather pill · BMIR -->
     <div class="pointer-events-none absolute left-3 top-16 flex flex-col items-start gap-2">
       <!-- weather pill — a station inside the fence when one is reporting -->
       <NuxtLink
@@ -1057,6 +1042,22 @@ const itemOptions = computed(() => [
           <span class="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
         </span>
       </NuxtLink>
+
+      <!-- BMIR, one tap. The playa's own station; people want it while looking
+           at the map, not after navigating away to the Live page. -->
+      <button
+        type="button"
+        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+        :aria-label="bmirPlaying ? 'Stop BMIR' : 'Listen to BMIR 94.5'"
+        @click="toggleBmir"
+      >
+        <UIcon :name="bmirLoading ? 'i-lucide-loader-circle' : bmirPlaying ? 'i-lucide-pause' : 'i-lucide-radio'" :class="['size-4 text-primary', bmirLoading && 'animate-spin']" />
+        <span class="font-medium">BMIR</span>
+        <span class="text-white/60">94.5</span>
+        <span v-if="bmirPlaying" class="flex items-end gap-0.5" aria-hidden="true">
+          <span v-for="(h, i) in [7, 11, 5]" :key="i" class="w-0.5 animate-pulse rounded-full bg-emerald-400" :style="{ height: `${h}px`, animationDelay: `${i * 140}ms` }" />
+        </span>
+      </button>
     </div>
 
     <!-- bottom-right stack: compass rose · Meshtastic mesh.
