@@ -156,6 +156,10 @@ export const art = pgTable('art', {
   url: text('url'),
   contactEmail: text('contact_email'),
   hometown: text('hometown'),
+  // Their uid in Burning Man's own art directory, when this row came from (or
+  // was matched to) it. Null means a burner created it here — see the import
+  // script and migration 0025.
+  bmUid: text('bm_uid'),
   // An open call: a prompt asking the community to contribute. Null = no call.
   call: text('call'),
   hidden: boolean('hidden').notNull().default(false),
