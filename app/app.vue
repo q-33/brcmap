@@ -8,6 +8,11 @@
           <NuxtPage />
         </NuxtLayout>
       </div>
+      <!-- The radio lives here, above the router, so playback survives every
+           page change. Renders nothing until someone presses play. -->
+      <ClientOnly>
+        <RadioBar />
+      </ClientOnly>
     </div>
   </UApp>
 </template>

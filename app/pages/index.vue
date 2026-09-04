@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
-import { BMIR } from '~~/lib/radio'
+import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
 import { dustRisk, rainIntensity, wmo } from '~~/lib/weather'
 
 function namedAddress(s: string | null | undefined): string {
@@ -320,37 +320,10 @@ const pill = computed(() => {
   return { tempF: c.temperature_2m, gustMph: c.wind_gusts_10m, code: c.weather_code, source: 'forecast', live: false }
 })
 
-// BMIR, playable from the map. One <audio> element created on demand — nothing
-// is fetched until someone actually asks for it, which matters on playa data.
-const bmirPlaying = ref(false)
-const bmirLoading = ref(false)
-let bmirEl: HTMLAudioElement | null = null
-// Shared with /live — see lib/radio.ts. This button pointed at a host that
-// does not answer, so it silently did nothing while the same station played
-// fine on the Live page.
-const BMIR_STREAM = BMIR.stream
-
-async function toggleBmir() {
-  if (!bmirEl) {
-    bmirEl = new Audio(BMIR_STREAM)
-    bmirEl.preload = 'none'
-    bmirEl.addEventListener('playing', () => { bmirPlaying.value = true; bmirLoading.value = false })
-    bmirEl.addEventListener('pause', () => { bmirPlaying.value = false })
-    bmirEl.addEventListener('error', () => { bmirPlaying.value = false; bmirLoading.value = false })
-  }
-  if (bmirPlaying.value) {
-    bmirEl.pause()
-    return
-  }
-  bmirLoading.value = true
-  try {
-    await bmirEl.play()
-  }
-  catch {
-    bmirLoading.value = false
-  }
-}
-onBeforeUnmount(() => bmirEl?.pause())
+// Radio from the map. The player itself lives in useRadio() — outside the
+// component tree — so walking from here to the camp list does not cut the
+// music. These pills are only controls.
+const { toggle: toggleRadio, isPlaying, isLoading } = useRadio()
 
 // Wind for the dust animation: the station's if we have one, else the model's.
 // Wind for the blowing-dust animation. Direction and gusts only: the readout
@@ -1023,7 +996,7 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- top-left stack: weather pill · BMIR -->
+    <!-- top-left stack: weather pill · radio -->
     <div class="pointer-events-none absolute left-3 top-16 flex flex-col items-start gap-2">
       <!-- weather pill — a station inside the fence when one is reporting -->
       <NuxtLink
@@ -1043,21 +1016,30 @@ const itemOptions = computed(() => [
         </span>
       </NuxtLink>
 
-      <!-- BMIR, one tap. The playa's own station; people want it while looking
-           at the map, not after navigating away to the Live page. -->
-      <button
-        type="button"
-        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-        :aria-label="bmirPlaying ? 'Stop BMIR' : 'Listen to BMIR 94.5'"
-        @click="toggleBmir"
-      >
-        <UIcon :name="bmirLoading ? 'i-lucide-loader-circle' : bmirPlaying ? 'i-lucide-pause' : 'i-lucide-radio'" :class="['size-4 text-primary', bmirLoading && 'animate-spin']" />
-        <span class="font-medium">BMIR</span>
-        <span class="text-white/60">94.5</span>
-        <span v-if="bmirPlaying" class="flex items-end gap-0.5" aria-hidden="true">
-          <span v-for="(h, i) in [7, 11, 5]" :key="i" class="w-0.5 animate-pulse rounded-full bg-emerald-400" :style="{ height: `${h}px`, animationDelay: `${i * 140}ms` }" />
-        </span>
-      </button>
+      <!-- Radio, one tap. The playa's own stations; people want them while
+           looking at the map, not after navigating away to the Live page.
+           Side by side because they are alternatives to each other, and a
+           column of them would push the weather pill's stack down the screen. -->
+      <div class="flex items-center gap-2">
+        <button
+          v-for="st in [BMIR, SHOUTING_FIRE]"
+          :key="st.key"
+          type="button"
+          class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
+          :aria-label="isPlaying(st) ? `Stop ${st.name}` : `Listen to ${st.name} ${st.dial}`"
+          @click="toggleRadio(st)"
+        >
+          <UIcon
+            :name="isLoading(st) ? 'i-lucide-loader-circle' : isPlaying(st) ? 'i-lucide-pause' : 'i-lucide-radio'"
+            :class="['size-4 text-primary', isLoading(st) && 'animate-spin']"
+          />
+          <span class="font-medium">{{ st.name }}</span>
+          <span class="hidden text-white/60 sm:inline">{{ st.dial.replace(' FM', '') }}</span>
+          <span v-if="isPlaying(st)" class="flex items-end gap-0.5" aria-hidden="true">
+            <span v-for="(h, i) in [7, 11, 5]" :key="i" class="w-0.5 animate-pulse rounded-full bg-emerald-400" :style="{ height: `${h}px`, animationDelay: `${i * 140}ms` }" />
+          </span>
+        </button>
+      </div>
     </div>
 
     <!-- bottom-right stack: compass rose · Meshtastic mesh.
