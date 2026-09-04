@@ -27,7 +27,10 @@ const { toggle: toggleRadio, isPlaying, isLoading } = useRadio()
 </script>
 
 <template>
-  <div class="pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
+  <!-- inline-flex, not flex: the pill is exactly as wide as what is in it. As a
+       growing flex child it stretched the whole width of the nav row and left a
+       long empty tail of dark glass over the city. -->
+  <div class="pointer-events-auto inline-flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
     <!-- weather -->
     <NuxtLink
       v-if="pill"
