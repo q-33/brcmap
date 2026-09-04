@@ -24,6 +24,18 @@ defineProps<{ pill: Pill | null }>()
 const { temp: fmtTemp, wind: fmtWind, windUnit } = useUnits()
 const { toggle: toggleRadio, isPlaying, isLoading } = useRadio()
 
+// dustRisk() colours were picked as dot fills on light surfaces; as TEXT on
+// this dark glass the calm green and warning red both muddy out. Same scale,
+// lifted for legibility — the mapping lives here because it is about this
+// surface, not about the risk.
+const DUST_TEXT: Record<string, string> = {
+  '#16a34a': '#4ade80', // calm
+  '#65a30d': '#a3e635', // breezy
+  '#d97706': '#fbbf24', // dusty
+  '#dc2626': '#f87171', // high
+}
+const dustText = (c: string) => DUST_TEXT[c] ?? c
+
 </script>
 
 <template>
@@ -31,21 +43,28 @@ const { toggle: toggleRadio, isPlaying, isLoading } = useRadio()
        growing flex child it stretched the whole width of the nav row and left a
        long empty tail of dark glass over the city. -->
   <div class="pointer-events-auto inline-flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
-    <!-- weather -->
+    <!-- weather. Everything here earns its ink:
+           · the dust read is a WORD tinted with its risk colour, not a dot
+             beside a word saying the same thing;
+           · where the number came from is said in text — "· BRC NOC" for a
+             sensor inside the fence, "· forecast" for the model — because a
+             1.5px green dot meant "live station" only to whoever wrote it. -->
     <NuxtLink
       v-if="pill"
       to="/live"
       class="flex items-center gap-2 rounded-md px-1 py-0.5 transition hover:bg-white/10"
-      :title="pill.live ? `${pill.source} — measured on the playa` : 'Forecast model'"
+      :title="pill.live ? `${pill.source} — measured on the playa` : 'Forecast model, not a local sensor'"
     >
       <UIcon :name="wmo(pill.code).icon" class="size-4 shrink-0 text-primary" />
       <span class="font-medium">{{ fmtTemp(pill.tempF) }}</span>
       <span class="text-white/60">{{ fmtWind(pill.gustMph) }} {{ windUnit }}</span>
-      <span class="size-2 shrink-0 rounded-full" :style="{ background: dustRisk(pill.gustMph).color }" />
-      <span class="hidden text-white/80 sm:inline">{{ dustRisk(pill.gustMph).label }}</span>
-      <span v-if="pill.live" class="relative flex size-1.5" aria-label="live station">
-        <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-        <span class="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
+      <span class="font-medium" :style="{ color: dustText(dustRisk(pill.gustMph).color) }">{{ dustRisk(pill.gustMph).label }}</span>
+      <span class="hidden items-center gap-1 text-xs text-white/45 sm:flex">
+        · {{ pill.live ? pill.source : 'forecast' }}
+        <span v-if="pill.live" class="relative flex size-1.5" aria-label="measured on the playa">
+          <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+          <span class="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
+        </span>
       </span>
     </NuxtLink>
 
