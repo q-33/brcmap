@@ -34,11 +34,19 @@ const alumni = [
         We're merely the shell for all your shiny pearls of information — thank you to every gracious contributor!
       </p>
       <p>
-        We collect placement information voluntarily from camps and artists who wish to share their
-        approximate location ahead of arriving on the playa. Our pin placements are only good guesses
-        and may not reflect reality for those lucky enough to be there in person. The map should give
-        you a decent idea of what you'll find in your neighborhood — but you'll discover even more once
-        you're out there.
+        The map is built from two things. Camps and artists <strong class="text-(--ui-text)">come here
+        and share</strong> their approximate location ahead of arriving on the playa — that is where
+        this started, and those are the pins someone chose to put up. Alongside them we now show
+        Burning Man's own <strong class="text-(--ui-text)">public placement directory</strong>, so the
+        map shows the whole city rather than only the camps who found us. You can switch the directory
+        off in the map's Layers panel if you only want to see who opted in.
+      </p>
+      <p>
+        Where a camp appears in both, the pin its own people placed always wins — we never move
+        somebody's pin to match a spreadsheet. Placements are good guesses either way, and may not
+        reflect reality for those lucky enough to be there in person. The map should give you a decent
+        idea of what you'll find in your neighborhood — but you'll discover even more once you're out
+        there.
       </p>
     </div>
 

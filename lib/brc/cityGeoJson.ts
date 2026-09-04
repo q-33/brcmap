@@ -43,7 +43,7 @@ function lngLatToEN(p: [number, number]): [number, number] {
 // Plan-oriented offsets (12:00 straight up, as measured off the official PDF)
 // → real-world lng/lat: rotate by the city's 45° bearing first.
 const SQRT2_2 = Math.SQRT2 / 2
-function planToLngLat(px: number, py: number): [number, number] {
+export function planToLngLat(px: number, py: number): [number, number] {
   return enToLngLat((px + py) * SQRT2_2, (py - px) * SQRT2_2)
 }
 

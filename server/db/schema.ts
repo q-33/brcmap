@@ -137,7 +137,11 @@ export const camps = pgTable('camps', {
   // optional plot footprint (feet): frontage along the street, depth radial
   frontageFt: doublePrecision('frontage_ft'),
   depthFt: doublePrecision('depth_ft'),
-  hidden: boolean('hidden').notNull().default(false),
+    // 'community' — a camp that came here and asked to be on the map.
+  // 'official'  — copied from Burning Man's placement directory (see 0027).
+  source: text('source').notNull().default('community'),
+  bmUid: text('bm_uid'),
+hidden: boolean('hidden').notNull().default(false),
   // Opt-out from third-party data exports (/api/export/*). The camp stays fully
   // visible on brcmap.net; it just isn't handed to anyone else. See migration 0020.
   excludeFromExport: boolean('exclude_from_export').notNull().default(false),
