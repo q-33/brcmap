@@ -1,4 +1,4 @@
-import { boolean, check, doublePrecision, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, doublePrecision, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
 export const events = pgTable('events', {
@@ -95,6 +95,20 @@ export const auditLog = pgTable('audit_log', {
   detail: text('detail'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('audit_log_created_idx').on(t.createdAt)])
+
+// Anonymous usage pulse — see db/migrations/0026 and lib/pulse.ts. `visitor` is
+// a daily-rotating hash, not an identity; no IP is stored and it cannot be
+// followed across playa days.
+export const usagePulse = pgTable('usage_pulse', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  visitor: text('visitor').notNull(),
+  path: text('path').notNull(),
+  bucket: timestamp('bucket', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  uniqueIndex('usage_pulse_uniq').on(t.visitor, t.path, t.bucket),
+  index('usage_pulse_bucket_idx').on(t.bucket),
+])
 
 // In-app 1:1 direct messages. A conversation is the set of messages between a
 // given pair of users (derived, not a stored row).
