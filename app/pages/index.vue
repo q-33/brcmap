@@ -871,8 +871,12 @@ const itemOptions = computed(() => [
         </div>
         <!-- Wide enough, and this rides in the gap the nav leaves between the
              logo and the buttons — one band over the city instead of a stack of
-             them. Narrower, it drops to its own line rather than crushing. -->
-        <MapTopBar :pill="pill" class="order-3 basis-full lg:order-2 lg:min-w-0 lg:flex-1 lg:basis-auto" />
+             them. Narrower, it drops to its own line rather than crushing.
+             The wrapper does the placing; the pill inside sizes to its content,
+             so the space it does not need stays map. -->
+        <div class="order-3 basis-full lg:order-2 lg:basis-auto">
+          <MapTopBar :pill="pill" />
+        </div>
       </div>
 
       <!-- placement banner: shown while a drop is armed, before/between taps -->
