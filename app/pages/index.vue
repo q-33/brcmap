@@ -107,7 +107,11 @@ const { data: artData, refresh: refreshArt } = await useFetch('/api/art', { serv
 // migration hasn't run, so this never blocks the map.
 const { data: geoData, refresh: refreshGeo } = await useFetch<any[]>('/api/camps/geometry', { server: false, lazy: true, default: () => [] })
 const geoByCamp = computed(() => new Map((geoData.value ?? []).map((g: any) => [g.campId, { footprint: (g.footprint ?? null) as [number, number][] | null, heightFt: (g.heightFt ?? null) as number | null }])))
-const pins = computed<CampPin[]>(() => toPins(campsData.value, geoByCamp.value))
+const pins = computed<CampPin[]>(() => {
+  const rows = (campsData.value ?? []).filter((c: any) =>
+    c.source === 'official' ? layers.official : layers.camps)
+  return toPins(rows, geoByCamp.value)
+})
 const artPins = computed<CampPin[]>(() => toPins(artData.value, undefined, 'art'))
 
 // Live Meshtastic peers (LoRa mesh) → map dots. Shared singleton state, also
@@ -354,7 +358,12 @@ const rainInfo = computed(() => {
 // map layer visibility (the legend doubles as the toggle control)
 // Porta-potties default OFF — the 2026 placement isn't known yet, so we don't
 // want to imply the (stale) pins are accurate. Users can re-enable in the legend.
-const layers = reactive({ camps: true, art: true, toilets: true, medical: true, safety: true, services: true, transport: true })
+// `official` are the ~1,000 camps copied from Burning Man's placement
+// directory; `camps` are the ones that came here and asked to be on the map.
+// Both on by default — the whole city is the point — but the directory is ten
+// times the size of the volunteer list, so it gets its own switch rather than
+// burying the camps who opted in under it.
+const layers = reactive({ camps: true, official: true, art: true, toilets: true, medical: true, safety: true, services: true, transport: true })
 const panelOpen = ref(false)
 const basemap = ref<'blocks' | 'lines'>('blocks')
 
@@ -968,6 +977,10 @@ const itemOptions = computed(() => [
         <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.camps && 'opacity-40'" @click="layers.camps = !layers.camps">
           <span class="inline-block size-2 rounded-full" style="background:#d6336c" />Camps
           <UIcon :name="layers.camps ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
+        </button>
+        <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.official && 'opacity-40'" @click="layers.official = !layers.official">
+          <span class="size-2.5 shrink-0 rounded-full border border-white/40 bg-white/20" />Placement list
+          <UIcon :name="layers.official ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
         </button>
         <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.art && 'opacity-40'" @click="layers.art = !layers.art">
           <span class="inline-block size-2 rounded-full" style="background:#7c3aed" />Art
