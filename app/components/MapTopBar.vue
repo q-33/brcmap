@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
-import { burnCountdown, burnUrgency, upcomingBurn } from '~~/lib/burns'
 import { dustRisk, wmo } from '~~/lib/weather'
 
-// The map's top section: what the sky is doing, what is on the radio, and what
-// burns next. Three things you check without meaning to.
+// The map's top section: what the sky is doing and what is on the radio.
 //
 // It stacks UNDER the nav in normal flow rather than at a hand-picked `top-`
 // offset. The previous version guessed an offset, which is only right until the
@@ -26,43 +24,10 @@ defineProps<{ pill: Pill | null }>()
 const { temp: fmtTemp, wind: fmtWind, windUnit } = useUnits()
 const { toggle: toggleRadio, isPlaying, isLoading } = useRadio()
 
-// A live clock, not a load-time snapshot: this map gets left open for hours and
-// the countdown has to keep meaning something. Ticks a minute at a time —
-// seconds would make a thing that happens at dusk look frantic.
-const now = ref(Date.now())
-let timer: ReturnType<typeof setInterval> | undefined
-onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 60_000) })
-onBeforeUnmount(() => clearInterval(timer))
-
-const burn = computed(() => {
-  const b = upcomingBurn(now.value)
-  return b ? { ...b, ...burnCountdown(b, now.value), urgency: burnUrgency(b, now.value) } : null
-})
-
-// The Man's night, and only the Man's. The bar picks up a warm edge so the map
-// looks different on the night the city is there for — without another band
-// over it, which is exactly what this whole layout replaced.
-const manNight = computed(() =>
-  burn.value?.isMan === true && burn.value.urgency !== 'far' && burn.value.urgency !== 'over')
-
-// The flame answers "how soon" before you have read a word of it: dim while it
-// is days out, warming through the afternoon, red and breathing in the last
-// hour, and alight while it burns.
-const flame = computed(() => {
-  switch (burn.value?.urgency) {
-    case 'burning': return { class: 'text-orange-400', beat: true }
-    case 'imminent': return { class: 'text-red-400', beat: true }
-    case 'near': return { class: 'text-amber-400', beat: false }
-    default: return { class: 'text-white/50', beat: false }
-  }
-})
 </script>
 
 <template>
-  <div
-    class="pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border bg-[#26211a]/85 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-xl transition-colors duration-1000"
-    :class="manNight ? 'border-amber-500/50 shadow-amber-900/30' : 'border-white/10'"
-  >
+  <div class="pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
     <!-- weather -->
     <NuxtLink
       v-if="pill"
@@ -108,28 +73,5 @@ const flame = computed(() => {
       </button>
     </div>
 
-    <!-- the next thing to burn -->
-    <template v-if="burn">
-      <span class="hidden h-4 w-px bg-white/15 sm:block" />
-      <NuxtLink
-        to="/events"
-        class="flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 transition hover:bg-white/10"
-        :title="`${burn.name} — ${burn.day}, ${burn.time}${burn.expected ? ' (expected — not officially published)' : ''}`"
-      >
-        <UIcon
-          name="i-lucide-flame"
-          class="size-4 shrink-0 transition-colors"
-          :class="[flame.class, flame.beat && 'animate-pulse']"
-        />
-        <span class="truncate font-medium" :class="manNight && 'text-amber-200'">{{ burn.name }}</span>
-        <span
-          class="shrink-0 tabular-nums"
-          :class="burn.phase === 'burning' ? 'font-semibold text-orange-300' : 'text-white/60'"
-        >{{ burn.label }}</span>
-        <!-- 'expected' means the schedule is not officially published yet, and
-             saying so is the difference between a plan and a promise. -->
-        <span v-if="burn.expected" class="hidden shrink-0 text-xs text-white/40 md:inline">(expected)</span>
-      </NuxtLink>
-    </template>
   </div>
 </template>
