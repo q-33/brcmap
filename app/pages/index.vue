@@ -821,7 +821,7 @@ const itemOptions = computed(() => [
 
     <!-- floating top bar -->
     <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 p-3">
-      <div class="flex items-start justify-between gap-2">
+      <div class="flex flex-wrap items-start gap-2">
       <div class="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#26211a]/85 p-1 pl-3 text-white shadow-lg backdrop-blur-xl">
         <NuxtLink to="/" class="mr-1 flex items-center gap-1.5">
           <UIcon name="i-lucide-flame" class="size-4 text-primary" />
@@ -840,7 +840,7 @@ const itemOptions = computed(() => [
         </UDropdownMenu>
       </div>
 
-      <div class="pointer-events-auto flex items-center gap-2">
+      <div class="pointer-events-auto order-2 ml-auto flex items-center gap-2 lg:order-3">
         <template v-if="loggedIn">
           <!-- Any signed-in user can drop a camp (or edit the one they own). Hubs
                always get "Drop camp" since they may own several. -->
@@ -860,10 +860,11 @@ const itemOptions = computed(() => [
           Log in
         </UButton>
         </div>
+        <!-- Wide enough, and this rides in the gap the nav leaves between the
+             logo and the buttons — one band over the city instead of a stack of
+             them. Narrower, it drops to its own line rather than crushing. -->
+        <MapTopBar :pill="pill" class="order-3 basis-full lg:order-2 lg:min-w-0 lg:flex-1 lg:basis-auto" />
       </div>
-
-      <!-- weather · radio · what burns next -->
-      <MapTopBar :pill="pill" />
 
       <!-- placement banner: shown while a drop is armed, before/between taps -->
     <div v-if="dropMode && !dropOpen" class="pointer-events-auto mx-auto flex items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
