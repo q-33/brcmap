@@ -36,7 +36,28 @@ export const SHOUTING_FIRE: RadioStation = {
   blurb: 'The global burner radio network. On air year round.',
 }
 
-export const RADIO_STATIONS: RadioStation[] = [BMIR, SHOUTING_FIRE]
+/**
+ * K-Hole Radio 102.3 FM — Black Rock City's self-described #3 choice for music.
+ *
+ * Their stream is a listen2myradio wrapper. The trailing number on the query
+ * string is a cache-buster that changes on every page load of their site and
+ * has no effect on what you get back, so it is dropped here rather than
+ * pretending to be meaningful.
+ *
+ * Event-only, and in practice more intermittent than BMIR: when the source is
+ * not connected the wrapper answers 200 with an empty body rather than an
+ * error, which is why the player treats "opened but never started" as off air.
+ */
+export const K_HOLE: RadioStation = {
+  key: 'k-hole',
+  name: 'K-Hole',
+  dial: '102.3 FM',
+  stream: 'https://uk7freenew.listen2myradio.com/live.mp3?typeportmount=s1_15584_stream',
+  blurb: 'K-Hole Radio — music from the deep playa, 102.3 FM.',
+  eventOnly: true,
+}
+
+export const RADIO_STATIONS: RadioStation[] = [BMIR, SHOUTING_FIRE, K_HOLE]
 
 /**
  * The official Burning Man webcast. Video rather than radio, but it answers the

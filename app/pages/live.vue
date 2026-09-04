@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BMIR, SHOUTING_FIRE, WEBCAST } from '~~/lib/radio'
+import { BMIR, K_HOLE, SHOUTING_FIRE, WEBCAST } from '~~/lib/radio'
 import type { AirNow, FireAlert } from '~~/lib/fires'
 import { aqiBand } from '~~/lib/fires'
 import { dustRisk, windDir, wmo } from '~~/lib/weather'
@@ -167,14 +167,16 @@ function alertWindow(iso: string | null) {
   return new Date(iso).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
 }
 
-// BMIR streams only during the event window (Aug 30 – Sep 7, 2026).
-// Shared with the map's BMIR button — see lib/radio.ts.
-const BMIR_STREAM = BMIR.stream
+// The stations here drive the SAME player as the map's pills — see
+// app/composables/useRadio.ts. These were plain <audio controls> elements,
+// which meant the music stopped the moment you navigated off this page.
+//
 // Shouting Fire runs year round. Their own player still points at a bmir-ice
 // host (Bobzilla ran BMIR before starting this), which is confusing and
-// http-only; this is the same Icecast mount on their TLS host, so the player
-// is not blocked as mixed content.
-const SHOUTING_FIRE_STREAM = SHOUTING_FIRE.stream
+// http-only; ours is the same Icecast mount on their TLS host, so it is not
+// blocked as mixed content. BMIR and K-Hole are event-only and go quiet
+// between burns — the player says so rather than spinning forever.
+const { toggle: toggleRadio, isPlaying, isLoading } = useRadio()
 
 useHead({ title: 'Live — BRC Map' })
 </script>
@@ -558,12 +560,10 @@ useHead({ title: 'Live — BRC Map' })
             <h3 class="font-semibold">BMIR 94.5 FM</h3>
           </div>
           <p class="mt-1 text-sm text-(--ui-text-muted)">Burning Man Information Radio — the city's voice.</p>
-          <audio controls preload="none" :src="BMIR_STREAM" class="mt-3 w-full">
-            Your browser can’t play this stream.
-          </audio>
+          <RadioPlayButton :station="BMIR" />
           <p class="mt-2 text-xs text-(--ui-text-muted)">
-            Live during the event (Aug 30 – Sep 7, 2026). Off-air the rest of the year — the player
-            will be silent until BMIR is broadcasting.
+            Live during the event (Aug 30 – Sep 7, 2026). Off-air the rest of the year. Keeps
+            playing if you move to another page.
           </p>
         </UCard>
         <UCard>
@@ -583,9 +583,7 @@ useHead({ title: 'Live — BRC Map' })
             <h3 class="font-semibold">Shouting Fire 99.5 FM</h3>
           </div>
           <p class="mt-1 text-sm text-(--ui-text-muted)">The global burner radio network, started by Bobzilla, formerly one of BMIR's managers. On air year round, not just event week.</p>
-          <audio controls preload="none" :src="SHOUTING_FIRE_STREAM" class="mt-3 w-full">
-            Your browser can’t play this stream.
-          </audio>
+          <RadioPlayButton :station="SHOUTING_FIRE" />
           <p class="mt-2 text-xs text-(--ui-text-muted)">
             On playa · tune to 99.5 FM. Also on
             <a href="https://shoutingfire.com" target="_blank" rel="noopener" class="text-primary underline">shoutingfire.com</a>,
@@ -598,10 +596,11 @@ useHead({ title: 'Live — BRC Map' })
             <h3 class="font-semibold">The K-Hole 102.3 FM</h3>
           </div>
           <p class="mt-1 text-sm text-(--ui-text-muted)">Music for the staff and volunteers who build the city. 50 watts on playa from August, and an online stream the rest of the year.</p>
+          <RadioPlayButton :station="K_HOLE" />
           <div class="mt-3 rounded-lg bg-(--ui-bg-muted) px-3 py-2.5 text-sm">
             <p class="font-semibold">On playa · tune to 102.3 FM</p>
             <p class="mt-0.5 text-xs text-(--ui-text-muted)">
-              Listen online at <a href="https://thekhole.radio12345.com/" target="_blank" rel="noopener" class="text-primary underline">thekhole.radio12345.com</a>
+              Also at <a href="https://thekhole.radio12345.com/" target="_blank" rel="noopener" class="text-primary underline">thekhole.radio12345.com</a>
               (or search “thekhole” in the Listen2MyRadio app), and see
               <a href="https://www.facebook.com/khole1023fmbrc" target="_blank" rel="noopener" class="text-primary underline">their Facebook page</a> for the schedule.
             </p>
