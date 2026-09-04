@@ -2,6 +2,17 @@
 const { loggedIn, user } = useUserSession()
 const { isAdmin, unreadMessages } = useMe()
 
+// A tip jar, kept to one quiet line in the footer beside About and Contact —
+// this is a map for a city built on decommodification, so it asks once, softly,
+// and never on the map itself.
+//
+// Set to null to remove it entirely; that is the whole off switch.
+//
+// NOTE: this only works once GitHub Sponsors is actually enabled on the account.
+// Until then the URL serves a "set up sponsorships" page rather than a 404, so
+// it looks fine to a link checker and is useless to someone trying to give.
+const TIP_JAR: string | null = 'https://github.com/sponsors/q-33'
+
 // Admin is intentionally NOT in the top nav — admins reach it from the account
 // dropdown ("Admin dashboard") instead.
 const links = computed(() => [
@@ -98,6 +109,16 @@ const accountMenu = computed(() => {
           <NuxtLink to="/about" class="hover:text-primary">About</NuxtLink>
           <NuxtLink to="/contact" class="hover:text-primary">Contact</NuxtLink>
           <a href="https://github.com/q-33/brcmap" target="_blank" rel="noopener" class="hover:text-primary">GitHub</a>
+          <a
+            v-if="TIP_JAR"
+            :href="TIP_JAR"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-1 hover:text-primary"
+            title="Help cover hosting and the weather APIs"
+          >
+            <UIcon name="i-lucide-heart" class="size-3" />Tip jar
+          </a>
         </div>
       </UContainer>
     </footer>
