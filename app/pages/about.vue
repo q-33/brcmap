@@ -85,6 +85,34 @@ const alumni = [
       </section>
     </div>
 
+    <section class="mt-10">
+      <h2 class="font-display mb-3 text-lg font-semibold text-primary">What we count, and what we don't</h2>
+      <div class="space-y-3 text-sm text-(--ui-text-toned) leading-relaxed">
+        <p>
+          We wanted to know whether anyone was actually using this thing, so the map counts visits.
+          There is no Google Analytics here, and no third-party tracker of any kind — those cost you
+          a download and a lookup on a hotspot your whole camp is sharing, and they send your browsing
+          to a company that has nothing to do with Black Rock City.
+        </p>
+        <p>
+          Instead the site sends one small note to <em>our own</em> server saying “someone loaded this
+          page”, at most once a minute, and only while the tab is actually open in front of you.
+        </p>
+        <p>
+          <strong class="text-(--ui-text)">We do not store who you are.</strong> Your address and browser
+          are scrambled together with today's date into a jumble of letters that cannot be turned back
+          into either. Because the date is part of it, the jumble changes at playa midnight — so even we
+          cannot tell that today's visitor and tomorrow's are the same person. No cookie, no advertising
+          id, nothing kept on your device. There is nothing to opt out of because there is nothing
+          persistent to opt out from.
+        </p>
+        <p class="text-(--ui-text-muted)">
+          The honest catch: everyone sharing one connection looks like one visitor, so on playa these
+          numbers run low. That is fine — we only wanted to know if the map was worth keeping running.
+        </p>
+      </div>
+    </section>
+
     <div class="mt-12 flex flex-wrap gap-3">
       <UButton to="mailto:feedback@unofficialbrcmap.com" icon="i-lucide-mail" color="neutral" variant="soft">
         Contact us
