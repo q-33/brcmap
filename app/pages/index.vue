@@ -351,17 +351,6 @@ const rainInfo = computed(() => {
   return level ? { level } : null
 })
 
-// Everything that hangs off the top of the map clears the weather banner by the
-// same amount, so the banner's height is stated once here rather than copied
-// into five class lists that would drift apart the first time it changed.
-const belowBanner = computed(() => (pill.value ? 'top-28' : 'top-16'))
-
-// Placement and edit modes put their own banner in that same slot, and on a
-// phone it spans nearly the full width — so the radio pills would sit
-// underneath it. They are also the last thing you want while dropping a pin,
-// so they stand down until the edit is finished.
-const editingOverlay = computed(() => !!((dropMode.value && !dropOpen.value) || adminPlaceCamp.value || fpDrawing.value || editCamp.value))
-
 // map layer visibility (the legend doubles as the toggle control)
 // Porta-potties default OFF — the 2026 placement isn't known yet, so we don't
 // want to imply the (stale) pins are accurate. Users can re-enable in the legend.
@@ -831,7 +820,8 @@ const itemOptions = computed(() => [
     </div>
 
     <!-- floating top bar -->
-    <div class="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+    <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 p-3">
+      <div class="flex items-start justify-between gap-2">
       <div class="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#26211a]/85 p-1 pl-3 text-white shadow-lg backdrop-blur-xl">
         <NuxtLink to="/" class="mr-1 flex items-center gap-1.5">
           <UIcon name="i-lucide-flame" class="size-4 text-primary" />
@@ -869,18 +859,21 @@ const itemOptions = computed(() => [
         <UButton v-else size="sm" color="primary" @click="authOpen = true">
           Log in
         </UButton>
+        </div>
       </div>
-    </div>
 
-    <!-- placement banner: shown while a drop is armed, before/between taps -->
-    <div v-if="dropMode && !dropOpen" class="pointer-events-auto absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl" :class="belowBanner">
+      <!-- weather · radio · what burns next -->
+      <MapTopBar :pill="pill" />
+
+      <!-- placement banner: shown while a drop is armed, before/between taps -->
+    <div v-if="dropMode && !dropOpen" class="pointer-events-auto mx-auto flex items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
       <UIcon name="i-lucide-hand-pointer" class="size-4 text-primary" />
       <span>Tap the map to place your {{ dropKind }}</span>
       <button type="button" class="text-white/60 underline hover:text-white" @click="cancelDrop">Cancel</button>
     </div>
 
     <!-- place/move-any-camp banner (from the Camps list "Place on map", or /admin) -->
-    <div v-if="adminPlaceCamp" class="pointer-events-auto absolute left-1/2 z-10 flex max-w-[calc(100vw-1.5rem)] -translate-x-1/2 items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl" :class="belowBanner">
+    <div v-if="adminPlaceCamp" class="pointer-events-auto mx-auto flex max-w-[calc(100vw-1.5rem)] items-center gap-3 rounded-full border border-primary/40 bg-[#26211a]/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
       <UIcon name="i-lucide-shield" class="size-4 shrink-0 text-primary" />
       <span class="truncate">Tap to {{ adminPlaceCamp.lat != null ? 'move' : 'place' }} <b>{{ adminPlaceCamp.name }}</b></span>
       <span v-if="adminPlaceSaved" class="shrink-0 text-green-400">saved&nbsp;✓</span>
@@ -890,7 +883,7 @@ const itemOptions = computed(() => [
     <!-- live boundary editor: drag the pin + green edge handles on the map; this
          panel mirrors the dimensions and offers precise +/- nudges + Save. -->
     <!-- freehand footprint draw panel (Sun & Shade) -->
-    <div v-if="fpDrawing" class="pointer-events-auto absolute left-1/2 z-10 flex w-[min(24rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col gap-2.5 rounded-2xl border border-primary/50 bg-[#26211a]/92 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-xl" :class="belowBanner">
+    <div v-if="fpDrawing" class="pointer-events-auto mx-auto flex w-[min(24rem,calc(100vw-1.5rem))] flex-col gap-2.5 rounded-2xl border border-primary/50 bg-[#26211a]/92 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-xl">
       <div class="flex items-start gap-2">
         <UIcon name="i-lucide-pencil-ruler" class="mt-0.5 size-4 shrink-0 text-primary" />
         <span class="min-w-0 flex-1 text-xs leading-snug text-white/80">Tap the map to add points · drag a point to move · double-tap a point to delete.</span>
@@ -910,7 +903,7 @@ const itemOptions = computed(() => [
       <p v-if="fpError" class="text-xs text-red-300">{{ fpError }}</p>
     </div>
 
-    <div v-if="editCamp" class="pointer-events-auto absolute left-1/2 z-10 flex w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col gap-2.5 rounded-2xl border border-green-500/40 bg-[#26211a]/92 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-xl" :class="belowBanner">
+    <div v-if="editCamp" class="pointer-events-auto mx-auto flex w-[min(22rem,calc(100vw-1.5rem))] flex-col gap-2.5 rounded-2xl border border-green-500/40 bg-[#26211a]/92 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-xl">
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-frame" class="size-4 shrink-0 text-green-400" />
         <span class="min-w-0 flex-1 truncate">Editing boundary · <b>{{ editCamp.name }}</b></span>
@@ -937,6 +930,7 @@ const itemOptions = computed(() => [
       <div class="flex items-center gap-2">
         <UButton size="sm" color="success" class="flex-1" icon="i-lucide-check" :loading="editSaving" @click="saveEdit">Save boundary</UButton>
         <UButton size="sm" color="neutral" variant="ghost" class="text-white/70 hover:text-white" :disabled="editSaving" @click="exitEdit">Cancel</UButton>
+      </div>
       </div>
     </div>
 
@@ -1004,64 +998,6 @@ const itemOptions = computed(() => [
           <li><span class="mr-1.5 inline-block h-0 w-3 border-t-2 border-dashed align-middle" style="border-color:#e1241a" />Trash fence</li>
         </ul>
       </div>
-      </div>
-    </div>
-
-    <!-- Weather banner, full width under the nav. It was a pill in the corner;
-         the width is not decoration — it is what lets the dust risk say
-         "Dusty — goggles up" instead of being a coloured dot you had to already
-         know the code for. On this playa that reading is the point. -->
-    <div v-if="pill" class="pointer-events-none absolute inset-x-0 top-16 z-10 px-3">
-      <NuxtLink
-        to="/live"
-        class="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3.5 py-2 text-sm text-white shadow-lg backdrop-blur-xl sm:gap-3"
-        :title="pill.live ? `${pill.source} — measured on the playa` : 'Forecast model'"
-      >
-        <UIcon :name="wmo(pill.code).icon" class="size-4 shrink-0 text-primary" />
-        <span class="font-medium">{{ fmtTemp(pill.tempF) }}</span>
-        <span class="hidden text-white/70 sm:inline">{{ wmo(pill.code).label }}</span>
-        <span class="text-white/60">{{ fmtWind(pill.gustMph) }} {{ windUnit }}<span class="hidden sm:inline"> gusts</span></span>
-        <!-- the dust read, in words now that there is room for them -->
-        <span class="flex min-w-0 items-center gap-1.5">
-          <span class="size-2 shrink-0 rounded-full" :style="{ background: dustRisk(pill.gustMph).color }" />
-          <span class="truncate text-white/80">{{ dustRisk(pill.gustMph).label }}</span>
-        </span>
-        <span class="ml-auto flex shrink-0 items-center gap-1.5 text-xs text-white/55">
-          <span class="hidden truncate md:inline">{{ pill.source }}</span>
-          <!-- a quiet mark that this is a real sensor, not a model -->
-          <span v-if="pill.live" class="relative flex size-1.5" aria-label="live station">
-            <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-            <span class="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
-          </span>
-        </span>
-      </NuxtLink>
-    </div>
-
-    <!-- top-left stack: radio -->
-    <div v-if="!editingOverlay" class="pointer-events-none absolute left-3 flex flex-col items-start gap-2" :class="belowBanner">
-      <!-- Radio, one tap. The playa's own stations; people want them while
-           looking at the map, not after navigating away to the Live page.
-           Side by side because they are alternatives to each other, and a
-           column of them would push the layers panel off a phone screen. -->
-      <div class="flex items-center gap-2">
-        <button
-          v-for="st in [BMIR, SHOUTING_FIRE]"
-          :key="st.key"
-          type="button"
-          class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-          :aria-label="isPlaying(st) ? `Stop ${st.name}` : `Listen to ${st.name} ${st.dial}`"
-          @click="toggleRadio(st)"
-        >
-          <UIcon
-            :name="isLoading(st) ? 'i-lucide-loader-circle' : isPlaying(st) ? 'i-lucide-pause' : 'i-lucide-radio'"
-            :class="['size-4 text-primary', isLoading(st) && 'animate-spin']"
-          />
-          <span class="font-medium">{{ st.name }}</span>
-          <span class="hidden text-white/60 sm:inline">{{ st.dial.replace(' FM', '') }}</span>
-          <span v-if="isPlaying(st)" class="flex items-end gap-0.5" aria-hidden="true">
-            <span v-for="(h, i) in [7, 11, 5]" :key="i" class="w-0.5 animate-pulse rounded-full bg-emerald-400" :style="{ height: `${h}px`, animationDelay: `${i * 140}ms` }" />
-          </span>
-        </button>
       </div>
     </div>
 

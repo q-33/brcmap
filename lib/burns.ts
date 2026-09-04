@@ -27,3 +27,20 @@ export function pacificDateOf(ms: number): string {
 export function burnOn(pacificDate: string): MajorBurn | null {
   return MAJOR_BURNS.find(b => b.date === pacificDate) ?? null
 }
+
+/**
+ * The next headline burn on or after a Pacific date — today's if one is
+ * happening today, otherwise the soonest still to come.
+ *
+ * Returns null once the last burn of the year has passed rather than wrapping
+ * around to next year's, which would have the map cheerfully announcing a burn
+ * eleven months out.
+ */
+export function nextBurn(pacificDate: string): MajorBurn | null {
+  return MAJOR_BURNS.find(b => b.date >= pacificDate) ?? null
+}
+
+/** Is this burn happening on the given Pacific date? */
+export function burnsToday(b: MajorBurn, pacificDate: string): boolean {
+  return b.date === pacificDate
+}
