@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
-import { burnCountdown, upcomingBurn } from '~~/lib/burns'
+import { burnCountdown, burnUrgency, upcomingBurn } from '~~/lib/burns'
 import { dustRisk, wmo } from '~~/lib/weather'
 
 // The map's top section: what the sky is doing, what is on the radio, and what
@@ -36,29 +36,33 @@ onBeforeUnmount(() => clearInterval(timer))
 
 const burn = computed(() => {
   const b = upcomingBurn(now.value)
-  return b ? { ...b, ...burnCountdown(b, now.value) } : null
+  return b ? { ...b, ...burnCountdown(b, now.value), urgency: burnUrgency(b, now.value) } : null
 })
+
+// The Man's night, and only the Man's. The bar picks up a warm edge so the map
+// looks different on the night the city is there for — without another band
+// over it, which is exactly what this whole layout replaced.
+const manNight = computed(() =>
+  burn.value?.isMan === true && burn.value.urgency !== 'far' && burn.value.urgency !== 'over')
 
 // The flame answers "how soon" before you have read a word of it: dim while it
 // is days out, warming through the afternoon, red and breathing in the last
 // hour, and alight while it burns.
 const flame = computed(() => {
-  const b = burn.value
-  if (!b)
-    return { class: 'text-white/50', beat: false }
-  if (b.phase === 'burning')
-    return { class: 'text-orange-400', beat: true }
-  const hours = b.ms / 3600_000
-  if (hours <= 1)
-    return { class: 'text-red-400', beat: true }
-  if (hours <= 8)
-    return { class: 'text-amber-400', beat: false }
-  return { class: 'text-white/50', beat: false }
+  switch (burn.value?.urgency) {
+    case 'burning': return { class: 'text-orange-400', beat: true }
+    case 'imminent': return { class: 'text-red-400', beat: true }
+    case 'near': return { class: 'text-amber-400', beat: false }
+    default: return { class: 'text-white/50', beat: false }
+  }
 })
 </script>
 
 <template>
-  <div class="pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/10 bg-[#26211a]/85 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-xl">
+  <div
+    class="pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border bg-[#26211a]/85 px-3 py-2 text-sm text-white shadow-lg backdrop-blur-xl transition-colors duration-1000"
+    :class="manNight ? 'border-amber-500/50 shadow-amber-900/30' : 'border-white/10'"
+  >
     <!-- weather -->
     <NuxtLink
       v-if="pill"
@@ -117,7 +121,7 @@ const flame = computed(() => {
           class="size-4 shrink-0 transition-colors"
           :class="[flame.class, flame.beat && 'animate-pulse']"
         />
-        <span class="truncate font-medium">{{ burn.name }}</span>
+        <span class="truncate font-medium" :class="manNight && 'text-amber-200'">{{ burn.name }}</span>
         <span
           class="shrink-0 tabular-nums"
           :class="burn.phase === 'burning' ? 'font-semibold text-orange-300' : 'text-white/60'"
