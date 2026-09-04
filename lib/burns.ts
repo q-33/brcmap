@@ -84,3 +84,28 @@ export function burnCountdown(b: MajorBurn, nowMs: number): { phase: BurnPhase, 
 export function upcomingBurn(nowMs: number): MajorBurn | null {
   return MAJOR_BURNS.find(b => burnCountdown(b, nowMs).phase !== 'over') ?? null
 }
+
+export type BurnUrgency = 'far' | 'near' | 'imminent' | 'burning' | 'over'
+
+/**
+ * How loudly the map should be talking about a burn.
+ *
+ * The Man escalates earlier and for longer than the rest, because it is the
+ * night the city is here for: it reads `near` from half a day out and
+ * `imminent` for the last three hours, where an ordinary burn gets eight hours
+ * and one. It deliberately does NOT get a banner of its own back — a stack of
+ * full-width bands over the city is what this replaced — so the extra weight
+ * has to be carried by the one line that is already there.
+ */
+export function burnUrgency(b: MajorBurn, nowMs: number): BurnUrgency {
+  const { phase, ms } = burnCountdown(b, nowMs)
+  if (phase !== 'upcoming')
+    return phase === 'burning' ? 'burning' : 'over'
+  const hours = ms / 3600_000
+  const [nearAt, imminentAt] = b.isMan ? [12, 3] : [8, 1]
+  if (hours <= imminentAt)
+    return 'imminent'
+  if (hours <= nearAt)
+    return 'near'
+  return 'far'
+}

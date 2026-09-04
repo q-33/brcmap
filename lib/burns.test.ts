@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAJOR_BURNS, burnCountdown, burnOn, burnsToday, nextBurn, pacificDateOf, upcomingBurn } from './burns'
+import { MAJOR_BURNS, burnCountdown, burnOn, burnUrgency, burnsToday, nextBurn, pacificDateOf, upcomingBurn } from './burns'
 
 // The map announces these to a city standing in the dust. A burn named on the
 // wrong night sends people across the playa for nothing.
@@ -92,5 +92,35 @@ describe('burn countdown', () => {
   it('goes quiet after the last burn rather than looping', () => {
     const last = MAJOR_BURNS[MAJOR_BURNS.length - 1]!
     expect(upcomingBurn(Date.parse(last.at) + 3 * 3600_000)).toBeNull()
+  })
+})
+
+// The Man is the night the city is there for, so the one line the map has left
+// has to carry more weight for it than for the others.
+describe('burn urgency', () => {
+  const man = MAJOR_BURNS.find(b => b.isMan)!
+  const titanic = MAJOR_BURNS.find(b => b.name === 'Titanic\'s End')!
+  const h = (b: typeof man, hours: number) => burnUrgency(b, Date.parse(b.at) - hours * 3600_000)
+
+  it('escalates an ordinary burn at eight hours, then one', () => {
+    expect(h(titanic, 20)).toBe('far')
+    expect(h(titanic, 7)).toBe('near')
+    expect(h(titanic, 0.5)).toBe('imminent')
+  })
+
+  it('escalates the Man earlier and for longer', () => {
+    expect(h(man, 20)).toBe('far')
+    expect(h(man, 10)).toBe('near') // still 'far' for any other burn
+    expect(h(man, 2)).toBe('imminent') // an ordinary burn is only 'near' here
+  })
+
+  it('gives the Man a wider imminent window than the rest', () => {
+    expect(h(man, 2)).toBe('imminent')
+    expect(h(titanic, 2)).toBe('near')
+  })
+
+  it('reports burning, then over', () => {
+    expect(burnUrgency(man, Date.parse(man.at) + 10 * 60_000)).toBe('burning')
+    expect(burnUrgency(man, Date.parse(man.at) + 3 * 3600_000)).toBe('over')
   })
 })
