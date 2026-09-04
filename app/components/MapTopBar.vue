@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
-import { burnsToday, nextBurn, pacificDateOf } from '~~/lib/burns'
+import { burnCountdown, upcomingBurn } from '~~/lib/burns'
 import { dustRisk, wmo } from '~~/lib/weather'
 
 // The map's top section: what the sky is doing, what is on the radio, and what
@@ -26,21 +26,34 @@ defineProps<{ pill: Pill | null }>()
 const { temp: fmtTemp, wind: fmtWind, windUnit } = useUnits()
 const { toggle: toggleRadio, isPlaying, isLoading } = useRadio()
 
-// Recomputed off a ticking clock rather than once at load: the map is left open
-// for hours, and "tonight" has to stop meaning last night at some point.
+// A live clock, not a load-time snapshot: this map gets left open for hours and
+// the countdown has to keep meaning something. Ticks a minute at a time —
+// seconds would make a thing that happens at dusk look frantic.
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | undefined
 onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 60_000) })
 onBeforeUnmount(() => clearInterval(timer))
 
 const burn = computed(() => {
-  const today = pacificDateOf(now.value)
-  const b = nextBurn(today)
+  const b = upcomingBurn(now.value)
+  return b ? { ...b, ...burnCountdown(b, now.value) } : null
+})
+
+// The flame answers "how soon" before you have read a word of it: dim while it
+// is days out, warming through the afternoon, red and breathing in the last
+// hour, and alight while it burns.
+const flame = computed(() => {
+  const b = burn.value
   if (!b)
-    return null
-  // `tonight` on MajorBurn is the announcement wording ("sunset (7:30 PM)");
-  // renamed here so the flag and the phrasing cannot be confused for each other.
-  return { ...b, isTonight: burnsToday(b, today), tonightAt: b.tonight }
+    return { class: 'text-white/50', beat: false }
+  if (b.phase === 'burning')
+    return { class: 'text-orange-400', beat: true }
+  const hours = b.ms / 3600_000
+  if (hours <= 1)
+    return { class: 'text-red-400', beat: true }
+  if (hours <= 8)
+    return { class: 'text-amber-400', beat: false }
+  return { class: 'text-white/50', beat: false }
 })
 </script>
 
@@ -97,11 +110,18 @@ const burn = computed(() => {
       <NuxtLink
         to="/events"
         class="flex min-w-0 items-center gap-1.5 rounded-md px-1 py-0.5 transition hover:bg-white/10"
-        :title="`${burn.name} — ${burn.day}, ${burn.time}`"
+        :title="`${burn.name} — ${burn.day}, ${burn.time}${burn.expected ? ' (expected — not officially published)' : ''}`"
       >
-        <UIcon name="i-lucide-flame" class="size-4 shrink-0" :class="burn.isTonight ? 'text-red-400' : 'text-white/50'" />
+        <UIcon
+          name="i-lucide-flame"
+          class="size-4 shrink-0 transition-colors"
+          :class="[flame.class, flame.beat && 'animate-pulse']"
+        />
         <span class="truncate font-medium">{{ burn.name }}</span>
-        <span class="shrink-0 text-white/60">{{ burn.isTonight ? `tonight · ${burn.tonightAt}` : burn.day.split(',')[0] }}</span>
+        <span
+          class="shrink-0 tabular-nums"
+          :class="burn.phase === 'burning' ? 'font-semibold text-orange-300' : 'text-white/60'"
+        >{{ burn.label }}</span>
         <!-- 'expected' means the schedule is not officially published yet, and
              saying so is the difference between a plan and a promise. -->
         <span v-if="burn.expected" class="hidden shrink-0 text-xs text-white/40 md:inline">(expected)</span>
