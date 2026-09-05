@@ -96,6 +96,28 @@ export const auditLog = pgTable('audit_log', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [index('audit_log_created_idx').on(t.createdAt)])
 
+// Rideshares — an offer of seats or a request for one. The board only; the
+// actual connecting happens in messages. See db/migrations/0028.
+export const rides = pgTable('rides', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  ownerId: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(), // 'offer' | 'request'
+  destination: text('destination').notNull(),
+  departs: text('departs'), // free text — playa plans are fuzzy ("Sunday after Temple")
+  seats: integer('seats'), // offers: how many seats
+  luggage: text('luggage'), // requests: how much stuff
+  fromLocation: text('from_location'), // where the poster is now ("7:30 & E, Camp Foo")
+  note: text('note'),
+  status: text('status').notNull().default('open'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('rides_status_idx').on(t.status, t.createdAt),
+  index('rides_owner_idx').on(t.ownerId),
+  check('rides_kind_chk', sql`kind in ('offer', 'request')`),
+  check('rides_status_chk', sql`status in ('open', 'closed')`),
+])
+
 // Anonymous usage pulse — see db/migrations/0026 and lib/pulse.ts. `visitor` is
 // a daily-rotating hash, not an identity; no IP is stored and it cannot be
 // followed across playa days.
@@ -261,6 +283,10 @@ export const artContributionsRelations = relations(artContributions, ({ one }) =
 
 export const auditLogRelations = relations(auditLog, ({ one }) => ({
   actor: one(users, { fields: [auditLog.actorId], references: [users.id] }),
+}))
+
+export const ridesRelations = relations(rides, ({ one }) => ({
+  owner: one(users, { fields: [rides.ownerId], references: [users.id] }),
 }))
 
 export const messagesRelations = relations(messages, ({ one }) => ({

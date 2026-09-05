@@ -53,6 +53,7 @@ const navItems = [[
   { label: 'Camps', icon: 'i-lucide-tent', to: '/camps' },
   { label: 'Art', icon: 'i-lucide-palette', to: '/art' },
   { label: 'Events', icon: 'i-lucide-calendar', to: '/events' },
+  { label: 'Rides', icon: 'i-lucide-car', to: '/rides' },
   { label: 'Guide', icon: 'i-lucide-compass', to: '/guide' },
   { label: 'Contact', icon: 'i-lucide-mail', to: '/contact' },
 ]]
@@ -841,6 +842,7 @@ const itemOptions = computed(() => [
           <UButton to="/camps" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Camps</UButton>
           <UButton to="/art" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Art</UButton>
           <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
+          <UButton to="/rides" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Rides</UButton>
           <UButton to="/guide" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Guide</UButton>
         </div>
         <!-- mobile: collapsed menu -->
@@ -877,6 +879,10 @@ const itemOptions = computed(() => [
         <div class="order-3 basis-full lg:order-2 lg:basis-auto">
           <MapTopBar :pill="pill" />
         </div>
+        <!-- rideshare launch note — dismissible, gone for good once dismissed -->
+        <ClientOnly>
+          <RidesAnnouncement class="order-4 basis-full" />
+        </ClientOnly>
       </div>
 
       <!-- placement banner: shown while a drop is armed, before/between taps -->

@@ -89,6 +89,22 @@ export const featuresSchema = z.object({
   features: z.array(z.string().max(64)).max(50),
 })
 
+// A rideshare post: an offer of seats or a request for one.
+export const rideCreateSchema = z.object({
+  kind: z.enum(['offer', 'request']),
+  destination: z.string().trim().min(1).max(160),
+  departs: z.string().trim().max(120).optional().or(z.literal('')),
+  seats: z.number().int().min(1).max(12).nullable().optional(),
+  luggage: z.string().trim().max(200).optional().or(z.literal('')),
+  fromLocation: z.string().trim().max(160).optional().or(z.literal('')),
+  note: z.string().trim().max(500).optional().or(z.literal('')),
+})
+
+// Owner marks their post found/full (closed) or reopens it.
+export const rideStatusSchema = z.object({
+  status: z.enum(['open', 'closed']),
+})
+
 // Owner edits to their camp's details (not location/year).
 export const campUpdateSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),

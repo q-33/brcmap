@@ -40,6 +40,8 @@ mark your camp's location before you arrive and update it once you have service 
 - **Art & open calls** — register artworks, mark their location, and post an open
   **call** for community contributions (owner-moderated).
 - **Events** — camps announce planned events; browse them grouped by day.
+- **Rideshares** — offer empty seats or ask for a ride out; posts carry destination,
+  timing, luggage/seats and the poster's current camp, and connect through messages.
 - **In-app messaging** — 1:1 direct messages between users ("Message the organizer"
   on any camp/art), an inbox with unread badges, and a **Message the Admin** chat. An
   optional email nudge fires on the first unread.
