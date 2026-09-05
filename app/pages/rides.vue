@@ -20,10 +20,40 @@ interface Ride {
 const { loggedIn } = useUserSession()
 const { data: rides, refresh, status } = await useFetch<Ride[]>('/api/rides')
 
+// The board should feel alive during exodus without anyone pressing Refresh:
+// re-fetch once a minute while the page is open, and immediately when the tab
+// comes back into view — which is exactly when someone wants the latest posts.
+let poll: ReturnType<typeof setInterval> | undefined
+function onVisible() {
+  if (document.visibilityState === 'visible')
+    refresh()
+}
+onMounted(() => {
+  poll = setInterval(() => { if (document.visibilityState === 'visible') refresh() }, 60_000)
+  document.addEventListener('visibilitychange', onVisible)
+})
+onBeforeUnmount(() => {
+  clearInterval(poll)
+  document.removeEventListener('visibilitychange', onVisible)
+})
+
 const tab = ref<'all' | 'offer' | 'request'>('all')
 const open = computed(() => (rides.value ?? []).filter(r => r.status === 'open'))
 const shown = computed(() => open.value.filter(r => tab.value === 'all' || r.kind === tab.value))
 const mineClosed = computed(() => (rides.value ?? []).filter(r => r.mine && r.status === 'closed'))
+
+// The ticker: every open post as one compact line, newest first. Capped so a
+// hundred posts do not make one endless lap; the board below has them all.
+const tickerItems = computed(() => open.value.slice(0, 20).map(r => ({
+  id: r.id,
+  kind: r.kind,
+  text: [r.destination, r.departs,
+    r.kind === 'offer' && r.seats ? `${r.seats} seat${r.seats === 1 ? '' : 's'}` : null,
+    r.kind === 'request' && r.luggage ? r.luggage : null,
+  ].filter(Boolean).join(' · '),
+})))
+// One lap should read at a walking pace whatever the count.
+const tickerSecs = computed(() => Math.max(18, tickerItems.value.length * 6))
 
 // --- post a ride -------------------------------------------------------------
 const form = reactive({
@@ -151,6 +181,30 @@ useHead({ title: 'Rideshares — BRC Map' })
       </template>
     </UModal>
 
+    <!-- live ticker: the whole board at a glance, scrolling by. Duplicated
+         content is what makes the loop seamless; motion-reduce gets a static
+         row instead of a crawl. -->
+    <div v-if="tickerItems.length" class="mb-4 flex items-center gap-2 overflow-hidden rounded-lg border border-(--ui-border) bg-(--ui-bg-muted)/60 py-1.5 pl-2.5 text-xs">
+      <span class="flex shrink-0 items-center gap-1.5 font-semibold uppercase tracking-wide text-(--ui-text-muted)">
+        <span class="relative flex size-2">
+          <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+          <span class="relative inline-flex size-2 rounded-full bg-emerald-500" />
+        </span>
+        Live
+      </span>
+      <div class="ticker-window min-w-0 flex-1">
+        <div class="ticker-track" :style="{ animationDuration: `${tickerSecs}s` }">
+          <template v-for="pass in 2" :key="pass">
+            <span v-for="t in tickerItems" :key="`${pass}-${t.id}`" class="ticker-item">
+              <UIcon :name="t.kind === 'offer' ? 'i-lucide-car' : 'i-lucide-hand'" class="size-3.5" :class="t.kind === 'offer' ? 'text-primary' : 'text-(--ui-text-muted)'" />
+              <span class="font-medium">{{ t.kind === 'offer' ? 'Offering' : 'Wanted' }}</span>
+              <span class="text-(--ui-text-muted)">{{ t.text }}</span>
+            </span>
+          </template>
+        </div>
+      </div>
+    </div>
+
     <!-- filter -->
     <div class="mb-4 flex gap-1 text-sm">
       <UButton v-for="t in (['all', 'offer', 'request'] as const)" :key="t" size="xs"
@@ -214,3 +268,26 @@ useHead({ title: 'Rideshares — BRC Map' })
     </section>
   </UContainer>
 </template>
+
+<style scoped>
+.ticker-window { overflow: hidden; }
+.ticker-track {
+  display: inline-flex;
+  gap: 2rem;
+  padding-right: 2rem;
+  white-space: nowrap;
+  will-change: transform;
+  animation: ticker-scroll linear infinite;
+}
+.ticker-window:hover .ticker-track { animation-play-state: paused; }
+.ticker-item { display: inline-flex; align-items: center; gap: 0.375rem; }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+/* A crawl is exactly the motion this preference asks to avoid: show a still
+   row of the newest posts instead. */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
+}
+</style>
