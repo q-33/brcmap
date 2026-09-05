@@ -93,6 +93,18 @@ const dustText = (c: string) => DUST_TEXT[c] ?? c
           />
         </span>
       </button>
+      <!-- The official webcast, next to the stations — same "what is happening
+           out there" family. A link, deliberately not an inline player: video
+           over the city you are trying to read is the wrong trade, and /live
+           already gates the big download behind a tap. -->
+      <NuxtLink
+        to="/live"
+        class="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition hover:bg-white/10"
+        aria-label="Watch the Burning Man live stream on the Live page"
+      >
+        <UIcon name="i-lucide-video" class="size-4 shrink-0 text-primary" />
+        <span class="font-medium">Live Stream</span>
+      </NuxtLink>
     </div>
 
   </div>
