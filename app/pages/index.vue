@@ -954,20 +954,8 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- lower-left stack: the webcast above the layers panel -->
+    <!-- lower-left stack: the layers panel -->
     <div class="pointer-events-none absolute bottom-4 left-3 flex flex-col items-start gap-2">
-      <!-- The official webcast, one tap away from the map. Deliberately a link
-           rather than an inline player: video over the city you are trying to
-           read is the wrong trade, and the player is a big download that /live
-           already gates behind a tap. -->
-      <NuxtLink
-        to="/live"
-        class="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-[#26211a]/85 px-3 py-1.5 text-sm text-white shadow-lg backdrop-blur-xl"
-        aria-label="Watch the Burning Man live stream on the Live page"
-      >
-        <UIcon name="i-lucide-video" class="size-4 text-primary" />
-        <span class="font-medium">Live Stream</span>
-      </NuxtLink>
       <!-- layers panel (doubles as the legend) -->
       <div class="pointer-events-auto w-44 overflow-hidden rounded-xl border border-white/10 bg-[#26211a]/85 text-xs text-white shadow-lg backdrop-blur-xl">
       <button type="button" class="flex w-full items-center gap-1.5 px-3 py-2 font-display font-semibold" @click="panelOpen = !panelOpen">
