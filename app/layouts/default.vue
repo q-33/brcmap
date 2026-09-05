@@ -19,6 +19,7 @@ const links = computed(() => [
   { label: 'Camps', to: '/camps', icon: 'i-lucide-tent', badge: 0 },
   { label: 'Art', to: '/art', icon: 'i-lucide-palette', badge: 0 },
   { label: 'Events', to: '/events', icon: 'i-lucide-calendar', badge: 0 },
+  { label: 'Rides', to: '/rides', icon: 'i-lucide-car', badge: 0 },
   { label: 'Live', to: '/live', icon: 'i-lucide-radio', badge: 0 },
   { label: 'Guide', to: '/guide', icon: 'i-lucide-compass', badge: 0 },
 ])
