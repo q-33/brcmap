@@ -141,7 +141,7 @@ useHead({ title: 'Rideshares — BRC Map' })
           />
           <UInput v-else v-model="form.luggage" class="w-full" placeholder="How much stuff? (e.g. one duffel + a bike)" />
           <UInput v-model="form.fromLocation" class="w-full" placeholder="Where are you now? (e.g. 7:30 & E — Camp Foo)" />
-          <UTextarea v-model="form.note" :rows="3" class="w-full" placeholder="Anything else — costs split, dog on board, no glitter…" />
+          <UTextarea v-model="form.note" :rows="3" class="w-full" placeholder="Anything else — costs split, no glitter…" />
           <p v-if="err" class="text-sm text-error">{{ err }}</p>
           <div class="flex gap-2">
             <UButton type="submit" :loading="busy" :disabled="!form.destination.trim()">Post</UButton>
