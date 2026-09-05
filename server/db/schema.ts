@@ -118,6 +118,29 @@ export const rides = pgTable('rides', {
   check('rides_status_chk', sql`status in ('open', 'closed')`),
 ])
 
+// A ride connection: two burners sharing live location with each other, by
+// mutual consent, until either stops. Positions are the PRESENT only — ending
+// a connection nulls them. See db/migrations/0029.
+export const rideConnections = pgTable('ride_connections', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  rideId: uuid('ride_id').notNull().references(() => rides.id, { onDelete: 'cascade' }),
+  requesterId: uuid('requester_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('pending'), // pending | active | ended
+  ownerLat: doublePrecision('owner_lat'),
+  ownerLng: doublePrecision('owner_lng'),
+  ownerAt: timestamp('owner_at', { withTimezone: true }),
+  requesterLat: doublePrecision('requester_lat'),
+  requesterLng: doublePrecision('requester_lng'),
+  requesterAt: timestamp('requester_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('ride_connections_ride_idx').on(t.rideId),
+  index('ride_connections_requester_idx').on(t.requesterId),
+  uniqueIndex('ride_connections_uniq').on(t.rideId, t.requesterId),
+  check('ride_connections_status_chk', sql`status in ('pending', 'active', 'ended')`),
+])
+
 // Anonymous usage pulse — see db/migrations/0026 and lib/pulse.ts. `visitor` is
 // a daily-rotating hash, not an identity; no IP is stored and it cannot be
 // followed across playa days.
@@ -285,8 +308,14 @@ export const auditLogRelations = relations(auditLog, ({ one }) => ({
   actor: one(users, { fields: [auditLog.actorId], references: [users.id] }),
 }))
 
-export const ridesRelations = relations(rides, ({ one }) => ({
+export const ridesRelations = relations(rides, ({ one, many }) => ({
   owner: one(users, { fields: [rides.ownerId], references: [users.id] }),
+  connections: many(rideConnections),
+}))
+
+export const rideConnectionsRelations = relations(rideConnections, ({ one }) => ({
+  ride: one(rides, { fields: [rideConnections.rideId], references: [rides.id] }),
+  requester: one(users, { fields: [rideConnections.requesterId], references: [users.id] }),
 }))
 
 export const messagesRelations = relations(messages, ({ one }) => ({
