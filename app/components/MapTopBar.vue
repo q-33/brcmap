@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BMIR, K_HOLE, SHOUTING_FIRE } from '~~/lib/radio'
+import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
 import { dustRisk, wmo } from '~~/lib/weather'
 
 // The map's top section: what the sky is doing and what is on the radio.
@@ -73,7 +73,7 @@ const dustText = (c: string) => DUST_TEXT[c] ?? c
     <!-- radio -->
     <div class="flex items-center gap-1">
       <button
-        v-for="st in [BMIR, SHOUTING_FIRE, K_HOLE]"
+        v-for="st in [BMIR, SHOUTING_FIRE]"
         :key="st.key"
         type="button"
         class="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition hover:bg-white/10"
