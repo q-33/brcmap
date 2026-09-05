@@ -42,19 +42,6 @@ const open = computed(() => (rides.value ?? []).filter(r => r.status === 'open')
 const shown = computed(() => open.value.filter(r => tab.value === 'all' || r.kind === tab.value))
 const mineClosed = computed(() => (rides.value ?? []).filter(r => r.mine && r.status === 'closed'))
 
-// The ticker: every open post as one compact line, newest first. Capped so a
-// hundred posts do not make one endless lap; the board below has them all.
-const tickerItems = computed(() => open.value.slice(0, 20).map(r => ({
-  id: r.id,
-  kind: r.kind,
-  text: [r.destination, r.departs,
-    r.kind === 'offer' && r.seats ? `${r.seats} seat${r.seats === 1 ? '' : 's'}` : null,
-    r.kind === 'request' && r.luggage ? r.luggage : null,
-  ].filter(Boolean).join(' · '),
-})))
-// One lap should read at a walking pace whatever the count.
-const tickerSecs = computed(() => Math.max(18, tickerItems.value.length * 6))
-
 // --- post a ride -------------------------------------------------------------
 const form = reactive({
   kind: 'offer' as 'offer' | 'request',
@@ -105,6 +92,33 @@ async function submit() {
   }
 }
 
+// my connections, to label each post's Connect button honestly
+interface ConnLite { id: string, status: string, iAmOwner: boolean, ride: { id: string } | null }
+const { data: myConns, refresh: refreshConns } = await useFetch<ConnLite[]>('/api/rides/connections', {
+  server: false, lazy: true, default: () => [],
+})
+const connByRide = computed(() => {
+  const m = new Map<string, ConnLite>()
+  for (const c of myConns.value ?? []) {
+    if (!c.iAmOwner && c.ride && c.status !== 'ended')
+      m.set(c.ride.id, c)
+  }
+  return m
+})
+const connectBusy = ref('')
+async function connect(r: Ride) {
+  if (!loggedIn.value)
+    return navigateTo('/?login=1')
+  connectBusy.value = r.id
+  try {
+    await $fetch(`/api/rides/${r.id}/connect`, { method: 'POST' })
+    await refreshConns()
+  }
+  finally {
+    connectBusy.value = ''
+  }
+}
+
 const rowBusy = ref('')
 async function setStatus(r: Ride, s: 'open' | 'closed') {
   rowBusy.value = r.id
@@ -146,6 +160,11 @@ useHead({ title: 'Rideshares — BRC Map' })
       say where you're headed, when, and how much stuff is coming with you.
     </p>
 
+    <!-- requests + live rendezvous, when I have any -->
+    <ClientOnly>
+      <RideConnections @changed="refreshConns" />
+    </ClientOnly>
+
     <!-- post -->
     <div class="mb-8 flex flex-wrap gap-2">
       <template v-if="loggedIn">
@@ -180,30 +199,6 @@ useHead({ title: 'Rideshares — BRC Map' })
         </form>
       </template>
     </UModal>
-
-    <!-- live ticker: the whole board at a glance, scrolling by. Duplicated
-         content is what makes the loop seamless; motion-reduce gets a static
-         row instead of a crawl. -->
-    <div v-if="tickerItems.length" class="mb-4 flex items-center gap-2 overflow-hidden rounded-lg border border-(--ui-border) bg-(--ui-bg-muted)/60 py-1.5 pl-2.5 text-xs">
-      <span class="flex shrink-0 items-center gap-1.5 font-semibold uppercase tracking-wide text-(--ui-text-muted)">
-        <span class="relative flex size-2">
-          <span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-          <span class="relative inline-flex size-2 rounded-full bg-emerald-500" />
-        </span>
-        Live
-      </span>
-      <div class="ticker-window min-w-0 flex-1">
-        <div class="ticker-track" :style="{ animationDuration: `${tickerSecs}s` }">
-          <template v-for="pass in 2" :key="pass">
-            <span v-for="t in tickerItems" :key="`${pass}-${t.id}`" class="ticker-item">
-              <UIcon :name="t.kind === 'offer' ? 'i-lucide-car' : 'i-lucide-hand'" class="size-3.5" :class="t.kind === 'offer' ? 'text-primary' : 'text-(--ui-text-muted)'" />
-              <span class="font-medium">{{ t.kind === 'offer' ? 'Offering' : 'Wanted' }}</span>
-              <span class="text-(--ui-text-muted)">{{ t.text }}</span>
-            </span>
-          </template>
-        </div>
-      </div>
-    </div>
 
     <!-- filter -->
     <div class="mb-4 flex gap-1 text-sm">
@@ -242,7 +237,17 @@ useHead({ title: 'Rideshares — BRC Map' })
               </UButton>
               <UButton size="xs" color="neutral" variant="ghost" :loading="rowBusy === r.id" @click="remove(r)">Delete</UButton>
             </template>
-            <UButton v-else-if="loggedIn && r.owner" :to="`/messages/${r.owner.id}`" size="xs" icon="i-lucide-mail">Message</UButton>
+            <template v-else-if="loggedIn && r.owner">
+              <UButton
+                v-if="!connByRide.get(r.id)"
+                size="xs" icon="i-lucide-locate" variant="soft"
+                :loading="connectBusy === r.id"
+                @click="connect(r)"
+              >Connect</UButton>
+              <UBadge v-else-if="connByRide.get(r.id)!.status === 'pending'" color="neutral" variant="subtle" size="sm">Requested</UBadge>
+              <UBadge v-else color="primary" variant="subtle" size="sm">Sharing live</UBadge>
+              <UButton :to="`/messages/${r.owner.id}`" size="xs" icon="i-lucide-mail">Message</UButton>
+            </template>
             <UButton v-else-if="!loggedIn" to="/?login=1" size="xs" variant="subtle" icon="i-lucide-mail">Log in to message</UButton>
           </div>
         </div>
@@ -268,26 +273,3 @@ useHead({ title: 'Rideshares — BRC Map' })
     </section>
   </UContainer>
 </template>
-
-<style scoped>
-.ticker-window { overflow: hidden; }
-.ticker-track {
-  display: inline-flex;
-  gap: 2rem;
-  padding-right: 2rem;
-  white-space: nowrap;
-  will-change: transform;
-  animation: ticker-scroll linear infinite;
-}
-.ticker-window:hover .ticker-track { animation-play-state: paused; }
-.ticker-item { display: inline-flex; align-items: center; gap: 0.375rem; }
-@keyframes ticker-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-/* A crawl is exactly the motion this preference asks to avoid: show a still
-   row of the newest posts instead. */
-@media (prefers-reduced-motion: reduce) {
-  .ticker-track { animation: none; }
-}
-</style>

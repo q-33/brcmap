@@ -100,6 +100,18 @@ export const rideCreateSchema = z.object({
   note: z.string().trim().max(500).optional().or(z.literal('')),
 })
 
+// A live-location fix from one side of an active ride connection.
+export const ridePositionSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+})
+
+// Accept a connection (owner) or end it (either side). 'pending' cannot be
+// set through the API — asking again is a new request, not a status change.
+export const rideConnectionStatusSchema = z.object({
+  status: z.enum(['active', 'ended']),
+})
+
 // Owner marks their post found/full (closed) or reopens it.
 export const rideStatusSchema = z.object({
   status: z.enum(['open', 'closed']),
