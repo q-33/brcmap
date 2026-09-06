@@ -54,6 +54,7 @@ const navItems = [[
   { label: 'Art', icon: 'i-lucide-palette', to: '/art' },
   { label: 'Events', icon: 'i-lucide-calendar', to: '/events' },
   { label: 'Rides', icon: 'i-lucide-car', to: '/rides' },
+  { label: 'Exodus', icon: 'i-lucide-log-out', to: '/exodus' },
   { label: 'Guide', icon: 'i-lucide-compass', to: '/guide' },
   { label: 'Contact', icon: 'i-lucide-mail', to: '/contact' },
 ]]
@@ -843,6 +844,7 @@ const itemOptions = computed(() => [
           <UButton to="/art" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Art</UButton>
           <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
           <UButton to="/rides" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Rides</UButton>
+          <UButton to="/exodus" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Exodus</UButton>
           <UButton to="/guide" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Guide</UButton>
         </div>
         <!-- mobile: collapsed menu -->

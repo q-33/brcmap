@@ -141,6 +141,20 @@ export const rideConnections = pgTable('ride_connections', {
   check('ride_connections_status_chk', sql`status in ('pending', 'active', 'ended')`),
 ])
 
+// Crowd-reported Gate Road travel times during Exodus — see 0030. `visitor`
+// is the pulse's daily-rotating anonymous hash; one report per visitor per
+// half hour, enforced in the endpoint.
+export const exodusReports = pgTable('exodus_reports', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  visitor: text('visitor').notNull(),
+  minutes: integer('minutes').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('exodus_reports_created_idx').on(t.createdAt),
+  index('exodus_reports_visitor_idx').on(t.visitor, t.createdAt),
+  check('exodus_minutes_chk', sql`minutes >= 0 and minutes <= 720`),
+])
+
 // Anonymous usage pulse — see db/migrations/0026 and lib/pulse.ts. `visitor` is
 // a daily-rotating hash, not an identity; no IP is stored and it cannot be
 // followed across playa days.
