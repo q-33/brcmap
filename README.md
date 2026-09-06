@@ -22,8 +22,9 @@ mark your camp's location before you arrive and update it once you have service 
   rectangle, oriented to the street grid, as you zoom in.
 - **Where am I** — live GPS on the city grid with a reverse-geocoded readout
   (e.g. _"near 7:30 & Eternal"_), a compass rose, and a live **weather** widget.
-- **Live wind** — a toggleable wind-direction field with a dust-risk readout, driven by
-  the live weather feed.
+- **Live weather** — a status pill fed by on-playa stations (BRC NOC first) with the
+  dust risk in words, and a map that shows it: dust motes that billow with the real
+  gusts, rain that falls when the model says rain.
 - **Sun & shade** — pick a date and time to cast every camp's shadow, for planning shade.
 - **Civic landmarks** — medical, Rangers/safety, services (Ice, DPW, Playa Info…),
   transport (airport, Greeters, fuel) and the Temple. Porta-potty banks are available as a
@@ -34,6 +35,11 @@ mark your camp's location before you arrive and update it once you have service 
 - **Drop your camp** — log in, tap the map to place a pin at the **exact spot** (no
   snapping), name it, done. One camp per user (Hubs may run several) — move, rename, or
   reshape it anytime.
+- **The whole city** — alongside the camps who registered here, the map mirrors Burning
+  Man's public **placement directory** (~1,000 camps geocoded from their `7:30 & E`
+  strings) and the official **art directory** (351 artworks with GPS). Directory camps
+  carry `source: official`, get their own Layers switch, and **never override a pin a
+  person placed**.
 - **Live boundary editor** — drag the centre pin to move a camp and drag any of its four
   sides to reshape its plot, live on the map. Owners can edit their own; Hubs, Org, and
   admins can edit any.
@@ -42,9 +48,23 @@ mark your camp's location before you arrive and update it once you have service 
 - **Events** — camps announce planned events; browse them grouped by day.
 - **Rideshares** — offer empty seats or ask for a ride out; posts carry destination,
   timing, luggage/seats and the poster's current camp, and connect through messages.
+  **Connect** lets two matched burners share live location with each other — mutual
+  consent, deleted the moment either stops, no history kept — to actually find each
+  other for the pickup. The board also mirrors [ridefinder.site](https://ridefinder.site)'s
+  public listings (read-only, attributed, replies happen there).
+- **Exodus** — a live "how long is Gate Road taking" page: one-tap anonymous crowd
+  reports (median of the last two hours, one report per person per half hour), the
+  org's @bmantraffic mirrored when X permits, and the standing get-out advice. On the
+  homepage, **Gate Road wears its Level of Service** — the corridor breathes green
+  (free flow) through red (gridlock) while reports are fresh, and a **procession of
+  taillights** crawls out the road: one light per open ride post, at the crowd-reported
+  pace.
 - **In-app messaging** — 1:1 direct messages between users ("Message the organizer"
   on any camp/art), an inbox with unread badges, and a **Message the Admin** chat. An
   optional email nudge fires on the first unread.
+- **Playa radio & webcast** — BMIR and Shouting Fire play from the map's status pill
+  through one app-wide player that survives navigation (a floating now-playing bar);
+  /live adds the official YouTube webcast, click-to-load so nothing streams until asked.
 - **Contact & password reset** — a contact form and self-service password reset, both
   delivered by email.
 - **Browse & search** camps and art (Postgres-native, no external index).
@@ -68,7 +88,10 @@ mark your camp's location before you arrive and update it once you have service 
   `hubs` (runs multiple camps; can place/edit any camp) / `org` (Burning Man Org) /
   `admin`, applied live without re-login.
 - **Admin panel** — people & roles, content management (edit/hide/delete camps, art,
-  events), a who's-online view, a recent submissions feed, and an audit log.
+  events), a who's-online view, a recent submissions feed, an audit log, and an
+  **anonymous usage pulse** (active now / 24 h / 7 days, busiest pages, Meshtastic
+  connects) built on a daily-rotating hash — no IPs stored, nobody trackable across
+  days; /about explains it in plain words.
 - **Camp moderation from the list** — Hubs/Org/admins can edit a camp's details from the
   public Camps list; admins can delete camps created in error.
 - **Convert art to camp** — an admin tool to fix pins dropped as art that should be camps.
