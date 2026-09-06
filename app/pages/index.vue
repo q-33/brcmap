@@ -2,6 +2,7 @@
 import { CITY_YEAR, describeLatLng, formatAddress, formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
 import { bounds, normalizeUnit, parseSvgToUnitPolygon, toOffsets, type Pt } from '~~/lib/footprint'
 import { BMIR, SHOUTING_FIRE } from '~~/lib/radio'
+import { gateLos } from '~~/lib/exodus'
 import { dustRisk, rainIntensity, wmo } from '~~/lib/weather'
 
 function namedAddress(s: string | null | undefined): string {
@@ -348,7 +349,7 @@ const windInfo = computed(() => {
 // The exodus procession: taillights on Gate Road, one per open ride post,
 // crawling at the crowd-reported pace. Client-only and lazy like the weather —
 // homepage ambience must never block first paint.
-const { data: exodusData } = await useFetch<{ crowd: { median: number | null }, openRides: number }>(
+const { data: exodusData, refresh: refreshExodus } = await useFetch<{ crowd: { median: number | null, newestAt: number | null, count: number }, openRides: number }>(
   '/api/exodus',
   { server: false, lazy: true },
 )
@@ -358,6 +359,26 @@ const exodusInfo = computed(() => {
     return null
   return { openRides: d.openRides, wait: d.crowd?.median ?? null }
 })
+
+// Gate Road's Level of Service, worn by the road itself: colour is the grade,
+// the breathe means the detector is live. Withheld entirely on stale or absent
+// data — a road must never look graded on yesterday's line. Refreshed each
+// minute with the exodus fetch below.
+const gateStatus = computed(() => {
+  const c = exodusData.value?.crowd
+  if (!c)
+    return null
+  const los = gateLos(c.median, c.newestAt, nowMinute.value)
+  return los ? { color: los.color, label: los.label, grade: los.grade } : null
+})
+// a minute-grade clock, so a grade goes stale without a page reload
+const nowMinute = ref(Date.now())
+let losTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { losTimer = setInterval(() => { nowMinute.value = Date.now() }, 60_000) })
+onBeforeUnmount(() => clearInterval(losTimer))
+let exodusTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { exodusTimer = setInterval(() => { if (document.visibilityState === 'visible') refreshExodus() }, 120_000) })
+onBeforeUnmount(() => clearInterval(exodusTimer))
 
 // Rain for the map animation. Always the model's WMO code, even when a station
 // is speaking for the city otherwise: stations report rain accumulated today,
@@ -839,7 +860,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :exodus="exodusInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :exodus="exodusInfo" :gate-status="gateStatus" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
           @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>

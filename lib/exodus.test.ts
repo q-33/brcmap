@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { WAIT_CHOICES, freshReports, fmtWait, medianWait } from './exodus'
+import { LOS_FRESH_MS, WAIT_CHOICES, freshReports, fmtWait, gateLos, medianWait } from './exodus'
 
 // This number decides when tired people with pets and children get in the
 // line. It errs coarse and honest, never precise and wrong.
@@ -51,5 +51,36 @@ describe('exodus wait math', () => {
     expect([...mins].sort((a, b) => a - b)).toEqual(mins)
     expect(mins[0]).toBeLessThan(60)
     expect(mins[mins.length - 1]!).toBeGreaterThanOrEqual(480)
+  })
+})
+
+// The corridor grade colours a road on the homepage. A stale grade shown as
+// live is the traffic-engineering cardinal sin: detectors down, sign still
+// green.
+describe('gate road level of service', () => {
+  const now = Date.now()
+  const fresh = now - 10 * 60_000
+
+  it('grades the documented span, free flow to gridlock', () => {
+    expect(gateLos(30, fresh, now)!.grade).toBe('A')
+    expect(gateLos(75, fresh, now)!.grade).toBe('B')
+    expect(gateLos(120, fresh, now)!.grade).toBe('C')
+    expect(gateLos(240, fresh, now)!.grade).toBe('D')
+    expect(gateLos(360, fresh, now)!.grade).toBe('E')
+    expect(gateLos(540, fresh, now)!.grade).toBe('F')
+  })
+
+  it('withholds the grade when the detector is stale, rather than dimming it', () => {
+    expect(gateLos(240, now - LOS_FRESH_MS - 1, now)).toBeNull()
+  })
+
+  it('gives no grade from no data', () => {
+    expect(gateLos(null, fresh, now)).toBeNull()
+    expect(gateLos(240, null, now)).toBeNull()
+  })
+
+  it('grades monotonically — a longer wait never earns a better colour', () => {
+    const grades = [30, 75, 120, 240, 360, 540].map(m => gateLos(m, fresh, now)!.grade)
+    expect(grades).toEqual([...grades].sort())
   })
 })

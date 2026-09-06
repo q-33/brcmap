@@ -14,7 +14,7 @@ export interface EditCamp { id: string, name: string, lat: number, lng: number, 
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
 export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, exodus?: { openRides: number, wait: number | null } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, exodus?: { openRides: number, wait: number | null } | null, gateStatus?: { color: string, label: string, grade: string } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
 
 function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
   return {
@@ -1485,16 +1485,20 @@ watch(() => props.sunTime, () => {
 import { buildRoadPath, lapSeconds, lightCount, pointAt, type RoadPath } from '~~/lib/procession'
 
 let roadPath: RoadPath | null = null
+let roadLines: [number, number][][] = [] // every Gate Road polyline, for the LOS stroke
 let cars: { phase: number, speed: number, size: number }[] = []
 
 function prepareProcession() {
   if (!roadPath) {
     const fc = cityGridGeoJson()
     const centre = fc.features.find(f => f.properties?.kind === 'gate-road-centre')
+    const stub = fc.features.find(f => f.properties?.kind === 'gate-road')
     const coords = (centre?.geometry as any)?.coordinates as [number, number][] | undefined
+    const stubCoords = (stub?.geometry as any)?.coordinates as [number, number][] | undefined
     const [manLng, manLat] = getManPoint()
     if (coords)
       roadPath = buildRoadPath(coords, [manLng, manLat])
+    roadLines = [stubCoords, coords].filter((c): c is [number, number][] => !!c)
   }
   const n = lightCount(props.exodus?.openRides ?? 0)
   if (cars.length !== n) {
@@ -1531,7 +1535,7 @@ function drawWeather() {
   const gusts = w && w.gusts >= 6 ? w.gusts : 0
   const rainLevel = props.rain?.level ?? 0
 
-  if (!gusts && !rainLevel && !cars.length) {
+  if (!gusts && !rainLevel && !cars.length && !props.gateStatus) {
     ctx.clearRect(0, 0, wxCanvas.width, wxCanvas.height)
     dustParts = []
     rainParts = []
@@ -1666,6 +1670,32 @@ function drawWeather() {
       ctx.stroke()
     }
 
+    // Gate Road wearing its Level of Service: the whole corridor breathing in
+    // its grade's colour. A slow two-second breathe — a road is not an alarm —
+    // and only while the crowd detector is fresh; no data, no claim, no stroke.
+    if (props.gateStatus && roadLines.length && map) {
+      const breathe = 0.28 + 0.22 * (0.5 + 0.5 * Math.sin(performance.now() / 318))
+      ctx.strokeStyle = props.gateStatus.color
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      for (const line of roadLines) {
+        ctx.globalAlpha = breathe
+        ctx.lineWidth = 7
+        ctx.beginPath()
+        for (let i = 0; i < line.length; i++) {
+          const px = map.project(line[i] as [number, number])
+          if (i === 0)
+            ctx.moveTo(px.x, px.y)
+          else ctx.lineTo(px.x, px.y)
+        }
+        ctx.stroke()
+        // a solid narrow core so the colour reads even mid-exhale
+        ctx.globalAlpha = 0.75
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+    }
+
     // taillights out Gate Road. Drawn last: the exodus rides above the dust.
     if (roadPath && cars.length && map) {
       const lap = lapSeconds(props.exodus?.wait ?? null)
@@ -1713,6 +1743,7 @@ function mountWeather() {
 watch(() => props.wind, () => drawWeather(), { deep: true })
 watch(() => props.rain, () => drawWeather(), { deep: true })
 watch(() => props.exodus, () => drawWeather(), { deep: true })
+watch(() => props.gateStatus, () => drawWeather(), { deep: true })
 
 // keep art pins in sync
 watch(() => props.meshPeers, () => {

@@ -41,3 +41,49 @@ export const WAIT_CHOICES: { minutes: number, label: string }[] = [
   { minutes: 360, label: '~6 h' },
   { minutes: 480, label: '8 h or worse' },
 ]
+
+// --- Gate Road Level of Service --------------------------------------------
+//
+// Traffic engineering grades a corridor by measured travel time against its
+// free-flow time, A (free flow) to F (breakdown). Gate Road's free-flow run —
+// Greeters to pavement, ~8 miles of washboard at 10 mph pulses — is about 45
+// minutes, and the org's own history says exodus peaks at 6-9 hours. The bands
+// below follow that span.
+//
+// An engineer's grade is only as good as its detector data, so `live` is part
+// of the answer: a grade computed from stale reports is withheld, not dimmed.
+
+export type LosGrade = 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+
+export interface GateLos {
+  grade: LosGrade
+  color: string
+  label: string
+  /** detector data is fresh — the map may pulse; stale means say nothing */
+  live: boolean
+}
+
+const LOS_BANDS: { max: number, grade: LosGrade, color: string, label: string }[] = [
+  { max: 45, grade: 'A', color: '#16a34a', label: 'free flow' },
+  { max: 90, grade: 'B', color: '#65a30d', label: 'moving well' },
+  { max: 150, grade: 'C', color: '#ca8a04', label: 'slow and steady' },
+  { max: 270, grade: 'D', color: '#d97706', label: 'heavy' },
+  { max: 390, grade: 'E', color: '#ea580c', label: 'severe' },
+  { max: Infinity, grade: 'F', color: '#dc2626', label: 'gridlock' },
+]
+
+/** Detector freshness: reports older than this cannot describe the road NOW. */
+export const LOS_FRESH_MS = 2 * 3600_000
+
+/**
+ * The corridor's grade from the crowd detector, or null when there is no
+ * honest grade to give (no reports, or all of them stale).
+ */
+export function gateLos(medianMinutes: number | null, newestAtMs: number | null, nowMs: number): GateLos | null {
+  if (medianMinutes == null || newestAtMs == null)
+    return null
+  if (nowMs - newestAtMs > LOS_FRESH_MS)
+    return null
+  const band = LOS_BANDS.find(b => medianMinutes <= b.max)!
+  return { grade: band.grade, color: band.color, label: band.label, live: true }
+}
