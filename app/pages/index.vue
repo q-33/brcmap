@@ -345,6 +345,20 @@ const windInfo = computed(() => {
   return { dir: c.wind_direction_10m, gusts: c.wind_gusts_10m, color: dustRisk(c.wind_gusts_10m).color }
 })
 
+// The exodus procession: taillights on Gate Road, one per open ride post,
+// crawling at the crowd-reported pace. Client-only and lazy like the weather —
+// homepage ambience must never block first paint.
+const { data: exodusData } = await useFetch<{ crowd: { median: number | null }, openRides: number }>(
+  '/api/exodus',
+  { server: false, lazy: true },
+)
+const exodusInfo = computed(() => {
+  const d = exodusData.value
+  if (!d || !d.openRides)
+    return null
+  return { openRides: d.openRides, wait: d.crowd?.median ?? null }
+})
+
 // Rain for the map animation. Always the model's WMO code, even when a station
 // is speaking for the city otherwise: stations report rain accumulated today,
 // which stays high long after the sky clears, so it cannot answer "is it raining
@@ -825,7 +839,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :exodus="exodusInfo" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
           @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>

@@ -14,7 +14,7 @@ export interface EditCamp { id: string, name: string, lat: number, lng: number, 
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
 export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, exodus?: { openRides: number, wait: number | null } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
 
 function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
   return {
@@ -1479,6 +1479,33 @@ watch(() => props.sunTime, () => {
 // meanders across the wind instead of tracking it dead straight. Nothing has an
 // edge to it, nothing points. The reading is unchanged — a whiteout is still
 // unmistakable — but it billows rather than strafes.
+// The exodus procession: taillights on Gate Road, one per open ride post,
+// crawling at the speed the crowd meter reports. Shares the weather canvas
+// and its single animation frame. See lib/procession.ts for why.
+import { buildRoadPath, lapSeconds, lightCount, pointAt, type RoadPath } from '~~/lib/procession'
+
+let roadPath: RoadPath | null = null
+let cars: { phase: number, speed: number, size: number }[] = []
+
+function prepareProcession() {
+  if (!roadPath) {
+    const fc = cityGridGeoJson()
+    const centre = fc.features.find(f => f.properties?.kind === 'gate-road-centre')
+    const coords = (centre?.geometry as any)?.coordinates as [number, number][] | undefined
+    const [manLng, manLat] = getManPoint()
+    if (coords)
+      roadPath = buildRoadPath(coords, [manLng, manLat])
+  }
+  const n = lightCount(props.exodus?.openRides ?? 0)
+  if (cars.length !== n) {
+    cars = Array.from({ length: n }, () => ({
+      phase: Math.random(), // spread along the road, not a convoy leaving at once
+      speed: 0.85 + Math.random() * 0.3, // nobody drives exactly the median
+      size: 1.6 + Math.random() * 1.1,
+    }))
+  }
+}
+
 let wxCanvas: HTMLCanvasElement | null = null
 let wxRaf = 0
 let dustParts: { x: number, y: number, sp: number, a: number, r: number, ph: number, wr: number }[] = []
@@ -1498,17 +1525,22 @@ function drawWeather() {
     return
 
   stopWeather()
+  prepareProcession()
   const w = props.wind
   // Below a breeze there is nothing to show, and pretending otherwise is noise.
   const gusts = w && w.gusts >= 6 ? w.gusts : 0
   const rainLevel = props.rain?.level ?? 0
 
-  if (!gusts && !rainLevel) {
+  if (!gusts && !rainLevel && !cars.length) {
     ctx.clearRect(0, 0, wxCanvas.width, wxCanvas.height)
     dustParts = []
     rainParts = []
     return
   }
+  if (!gusts)
+    dustParts = []
+  if (!rainLevel)
+    rainParts = []
 
   const dpr = Math.min(2, window.devicePixelRatio || 1)
   const cw = wxCanvas.clientWidth
@@ -1634,6 +1666,30 @@ function drawWeather() {
       ctx.stroke()
     }
 
+    // taillights out Gate Road. Drawn last: the exodus rides above the dust.
+    if (roadPath && cars.length && map) {
+      const lap = lapSeconds(props.exodus?.wait ?? null)
+      const t = performance.now() / 1000
+      for (const c of cars) {
+        const u = ((t * c.speed) / lap + c.phase) % 1
+        const [lng, lat] = pointAt(roadPath, u)
+        const px = map.project([lng, lat])
+        if (px.x < -20 || px.x > cw + 20 || px.y < -20 || px.y > ch + 20)
+          continue
+        // a warm glow with a red core — read as a taillight, not a pin
+        ctx.globalAlpha = 0.5
+        ctx.fillStyle = '#f59e0b'
+        ctx.beginPath()
+        ctx.arc(px.x, px.y, c.size * 2.2, 0, 6.283)
+        ctx.fill()
+        ctx.globalAlpha = 0.95
+        ctx.fillStyle = '#ef4444'
+        ctx.beginPath()
+        ctx.arc(px.x, px.y, c.size * 0.85, 0, 6.283)
+        ctx.fill()
+      }
+    }
+
     ctx.globalAlpha = 1
     wxRaf = requestAnimationFrame(tick)
   }
@@ -1656,6 +1712,7 @@ function mountWeather() {
 
 watch(() => props.wind, () => drawWeather(), { deep: true })
 watch(() => props.rain, () => drawWeather(), { deep: true })
+watch(() => props.exodus, () => drawWeather(), { deep: true })
 
 // keep art pins in sync
 watch(() => props.meshPeers, () => {

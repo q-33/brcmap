@@ -1,6 +1,6 @@
-import { desc, gte } from 'drizzle-orm'
+import { desc, eq, gte, sql } from 'drizzle-orm'
 import { freshReports, medianWait } from '~~/lib/exodus'
-import { exodusReports } from '../../db/schema'
+import { exodusReports, rides } from '../../db/schema'
 import { fetchBmanTraffic } from '../../utils/bmanTraffic'
 
 // The exodus picture: crowd-reported Gate Road times (ours, reliable) and the
@@ -37,6 +37,14 @@ export default defineCachedEventHandler(async () => {
   const fresh = freshReports(reports, now)
   const official = await officialCached()
 
+  // For the homepage procession: one taillight per open ride post.
+  let openRides = 0
+  try {
+    const [c] = await useDb().select({ n: sql<number>`count(*)::int` }).from(rides).where(eq(rides.status, 'open'))
+    openRides = c?.n ?? 0
+  }
+  catch { /* the meter and feed still render */ }
+
   return {
     crowd: {
       median: medianWait(fresh),
@@ -45,6 +53,7 @@ export default defineCachedEventHandler(async () => {
       recent: fresh.slice(0, 40),
     },
     official, // TrafficPost[] | null — null means "X said no today"
+    openRides,
     updatedAt: new Date(now).toISOString(),
   }
 }, { maxAge: 60, swr: true, name: 'exodus', getKey: () => 'all' })
