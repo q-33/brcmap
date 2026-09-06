@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { formatAddressNamed, parseAddress } from '~~/lib/brc/geocode'
-import { MAJOR_BURNS } from '~~/lib/burns'
 import { DEFAULT_ON, eventSource } from '~~/lib/eventSources'
 
 interface EventRow {
@@ -209,26 +208,6 @@ useHead({ title: 'Events — BRC Map' })
         Log in to post
       </UButton>
     </div>
-
-    <!-- Major burns — curated headline burns, highlighted at the top -->
-    <section v-if="MAJOR_BURNS.length" class="mb-8 overflow-hidden rounded-2xl border border-red-700/25 bg-red-700/[0.055]">
-      <div class="flex items-center gap-2 border-b border-red-700/15 px-4 py-2.5 sm:px-5">
-        <UIcon name="i-lucide-flame" class="size-5 text-red-700 dark:text-red-400" />
-        <h2 class="font-display text-base font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">Major Burns</h2>
-      </div>
-      <ul class="divide-y divide-red-700/10">
-        <li v-for="b in MAJOR_BURNS" :key="b.name" class="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
-          <div class="min-w-0">
-            <p class="font-semibold text-(--ui-text)">{{ b.name }}</p>
-            <p class="mt-0.5 text-sm text-(--ui-text-muted)">
-              {{ b.day }} · <span class="font-medium text-red-700 dark:text-red-400">{{ b.time }}</span>
-              <span v-if="b.expected"> (expected)</span>
-            </p>
-          </div>
-          <UIcon name="i-lucide-flame" class="size-5 shrink-0 text-red-700/60 dark:text-red-400/60" />
-        </li>
-      </ul>
-    </section>
 
     <EventSourceToggles v-model="enabledSources" :counts="sourceCounts" />
 
