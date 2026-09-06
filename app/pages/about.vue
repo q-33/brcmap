@@ -104,7 +104,9 @@ const alumni = [
         </p>
         <p>
           Instead the site sends one small note to <em>our own</em> server saying “someone loaded this
-          page”, at most once a minute, and only while the tab is actually open in front of you.
+          page”, at most once a minute, and only while the tab is actually open in front of you. If you
+          attach a Meshtastic radio through the map, the same note says “a radio connected” — nothing
+          about which radio, whose it is, or where it stands.
         </p>
         <p>
           <strong class="text-(--ui-text)">We do not store who you are.</strong> Your address and browser
