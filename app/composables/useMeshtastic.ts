@@ -37,6 +37,25 @@ export type MeshTransport = 'ble' | 'serial'
 export type MeshStatus = 'disconnected' | 'connecting' | 'configuring' | 'connected'
 
 // One radio connection is shared app-wide. The SDK device + its unsubscribers
+// Anonymous mesh telemetry, through the same pulse the pages use: the admin
+// panel wants to know IF the mesh feature is used, and this is the only place
+// that knows. Pseudo-paths, one visitor hash, no node ids, no positions —
+// "somebody connected a radio" is the entire payload. Re-pinged every five
+// minutes while connected so "now" means now.
+let meshPulseTimer: ReturnType<typeof setInterval> | undefined
+function meshPulse(what: 'connected' | 'peers') {
+  $fetch('/api/pulse', { method: 'POST', body: { path: `mesh:${what}` }, keepalive: true }).catch(() => {})
+}
+function startMeshPulse() {
+  meshPulse('connected')
+  clearInterval(meshPulseTimer)
+  meshPulseTimer = setInterval(() => meshPulse('connected'), 5 * 60_000)
+}
+function stopMeshPulse() {
+  clearInterval(meshPulseTimer)
+  meshPulseTimer = undefined
+}
+
 // live at module scope (client-only; connect() only runs from a user gesture).
 let device: any = null
 let unsubs: Array<() => void> = []
@@ -57,6 +76,15 @@ export function useMeshtastic() {
   const nodesList = computed(() => Object.values(nodes.value).sort((a, b) => (b.lastHeard ?? 0) - (a.lastHeard ?? 0)))
   // Peers we can actually place on the map (have a fix, aren't us).
   const locatedPeers = computed(() => nodesList.value.filter(n => n.lat != null && n.lng != null))
+  // One ping the first time another radio is heard this session — the
+  // difference between "plugged a node in" and "the mesh has people on it".
+  let peersPinged = false
+  watch(nodesList, (l) => {
+    if (!peersPinged && l.filter(n => !n.isSelf).length > 0 && status.value === 'connected') {
+      peersPinged = true
+      meshPulse('peers')
+    }
+  })
 
   function upsert(num: number, patch: Partial<MeshNode>) {
     const prev = nodes.value[num] ?? { num }
@@ -67,10 +95,13 @@ export function useMeshtastic() {
     const e = dev.events
     unsubs.push(e.onDeviceStatus.subscribe((s: number) => {
       // DeviceStatusEnum: 5 Connected, 6 Configuring, 7 Configured
-      if (s === 7 || s === 5)
+      if (s === 7 || s === 5) {
         status.value = 'connected'
-      else if (s === 6)
+        startMeshPulse()
+      }
+      else if (s === 6) {
         status.value = 'configuring'
+      }
     }))
     unsubs.push(e.onMyNodeInfo.subscribe((info: any) => {
       const num = info?.myNodeNum
@@ -143,6 +174,7 @@ export function useMeshtastic() {
       status.value = 'configuring'
       await device.configure()
       status.value = 'connected'
+      startMeshPulse()
     }
     catch (e: any) {
       // The chooser being dismissed shows up as an Abort/NotFound DOMException.
@@ -160,6 +192,7 @@ export function useMeshtastic() {
     try { await device?.disconnect() }
     catch {}
     device = null
+    stopMeshPulse()
     status.value = 'disconnected'
   }
 
