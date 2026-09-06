@@ -29,7 +29,7 @@ function onVisible() {
     refresh()
 }
 onMounted(() => {
-  poll = setInterval(() => { if (document.visibilityState === 'visible') refresh() }, 60_000)
+  poll = setInterval(() => { if (document.visibilityState === 'visible') { refresh(); refreshFinder() } }, 60_000)
   document.addEventListener('visibilitychange', onVisible)
 })
 onBeforeUnmount(() => {
@@ -118,6 +118,29 @@ async function connect(r: Ride) {
     connectBusy.value = ''
   }
 }
+
+// The RideFinder mirror — their board beside ours, read-only, refreshed with
+// the same cadence. Contact happens on their site; next year this seam is
+// where the real integration goes.
+interface Mirrored {
+  id: string
+  kind: 'offer' | 'request'
+  direction: 'to_brc' | 'from_brc'
+  destination: string
+  departs: string | null
+  seats: number | null
+  luggage: string | null
+  fromLocation: string | null
+  note: string | null
+  poster: string
+  url: string
+}
+const { data: finder, refresh: refreshFinder } = await useFetch<{ available: boolean, listings: Mirrored[] }>(
+  '/api/rides/finder',
+  { server: false, lazy: true, default: () => ({ available: false, listings: [] }) },
+)
+const finderShown = computed(() =>
+  (finder.value?.listings ?? []).filter(r => tab.value === 'all' || r.kind === tab.value))
 
 const rowBusy = ref('')
 async function setStatus(r: Ride, s: 'open' | 'closed') {
@@ -256,6 +279,45 @@ useHead({ title: 'Rideshares — BRC Map' })
     <p v-else class="py-10 text-center text-sm text-(--ui-text-muted)">
       Nothing on the board{{ tab !== 'all' ? ' in this view' : ' yet' }} — be the first.
     </p>
+
+    <!-- RideFinder mirror: the other rideshare board, shown beside ours so a
+         burner sees the whole picture. Read-only — replies happen over there. -->
+    <section v-if="finder?.available && finderShown.length" class="mt-10">
+      <div class="mb-3 flex items-baseline justify-between gap-3">
+        <h2 class="font-display text-sm font-bold uppercase tracking-wide text-(--ui-text-muted)">
+          Also on RideFinder
+        </h2>
+        <a href="https://ridefinder.site" target="_blank" rel="noopener noreferrer" class="text-xs text-(--ui-text-muted) underline hover:text-primary">ridefinder.site ↗</a>
+      </div>
+      <div class="space-y-2">
+        <UCard v-for="r in finderShown" :key="r.id" variant="subtle">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="flex flex-wrap items-center gap-x-2 text-sm">
+                <UBadge :color="r.kind === 'offer' ? 'primary' : 'neutral'" variant="subtle" size="sm">
+                  {{ r.kind === 'offer' ? 'Offering' : 'Looking' }}
+                </UBadge>
+                <span class="font-semibold">{{ r.destination }}</span>
+                <span v-if="r.departs" class="text-(--ui-text-muted)">· {{ r.departs }}</span>
+              </p>
+              <p class="mt-1 text-xs text-(--ui-text-muted)">
+                {{ r.poster }}
+                <template v-if="r.fromLocation"> · at {{ r.fromLocation }}</template>
+                <template v-if="r.kind === 'offer' && r.seats"> · {{ r.seats }} seat{{ r.seats === 1 ? '' : 's' }}</template>
+                <template v-if="r.kind === 'request' && r.luggage"> · bringing {{ r.luggage }}</template>
+              </p>
+              <p v-if="r.note" class="mt-2 line-clamp-3 whitespace-pre-line rounded-md bg-(--ui-bg-muted) px-2.5 py-1.5 text-sm">{{ r.note }}</p>
+            </div>
+            <UButton :href="r.url" target="_blank" rel="noopener noreferrer" size="xs" variant="subtle" icon="i-lucide-external-link" class="shrink-0">
+              Reply there
+            </UButton>
+          </div>
+        </UCard>
+      </div>
+      <p class="mt-2 text-xs text-(--ui-text-muted)">
+        Mirrored live from RideFinder, a separate project — replies and contact happen on their site.
+      </p>
+    </section>
 
     <!-- the poster's own closed posts, so "found a ride" doesn't erase history -->
     <section v-if="mineClosed.length" class="mt-10">
