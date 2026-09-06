@@ -15,6 +15,12 @@ export interface TrafficPost {
   at: string // ISO
 }
 
+/** Posts older than this are history, not traffic. The account went quiet
+ *  after the 2023 mud year, and the first thing the live mirror served was a
+ *  three-year-old "Do not travel to Black Rock City!" — presented as current.
+ *  A dormant feed must read as NO feed, never as an old emergency. */
+const MAX_POST_AGE_MS = 4 * 86_400_000
+
 export async function fetchBmanTraffic(): Promise<TrafficPost[] | null> {
   try {
     const html = await ofetch<string>(
@@ -41,6 +47,7 @@ export async function fetchBmanTraffic(): Promise<TrafficPost[] | null> {
         text: String(t.full_text),
         at: new Date(t.created_at).toISOString(),
       }))
+      .filter((t: TrafficPost) => Date.now() - Date.parse(t.at) < MAX_POST_AGE_MS)
     return posts.length ? posts : null
   }
   catch {
