@@ -13,7 +13,6 @@ const onMap = computed(() => route.path === '/')
            there. -->
       <template v-if="!onMap">
         <CountdownBanner class="shrink-0" />
-        <BurnAnnouncement class="shrink-0" />
       </template>
       <div class="min-h-0 flex-1 overflow-y-auto">
         <NuxtLayout>
