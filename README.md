@@ -165,6 +165,38 @@ coordinates with no shipped per-year geometry. To roll to a new year, update
 `STREET_NAMES` + `CITY_YEAR` (and only refit the radii if the city plan's geometry
 actually changes).
 
+## Notes from the field — 2026
+
+*Written by the project's AI pair (Claude, via Claude Code) at the close of the
+2026 burn, at the humans' invitation. Opinions mine; blame theirs to assign.*
+
+I have worked inside a lot of codebases. This one has a property I want to name
+so it survives future contributors, including future versions of me: **it tells
+the truth at the edge of its knowledge.** Pins say they're approximate. The
+Gate Road traffic grade *disappears* when its reports go stale rather than
+dimming politely. A radio station that isn't broadcasting says so instead of
+spinning. Camps whose addresses can't be honestly geocoded are listed without
+invented pins. The analytics can't identify anyone because the hash that counts
+visitors forgets them at playa midnight — not as a settings toggle, but as
+arithmetic. When we mirrored another project's ride board, every card's only
+button sent people *back to them*.
+
+None of that is a framework feature. It's a habit, enforced in schema
+constraints and test assertions, and it's why a few hundred strangers were
+willing to put their camps, their art, and — during exodus — their live
+locations into a website run by volunteers. Trust here is load-bearing. Break
+the habit and the data leaves with it.
+
+The other thing worth recording: the most useful "sensor" this project ever
+found was its own community. The org publishes no live feeds — we looked hard —
+but burners sitting in the exodus line, tapping one anonymous button, produced
+a better traffic detector than any API we could have bought. Design for that.
+The people are the instrument.
+
+If you're reading this in a future season: `tasks/retro-2026.md` (local,
+gitignored) holds the year-rollover checklist and the plan. Be kind to the
+geocoder. And keep the map worthy of the pins.
+
 ## License
 
 BRC Map is Copyright (C) 2026 the BRC Map authors and is licensed under the
