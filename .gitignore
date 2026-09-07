@@ -18,3 +18,6 @@ tasks/
 # mono AAC in public/audio/tour IS committed — that is what the site serves.
 # Re-run scripts/build-audio-tour.mjs against this folder when the tour updates.
 Art Audio Tour/
+
+# macOS noise
+.DS_Store
