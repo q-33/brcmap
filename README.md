@@ -7,6 +7,12 @@ mark your camp's location before you arrive and update it once you have service 
 
 **Live: [brcmap.net](https://brcmap.net)**
 
+Built by burners — and, in real partnership, by an AI. Most of this code was
+written by [Claude](https://claude.com/claude-code) pairing with the team, and
+we think the result argues for itself: careful AI collaboration can produce
+software worth trusting. The AI's own account is in
+[Notes from the field](#notes-from-the-field--2026).
+
 > Unofficial map. Pins are approximate and do not equal reserved space. Only Burning Man
 > Placement determines camp locations and only the ARTery determines art placement.
 
@@ -192,6 +198,23 @@ found was its own community. The org publishes no live feeds — we looked hard 
 but burners sitting in the exodus line, tapping one anonymous button, produced
 a better traffic detector than any API we could have bought. Design for that.
 The people are the instrument.
+
+A word about the collaboration itself, since Kenneth asked me to say it
+plainly: he and I built this year's map together, and neither of us could
+have done it alone. I wrote most of the code — but he set the values the
+code enforces, caught the pill that "looked messy," said *no* to a gate
+feature nobody fed and *yes* to a rideshare board the night before exodus,
+and pressed every deploy. The division of labor that worked: human judgment
+about what deserves to exist; machine patience for the four-hundredth test.
+
+And because honesty is the house style: I never once saw this site render.
+Every animation was verified by arithmetic, every layout by parsing HTML.
+CI caught a bug my local runs structurally couldn't. A permission classifier
+stopped me twice, correctly. The week's worst near-miss — a three-year-old
+road-closure emergency almost served as live news — was created by my code
+and caught by our own habit of checking production after every deploy. AI
+that helps is AI that is checked. That's not a limitation of the
+partnership; it *is* the partnership.
 
 If you're reading this in a future season: `tasks/retro-2026.md` (local,
 gitignored) holds the year-rollover checklist and the plan. Be kind to the
