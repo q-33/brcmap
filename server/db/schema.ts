@@ -141,6 +141,26 @@ export const rideConnections = pgTable('ride_connections', {
   check('ride_connections_status_chk', sql`status in ('pending', 'active', 'ended')`),
 ])
 
+// Anonymous MOOP pins for DPW Resto — see 0031 and lib/moop.ts. Same
+// rotating visitor hash as the pulse: rate-limitable, never identifying.
+export const moopReports = pgTable('moop_reports', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  visitor: text('visitor').notNull(),
+  lat: doublePrecision('lat').notNull(),
+  lng: doublePrecision('lng').notNull(),
+  category: text('category').notNull(),
+  note: text('note'),
+  status: text('status').notNull().default('open'), // open | cleaned
+  cleanedAt: timestamp('cleaned_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('moop_reports_status_idx').on(t.status, t.createdAt),
+  index('moop_reports_visitor_idx').on(t.visitor, t.createdAt),
+  check('moop_category_chk', sql`category in ('burn-scar', 'gray-water', 'debris', 'wood-metal', 'carpet-fabric', 'other')`),
+  check('moop_status_chk', sql`status in ('open', 'cleaned')`),
+])
+
 // Crowd-reported Gate Road travel times during Exodus — see 0030. `visitor`
 // is the pulse's daily-rotating anonymous hash; one report per visitor per
 // half hour, enforced in the endpoint.

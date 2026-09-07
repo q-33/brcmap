@@ -56,6 +56,7 @@ const navItems = [[
   { label: 'Events', icon: 'i-lucide-calendar', to: '/events' },
   { label: 'Rides', icon: 'i-lucide-car', to: '/rides' },
   { label: 'Exodus', icon: 'i-lucide-log-out', to: '/exodus' },
+  { label: 'Resto', icon: 'i-lucide-recycle', to: '/resto' },
   { label: 'Guide', icon: 'i-lucide-compass', to: '/guide' },
   { label: 'Contact', icon: 'i-lucide-mail', to: '/contact' },
 ]]
@@ -346,6 +347,16 @@ const windInfo = computed(() => {
   return { dir: c.wind_direction_10m, gusts: c.wind_gusts_10m, color: dustRisk(c.wind_gusts_10m).color }
 })
 
+// MOOP pins for Resto — small dots in the category's colour, so a sweep (or
+// anyone) can see what's reported from the map. Same lazy client-only fetch
+// discipline as everything else on this page.
+interface MoopPin { id: string, lat: number, lng: number, category: string, status: string }
+const { data: moopData, refresh: refreshMoop } = await useFetch<MoopPin[]>('/api/moop', { server: false, lazy: true, default: () => [] })
+const moopPins = computed(() => (moopData.value ?? []).filter(m => m.status === 'open'))
+let moopTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { moopTimer = setInterval(() => { if (document.visibilityState === 'visible') refreshMoop() }, 120_000) })
+onBeforeUnmount(() => clearInterval(moopTimer))
+
 // The exodus procession: taillights on Gate Road, one per open ride post,
 // crawling at the crowd-reported pace. Client-only and lazy like the weather —
 // homepage ambience must never block first paint.
@@ -400,7 +411,7 @@ const rainInfo = computed(() => {
 // Both on by default — the whole city is the point — but the directory is ten
 // times the size of the volunteer list, so it gets its own switch rather than
 // burying the camps who opted in under it.
-const layers = reactive({ camps: true, official: true, art: true, toilets: true, medical: true, safety: true, services: true, transport: true })
+const layers = reactive({ camps: true, official: true, art: true, moop: true, toilets: true, medical: true, safety: true, services: true, transport: true })
 const panelOpen = ref(false)
 const basemap = ref<'blocks' | 'lines'>('blocks')
 
@@ -860,7 +871,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :exodus="exodusInfo" :gate-status="gateStatus" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :exodus="exodusInfo" :gate-status="gateStatus" :moop="layers.moop ? moopPins : []" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
           @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>
@@ -880,6 +891,7 @@ const itemOptions = computed(() => [
           <UButton to="/events" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Events</UButton>
           <UButton to="/rides" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Rides</UButton>
           <UButton to="/exodus" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Exodus</UButton>
+          <UButton to="/resto" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Resto</UButton>
           <UButton to="/guide" size="xs" color="neutral" variant="ghost" class="text-white/80 hover:text-white">Guide</UButton>
         </div>
         <!-- mobile: collapsed menu -->
@@ -1016,6 +1028,10 @@ const itemOptions = computed(() => [
         <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.official && 'opacity-40'" @click="layers.official = !layers.official">
           <span class="size-2.5 shrink-0 rounded-full border border-white/40 bg-white/20" />Placement list
           <UIcon :name="layers.official ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
+        </button>
+        <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.moop && 'opacity-40'" @click="layers.moop = !layers.moop">
+          <span class="size-2.5 shrink-0 rounded-full" style="background:#b91c1c" />MOOP (Resto)
+          <UIcon :name="layers.moop ? 'i-lucide-eye' : 'i-lucide-eye-off'" class="ml-auto size-3 text-white/60" />
         </button>
         <button type="button" class="flex w-full items-center gap-1.5" :class="!layers.art && 'opacity-40'" @click="layers.art = !layers.art">
           <span class="inline-block size-2 rounded-full" style="background:#7c3aed" />Art

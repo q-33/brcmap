@@ -14,7 +14,7 @@ export interface EditCamp { id: string, name: string, lat: number, lng: number, 
 // A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
 export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, exodus?: { openRides: number, wait: number | null } | null, gateStatus?: { color: string, label: string, grade: string } | null, layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, exodus?: { openRides: number, wait: number | null } | null, gateStatus?: { color: string, label: string, grade: string } | null, moop?: { id: string, lat: number, lng: number, category: string }[], layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
 
 function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
   return {
@@ -1483,6 +1483,9 @@ watch(() => props.sunTime, () => {
 // crawling at the speed the crowd meter reports. Shares the weather canvas
 // and its single animation frame. See lib/procession.ts for why.
 import { buildRoadPath, lapSeconds, lightCount, pointAt, type RoadPath } from '~~/lib/procession'
+import { MOOP_CATEGORIES } from '~~/lib/moop'
+
+const MOOP_COLORS: Record<string, string> = Object.fromEntries(MOOP_CATEGORIES.map(c => [c.key, c.color]))
 
 let roadPath: RoadPath | null = null
 let roadLines: [number, number][][] = [] // every Gate Road polyline, for the LOS stroke
@@ -1535,7 +1538,7 @@ function drawWeather() {
   const gusts = w && w.gusts >= 6 ? w.gusts : 0
   const rainLevel = props.rain?.level ?? 0
 
-  if (!gusts && !rainLevel && !cars.length && !props.gateStatus) {
+  if (!gusts && !rainLevel && !cars.length && !props.gateStatus && !props.moop?.length) {
     ctx.clearRect(0, 0, wxCanvas.width, wxCanvas.height)
     dustParts = []
     rainParts = []
@@ -1696,6 +1699,26 @@ function drawWeather() {
       }
     }
 
+    // MOOP pins: small hard dots in the category colour with a white rim so
+    // they read against both playa and blocks. Canvas, not a maplibre layer —
+    // they share the redraw the weather already pays for.
+    if (props.moop?.length && map) {
+      for (const m of props.moop) {
+        const px = map.project([m.lng, m.lat])
+        if (px.x < -10 || px.x > cw + 10 || px.y < -10 || px.y > ch + 10)
+          continue
+        ctx.globalAlpha = 0.95
+        ctx.fillStyle = '#ffffff'
+        ctx.beginPath()
+        ctx.arc(px.x, px.y, 4, 0, 6.283)
+        ctx.fill()
+        ctx.fillStyle = MOOP_COLORS[m.category] ?? '#dc2626'
+        ctx.beginPath()
+        ctx.arc(px.x, px.y, 2.8, 0, 6.283)
+        ctx.fill()
+      }
+    }
+
     // taillights out Gate Road. Drawn last: the exodus rides above the dust.
     if (roadPath && cars.length && map) {
       const lap = lapSeconds(props.exodus?.wait ?? null)
@@ -1744,6 +1767,7 @@ watch(() => props.wind, () => drawWeather(), { deep: true })
 watch(() => props.rain, () => drawWeather(), { deep: true })
 watch(() => props.exodus, () => drawWeather(), { deep: true })
 watch(() => props.gateStatus, () => drawWeather(), { deep: true })
+watch(() => props.moop, () => drawWeather(), { deep: true })
 
 // keep art pins in sync
 watch(() => props.meshPeers, () => {
