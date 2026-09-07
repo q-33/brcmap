@@ -21,6 +21,7 @@ const links = computed(() => [
   { label: 'Events', to: '/events', icon: 'i-lucide-calendar', badge: 0 },
   { label: 'Rides', to: '/rides', icon: 'i-lucide-car', badge: 0 },
   { label: 'Exodus', to: '/exodus', icon: 'i-lucide-log-out', badge: 0 },
+  { label: 'Resto', to: '/resto', icon: 'i-lucide-recycle', badge: 0 },
   { label: 'Live', to: '/live', icon: 'i-lucide-radio', badge: 0 },
   { label: 'Guide', to: '/guide', icon: 'i-lucide-compass', badge: 0 },
 ])
