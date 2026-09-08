@@ -356,7 +356,9 @@ Now we'd love to hear from you, while the dust is still in your laundry:
 
 Just reply to this email — it lands with a human, and every reply gets read.
 
-For the curious (or for anyone who has to explain to their boss where they were last week): we wrote a full After Action Report on what the map did this year — through the eyes of a traffic engineer, a participant, the Org, and law enforcement. The PDF is at https://brcmap.net/aar-2026.pdf
+We also wrote up the map's whole year for you — what it became, everything we built during the week, and (because you deserve the truth more than the highlight reel) exactly what broke: https://brcmap.net/season-2026.pdf
+
+For the extra-curious, the long-form version — the same season through the eyes of a traffic engineer, the Org, and law enforcement — is at https://brcmap.net/aar-2026.pdf
 
 Your camp, art, and placements stay up all year, and the map works offline whenever you open it next. If anything about your camp changed during the week, update it while you still remember.
 
