@@ -343,27 +343,37 @@ onMounted(() => {
 })
 
 // --- Broadcast email to all users (prefilled with the current announcement) ---
-const bcSubject = ref('The Man burned, the Temple burned — thank you')
-const bcBody = ref(`The city is coming down. Before it does, we wanted to say thank you.
+const bcSubject = ref('Thank you for a beautiful burn — and tell us what to build next')
+const bcBody = ref(`The city is gone, the fence is coming down, and before the year goes quiet we wanted to say: thank you.
 
-This map only works because you put yourselves on it. This year that was 236 camps who shared where they'd be, artists who placed their pieces, events, rides offered and rides found — and one board post that helped a stranger get home. We're the shell; you were the pearls.
+BRC Map only works because you put yourselves on it — 236 camps who shared where they'd be, artists who placed their pieces, events, rides offered and found, exodus reports tapped from the actual line. We're the shell; you were the pearls.
 
-A few things grew during the week, in case you missed them:
+Now we'd love to hear from you, while the dust is still in your laundry:
 
-- THE WHOLE CITY — alongside the camps who registered here, the map now shows Burning Man's public placement directory (~1,000 more camps) and the official art directory, every piece placed. Your own pin always wins over the spreadsheet.
+- What glitched? Anything that broke, confused you, or showed the wrong thing — even small stuff. Especially small stuff.
+- What was actually useful out there?
+- What should exist next year? Wilder the better.
 
-- RIDESHARES — brcmap.net/rides. Offers, requests, and a Connect button that let two burners share live location with each other to actually find each other for the pickup — by consent, deleted the moment either side stopped.
+Just reply to this email — it lands with a human, and every reply gets read.
 
-- EXODUS — brcmap.net/exodus. Crowd-reported Gate Road times, and the road itself wearing the traffic on the homepage.
+Your camp, art, and placements stay up all year, and the map works offline whenever you open it next. If anything about your camp changed during the week, update it while you still remember.
 
-The map doesn't pack up with the city. Your camp, your art, and your placements stay through the year, and everything works offline whenever you open it next. If a detail of your camp changed this week — you moved, you renamed, you finally measured the frontage — update it while you still remember.
-
-On privacy, because it matters: we never learned who you are unless you told us. Visit counting is an anonymous hash that forgets you at playa midnight, location sharing was only ever between two consenting people and kept no history, and there is no tracker on the site from anyone else.
-
-See you in the dust next year.
+See you in the dust.
 
 — the BRC Map crew
 brcmap.net`)
+interface BcProgress { id: string, subject: string, total: number, sent: number, failed: number, queued: number }
+const { data: bcProgress, refresh: refreshBcProgress } = await useFetch<BcProgress | null>('/api/admin/broadcast', { immediate: false, default: () => null })
+let bcPoll: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  bcPoll = setInterval(() => {
+    if (isAdmin.value && tab.value === 'broadcast' && (bcProgress.value?.queued ?? 0) > 0)
+      refreshBcProgress()
+  }, 30_000)
+})
+onBeforeUnmount(() => clearInterval(bcPoll))
+watch(tab, (t) => { if (t === 'broadcast' && isAdmin.value) refreshBcProgress() })
+
 const bcBusy = ref<'self' | 'all' | ''>('')
 const bcResult = ref('')
 const bcOk = ref(false)
@@ -380,9 +390,13 @@ async function sendBroadcast(target: 'self' | 'all') {
   bcBusy.value = target
   bcResult.value = ''
   try {
-    const r = await $fetch<{ total: number, sent: number, failed: number }>('/api/admin/broadcast', { method: 'POST', body: { subject: bcSubject.value, body: bcBody.value, target } })
+    const r = await $fetch<{ total: number, sent: number, failed: number, queued: number }>('/api/admin/broadcast', { method: 'POST', body: { subject: bcSubject.value, body: bcBody.value, target } })
     bcOk.value = r.failed === 0
-    bcResult.value = `${target === 'self' ? 'Test' : 'Broadcast'}: ${r.sent}/${r.total} sent${r.failed ? ` · ${r.failed} failed (SMTP may be blocked)` : ''}.`
+    bcResult.value = target === 'self'
+      ? `Test: ${r.sent}/${r.total} sent${r.failed ? ' — check SMTP config' : ''}.`
+      : `Queued ${r.queued} emails — delivering a few per minute; progress below.`
+    if (target === 'all')
+      await refreshBcProgress()
     await refreshAudit()
   }
   catch (e: any) {
@@ -684,6 +698,23 @@ useHead({ title: 'Admin — BRC Map' })
           <p class="text-xs text-(--ui-text-muted)">
             Tip: always “Send test to me” first — it confirms the copy and that the server can send (DigitalOcean can block outbound SMTP) before you hit the whole list.
           </p>
+          <p class="text-xs text-(--ui-text-muted)">
+            “Send to all” queues the emails and a background worker delivers them a few per
+            minute (DreamHost caps the relay around 100/hour). The full list takes several
+            hours — safe to close this page; the queue survives restarts and nobody is
+            mailed twice.
+          </p>
+        </div>
+        <div v-if="bcProgress" class="mt-3 rounded-xl border border-(--ui-border) p-4 text-sm">
+          <p class="font-medium">Latest broadcast: “{{ bcProgress.subject }}”</p>
+          <p class="mt-1 text-(--ui-text-muted)">
+            <span class="font-medium text-(--ui-text)">{{ bcProgress.sent }}</span>/{{ bcProgress.total }} delivered
+            <template v-if="bcProgress.queued"> · {{ bcProgress.queued }} queued (~{{ Math.ceil(bcProgress.queued / 60) }} h remaining at the default rate)</template>
+            <template v-if="bcProgress.failed"> · <span class="text-red-600">{{ bcProgress.failed }} failed</span></template>
+          </p>
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-(--ui-bg-muted)">
+            <div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${bcProgress.total ? Math.round((bcProgress.sent / bcProgress.total) * 100) : 0}%` }" />
+          </div>
         </div>
       </section>
     </template>

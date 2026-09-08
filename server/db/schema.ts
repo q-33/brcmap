@@ -141,6 +141,31 @@ export const rideConnections = pgTable('ride_connections', {
   check('ride_connections_status_chk', sql`status in ('pending', 'active', 'ended')`),
 ])
 
+// Durable broadcast queue — see 0032. The endpoint enqueues; the drip worker
+// in server/plugins/broadcast-drip.ts delivers a few per minute.
+export const broadcasts = pgTable('broadcasts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  subject: text('subject').notNull(),
+  body: text('body').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const broadcastRecipients = pgTable('broadcast_recipients', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  broadcastId: uuid('broadcast_id').notNull().references(() => broadcasts.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  status: text('status').notNull().default('queued'), // queued | sent | failed
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  uniqueIndex('broadcast_recipient_uniq').on(t.broadcastId, t.email),
+  index('broadcast_recipients_status_idx').on(t.status, t.attempts, t.createdAt),
+  check('broadcast_recipient_status_chk', sql`status in ('queued', 'sent', 'failed')`),
+])
+
 // Anonymous MOOP pins for DPW Resto — see 0031 and lib/moop.ts. Same
 // rotating visitor hash as the pulse: rate-limitable, never identifying.
 export const moopReports = pgTable('moop_reports', {

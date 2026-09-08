@@ -64,6 +64,27 @@ export async function sendEmail(opts: EmailOpts): Promise<boolean> {
   }
 }
 
+/** Plain text → simple branded HTML (paragraphs, "- " bullets, autolinked URLs).
+ *  Shared by the broadcast endpoint (preview/test sends) and the drip worker. */
+export function renderBroadcastHtml(body: string): string {
+  const link = (s: string) => s.replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" style="color:#e1641a;text-decoration:none">${u}</a>`)
+  const fmt = (s: string) => link(esc(s))
+  const blocks: string[] = []
+  let list: string[] = []
+  let para: string[] = []
+  const flushList = () => { if (list.length) { blocks.push(`<ul style="padding-left:18px">${list.map(li => `<li style="margin-bottom:4px">${li}</li>`).join('')}</ul>`); list = [] } }
+  const flushPara = () => { if (para.length) { blocks.push(`<p>${para.join('<br>')}</p>`); para = [] } }
+  for (const raw of body.replace(/\r\n/g, '\n').split('\n')) {
+    const t = raw.trimEnd()
+    if (/^\s*[-*]\s+/.test(t)) { flushPara(); list.push(fmt(t.replace(/^\s*[-*]\s+/, ''))); continue }
+    flushList()
+    if (t.trim() === '') { flushPara(); continue }
+    para.push(fmt(t))
+  }
+  flushPara(); flushList()
+  return `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#2f2820;max-width:560px;margin:0 auto;line-height:1.55;font-size:15px">${blocks.join('')}</div>`
+}
+
 export const esc = (s: string): string => s.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))
 
 // "You have a new message" nudge — sent only on the first unread from a sender
