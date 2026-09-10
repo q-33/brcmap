@@ -344,21 +344,30 @@ onMounted(() => {
 
 // --- Broadcast email to all users (prefilled with the current announcement) ---
 const bcSubject = ref('Thank you for a beautiful burn — and tell us what to build next')
-const bcBody = ref(`The city is gone, the fence is coming down, and before the year goes quiet we wanted to say: thank you.
+const bcBody = ref(`The city is gone, the fence is down, and before the year goes quiet we wanted to say: thank you.
 
-BRC Map only works because you put yourselves on it — 236 camps who shared where they'd be, artists who placed their pieces, events, rides offered and found, exodus reports tapped from the actual line. We're the shell; you were the pearls.
+This was BRC Map's first real burn, and instead of freezing the site for the week we built alongside you — shipping something new almost every day as the city showed us what it needed:
+
+- THE WHOLE CITY — alongside the camps who placed themselves, the map gained Burning Man's public placement directory (~1,000 more camps) and the official art directory, 361 artworks placed. Your own pin always beat the spreadsheet; not one placement was moved.
+
+- WEATHER & RADIO — real sensors inside the fence, dust risk in plain words, BMIR and Shouting Fire one tap away on a player that follows you around the site, and the official webcast on /live.
+
+- RIDESHARES — launched the night before exodus at brcmap.net/rides: offers, requests, and Connect, which let two matched burners share live locations to find each other for the pickup — by consent, deleted the moment either stopped.
+
+- EXODUS — people in the line tapped how long Gate Road was taking, and the road itself wore the answer on the homepage in green through red, going quiet rather than ever showing a stale number.
+
+- RESTO (live now) — standing on MOOP? Pin it anonymously at brcmap.net/resto and a line sweep can find it.
+
+The full story of the week — day by day, with the numbers — is here: https://brcmap.net/season-2026.pdf
+(And for the extra-curious, a long-form report through the eyes of a traffic engineer, the Org, and law enforcement: https://brcmap.net/aar-2026.pdf)
 
 Now we'd love to hear from you, while the dust is still in your laundry:
 
-- What glitched? Anything that broke, confused you, or showed the wrong thing — even small stuff. Especially small stuff.
 - What was actually useful out there?
+- What glitched or confused you? Especially the small stuff.
 - What should exist next year? Wilder the better.
 
 Just reply to this email — it lands with a human, and every reply gets read.
-
-We also wrote up the map's whole year for you — what it became, everything we built during the week, and (because you deserve the truth more than the highlight reel) exactly what broke: https://brcmap.net/season-2026.pdf
-
-For the extra-curious, the long-form version — the same season through the eyes of a traffic engineer, the Org, and law enforcement — is at https://brcmap.net/aar-2026.pdf
 
 Your camp, art, and placements stay up all year, and the map works offline whenever you open it next. If anything about your camp changed during the week, update it while you still remember.
 
