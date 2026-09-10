@@ -39,12 +39,27 @@ function transporter(): Transporter | null {
   return _transporter
 }
 
+// Every attempt to hand a message to the relay, in the last hour. DreamHost's
+// quota is 100 RECIPIENTS PER HOUR counted at the relay — attempts count, and
+// exceeding it blocks the mailbox until a full quiet hour passes (repeat
+// offenders are blocked permanently). This counter is shared by transactional
+// mail and the broadcast drip so the two can never add up past the cap
+// blindly. In-memory: a restart forgets, which errs toward caution only if
+// the drip also errs toward caution — which it does.
+const attemptLog: number[] = []
+export function smtpAttemptsLastHour(): number {
+  const cutoff = Date.now() - 3600_000
+  while (attemptLog.length && attemptLog[0]! < cutoff) attemptLog.shift()
+  return attemptLog.length
+}
+
 export interface EmailOpts { to: string, subject: string, html: string, text: string, replyTo?: string }
 
 export async function sendEmail(opts: EmailOpts): Promise<boolean> {
   const t = transporter()
   if (!t)
     return false
+  attemptLog.push(Date.now())
   try {
     await t.sendMail({
       from: process.env.EMAIL_FROM ?? 'BRC Map <digit@brcmap.net>',
@@ -67,7 +82,9 @@ export async function sendEmail(opts: EmailOpts): Promise<boolean> {
 /** Plain text → simple branded HTML (paragraphs, "- " bullets, autolinked URLs).
  *  Shared by the broadcast endpoint (preview/test sends) and the drip worker. */
 export function renderBroadcastHtml(body: string): string {
-  const link = (s: string) => s.replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" style="color:#e1641a;text-decoration:none">${u}</a>`)
+  // Trailing punctuation is prose, not URL: "…at https://x.example)." must link
+  // https://x.example — the greedy version shipped a broken aar-2026.pdf) link.
+  const link = (s: string) => s.replace(/(https?:\/\/[^\s<]+?)([).,;:!?\]]*)(?=\s|$)/g, (_, u, tail) => `<a href="${u}" style="color:#e1641a;text-decoration:none">${u}</a>${tail}`)
   const fmt = (s: string) => link(esc(s))
   const blocks: string[] = []
   let list: string[] = []
