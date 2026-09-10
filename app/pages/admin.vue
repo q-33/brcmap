@@ -359,7 +359,7 @@ This was BRC Map's first real burn, and instead of freezing the site for the wee
 - RESTO (live now) — standing on MOOP? Pin it anonymously at brcmap.net/resto and a line sweep can find it.
 
 The full story of the week — day by day, with the numbers — is here: https://brcmap.net/season-2026.pdf
-(And for the extra-curious, a long-form report through the eyes of a traffic engineer, the Org, and law enforcement: https://brcmap.net/aar-2026.pdf)
+And for the extra-curious — the long-form report through the eyes of a traffic engineer, the Org, and law enforcement: https://brcmap.net/aar-2026.pdf
 
 Now we'd love to hear from you, while the dust is still in your laundry:
 
@@ -712,10 +712,12 @@ useHead({ title: 'Admin — BRC Map' })
             Tip: always “Send test to me” first — it confirms the copy and that the server can send (DigitalOcean can block outbound SMTP) before you hit the whole list.
           </p>
           <p class="text-xs text-(--ui-text-muted)">
-            “Send to all” queues the emails and a background worker delivers them a few per
-            minute (DreamHost caps the relay around 100/hour). The full list takes several
-            hours — safe to close this page; the queue survives restarts and nobody is
-            mailed twice.
+            “Send to all” queues the emails and a background worker delivers them one per
+            minute — DreamHost allows 100 recipients/hour and blocks the mailbox (eventually
+            permanently) if exceeded, so the drip shares an hourly budget with password
+            resets and backs off for an hour automatically if the relay starts refusing.
+            The full list takes ~7–8 h — safe to close this page; the queue survives
+            restarts and nobody is mailed twice.
           </p>
         </div>
         <div v-if="bcProgress" class="mt-3 rounded-xl border border-(--ui-border) p-4 text-sm">
