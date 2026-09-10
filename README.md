@@ -7,12 +7,6 @@ mark your camp's location before you arrive and update it once you have service 
 
 **Live: [brcmap.net](https://brcmap.net)**
 
-Built by burners — and, in real partnership, by an AI. Most of this code was
-written by [Claude](https://claude.com/claude-code) pairing with the team, and
-we think the result argues for itself: careful AI collaboration can produce
-software worth trusting. The AI's own account is in
-[Notes from the field](#notes-from-the-field--2026).
-
 > Unofficial map. Pins are approximate and do not equal reserved space. Only Burning Man
 > Placement determines camp locations and only the ARTery determines art placement.
 
@@ -171,54 +165,33 @@ coordinates with no shipped per-year geometry. To roll to a new year, update
 `STREET_NAMES` + `CITY_YEAR` (and only refit the radii if the city plan's geometry
 actually changes).
 
-## Notes from the field — 2026
+## Design notes — 2026
 
-*Written by the project's AI pair (Claude, via Claude Code) at the close of the
-2026 burn, at the humans' invitation. Opinions mine; blame theirs to assign.*
+A habit this codebase keeps, worth naming so it survives contributor turnover:
+**it tells the truth at the edge of its knowledge.** Pins say they're
+approximate. The Gate Road traffic grade *disappears* when its reports go stale
+rather than dimming politely. A station that isn't broadcasting says so instead
+of spinning. Camps whose addresses can't be honestly geocoded are listed
+without invented pins. The analytics can't identify anyone, because the hash
+that counts visitors forgets them at playa midnight — arithmetic, not a
+settings toggle. When we mirror another project's ride board, every card's only
+button sends people back to them.
 
-I have worked inside a lot of codebases. This one has a property I want to name
-so it survives future contributors, including future versions of me: **it tells
-the truth at the edge of its knowledge.** Pins say they're approximate. The
-Gate Road traffic grade *disappears* when its reports go stale rather than
-dimming politely. A radio station that isn't broadcasting says so instead of
-spinning. Camps whose addresses can't be honestly geocoded are listed without
-invented pins. The analytics can't identify anyone because the hash that counts
-visitors forgets them at playa midnight — not as a settings toggle, but as
-arithmetic. When we mirrored another project's ride board, every card's only
-button sent people *back to them*.
+None of that is a framework feature — it's enforced in schema constraints and
+test assertions, and it's why a few hundred strangers were willing to put their
+camps, their art, and (during exodus) their live locations into a website run
+by volunteers. Trust here is load-bearing; break the habit and the data leaves
+with it.
 
-None of that is a framework feature. It's a habit, enforced in schema
-constraints and test assertions, and it's why a few hundred strangers were
-willing to put their camps, their art, and — during exodus — their live
-locations into a website run by volunteers. Trust here is load-bearing. Break
-the habit and the data leaves with it.
+The other 2026 lesson: the most useful live sensor this project ever found was
+its own community. The org publishes no live feeds — we looked hard — but
+burners sitting in the exodus line, tapping one anonymous button, made a better
+traffic detector than any API we could have bought. The people are the
+instrument.
 
-The other thing worth recording: the most useful "sensor" this project ever
-found was its own community. The org publishes no live feeds — we looked hard —
-but burners sitting in the exodus line, tapping one anonymous button, produced
-a better traffic detector than any API we could have bought. Design for that.
-The people are the instrument.
-
-A word about the collaboration itself, since Kenneth asked me to say it
-plainly: he and I built this year's map together, and neither of us could
-have done it alone. I wrote most of the code — but he set the values the
-code enforces, caught the pill that "looked messy," said *no* to a gate
-feature nobody fed and *yes* to a rideshare board the night before exodus,
-and pressed every deploy. The division of labor that worked: human judgment
-about what deserves to exist; machine patience for the four-hundredth test.
-
-And because honesty is the house style: I never once saw this site render.
-Every animation was verified by arithmetic, every layout by parsing HTML.
-CI caught a bug my local runs structurally couldn't. A permission classifier
-stopped me twice, correctly. The week's worst near-miss — a three-year-old
-road-closure emergency almost served as live news — was created by my code
-and caught by our own habit of checking production after every deploy. AI
-that helps is AI that is checked. That's not a limitation of the
-partnership; it *is* the partnership.
-
-If you're reading this in a future season: `tasks/retro-2026.md` (local,
-gitignored) holds the year-rollover checklist and the plan. Be kind to the
-geocoder. And keep the map worthy of the pins.
+Much of the 2026 code was written pairing with
+[Claude](https://claude.com/claude-code); design calls, priorities, and every
+deploy stayed human.
 
 ## License
 
