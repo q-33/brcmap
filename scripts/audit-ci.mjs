@@ -11,11 +11,15 @@ import process from 'node:process'
 // Reviewed + accepted advisories. Each MUST have a justification and ideally a
 // fix plan. Keep this list short — prefer fixing the dependency.
 const ALLOW = new Map([
-  // Dev-only test tooling (vitest/vite) — never shipped to production.
-  // Fix: upgrade to vitest 3.x.
-  ['GHSA-9crc-q9x8-hgqq', 'vitest <2.1.9 — dev test runner only'],
-  ['GHSA-5xrq-8626-4rwp', 'vitest <3.2.6 — dev test runner only'],
-  ['GHSA-fx2h-pf6j-xcff', 'vite (via vitest) — dev only'],
+  // Build-time only, never shipped to production, and GitHub lists NO patched
+  // version (patched_versions "<0.0.0"). Path: nuxt > nitropack > globby >
+  // fast-glob > micromatch > braces. Re-check each season with
+  // `pnpm audit --json`; drop the entry the moment a fixed release exists.
+  ['GHSA-vfj7-8cjw-p6xm', 'braces 3.0.3 — build-time glob via nitropack; no fixed release'],
+  // Same situation: nuxt > @nuxt/cli | nitropack > listhen > node-forge, which
+  // listhen uses to mint self-signed certs for the dev server. Never runs in
+  // the production Node service. No patched version listed.
+  ['GHSA-86w9-cpqp-85rv', 'node-forge 1.4.0 — dev-server certs via listhen; no fixed release'],
 ])
 
 const BLOCK = new Set(['high', 'critical'])

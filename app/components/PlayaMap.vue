@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
-import type { GeoJSONSource, Map as MlMap, Marker } from 'maplibre-gl'
+import type { GeoJSONSource, Map as MlMap, MapGeoJSONFeature, Marker, Popup } from 'maplibre-gl'
 import * as suncalcNs from 'suncalc'
 import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint, streetLinesGeoJson, toiletsGeoJson } from '~~/lib/brc/cityGeoJson'
 
@@ -597,14 +597,15 @@ onMounted(async () => {
   await nextTick()
   if (!el.value)
     return
-  const maplibregl = (await import('maplibre-gl')).default
+  // MapLibre 6 ships named exports only (no default); the namespace is the API.
+  const maplibregl = await import('maplibre-gl')
   mlgl = maplibregl
 
   // resolve once, after the golden-spike plugin has calibrated the city center
   const man = getManPoint()
   const centerCamp = getCenterCampPoint()
 
-  map = new maplibregl.Map({
+  const ml = new maplibregl.Map({
     container: el.value,
     // tile-free style: the playa is featureless, so we draw only the city grid
     style: {
@@ -627,15 +628,16 @@ onMounted(async () => {
     pitchWithRotate: false,
     attributionControl: false,
   })
-  map.touchZoomRotate.disableRotation()
+  map = ml
+  ml.touchZoomRotate.disableRotation()
 
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+  ml.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
   const geolocate = new maplibregl.GeolocateControl({
     positionOptions: { enableHighAccuracy: true },
     trackUserLocation: true,
     showUserLocation: true,
   })
-  map.addControl(geolocate, 'top-right')
+  ml.addControl(geolocate, 'top-right')
   geolocate.on('geolocate', (e: any) => {
     emit('position', { lat: e.coords.latitude, lng: e.coords.longitude, accuracy: e.coords.accuracy })
   })
@@ -1179,7 +1181,7 @@ onMounted(async () => {
     // once on dragend; the page saves and refreshes the overrides. Deliberately a
     // real marker rather than a click-to-place mode, so you can nudge it a few
     // metres and see the result before letting go.
-    let moveMarker: maplibregl.Marker | null = null
+    let moveMarker: Marker | null = null
     function startPinDrag(name: string, at: [number, number], done: (p: { lat: number, lng: number }) => void) {
       if (!map)
         return
@@ -1214,7 +1216,7 @@ onMounted(async () => {
         ? `<div style="margin-top:6px"><button type="button" data-edit-plot style="${BTN}">${hasPlot ? 'Edit' : 'Add'} boundary</button></div>`
         : ''
     }
-    function wireMoveButton(popup: maplibregl.Popup, f: maplibregl.MapGeoJSONFeature): void {
+    function wireMoveButton(popup: Popup, f: MapGeoJSONFeature): void {
       const el = popup.getElement()
       const p = f.properties ?? {}
       el?.querySelector('[data-move-pin]')?.addEventListener('click', () => {
@@ -1355,9 +1357,10 @@ onMounted(async () => {
         return
       const { lat, lng } = e.lngLat
       if (!pickMarker) {
-        pickMarker = new maplibregl.Marker({ color: '#e1641a', draggable: true }).setLngLat([lng, lat]).addTo(map)
-        pickMarker.on('dragend', () => {
-          const ll = pickMarker!.getLngLat()
+        const pm = new maplibregl.Marker({ color: '#e1641a', draggable: true }).setLngLat([lng, lat]).addTo(map)
+        pickMarker = pm
+        pm.on('dragend', () => {
+          const ll = pm.getLngLat()
           emit('pick', { lat: ll.lat, lng: ll.lng })
         })
       }

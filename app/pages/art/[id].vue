@@ -210,8 +210,8 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
             <UIcon name="i-lucide-megaphone" class="size-5 text-primary" />
             <h2 class="font-display text-lg font-bold uppercase tracking-wide">Open call</h2>
           </div>
-          <UButton v-if="art.isOwner" size="xs" variant="ghost" icon="i-lucide-pencil" @click="openCallEdit">
-            {{ art.call ? 'Edit' : 'Add a call' }}
+          <UButton v-if="art?.isOwner" size="xs" variant="ghost" icon="i-lucide-pencil" @click="openCallEdit">
+            {{ art?.call ? 'Edit' : 'Add a call' }}
           </UButton>
         </div>
 
@@ -222,13 +222,13 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
             <UButton size="sm" variant="ghost" color="neutral" @click="callEdit = false">Cancel</UButton>
           </div>
         </template>
-        <p v-else-if="art.call" class="mt-3 whitespace-pre-line">{{ art.call }}</p>
+        <p v-else-if="art?.call" class="mt-3 whitespace-pre-line">{{ art?.call }}</p>
         <p v-else class="mt-3 text-sm text-(--ui-text-muted)">
-          {{ art.isOwner ? 'No open call yet. Add one to invite contributions.' : 'This artwork isn’t taking contributions right now.' }}
+          {{ art?.isOwner ? 'No open call yet. Add one to invite contributions.' : 'This artwork isn’t taking contributions right now.' }}
         </p>
 
         <!-- contribute form -->
-        <template v-if="art.call && !callEdit">
+        <template v-if="art?.call && !callEdit">
           <div v-if="loggedIn" class="mt-5 border-t border-primary/20 pt-4">
             <form class="space-y-2" @submit.prevent="submitContribution">
               <UTextarea v-model="form.body" :rows="3" class="w-full" placeholder="Your contribution…" required />
@@ -250,7 +250,7 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
       </UCard>
 
       <!-- owner moderation queue -->
-      <section v-if="art.isOwner && (pending.length || hidden.length)" class="mt-8">
+      <section v-if="art?.isOwner && (pending.length || hidden.length)" class="mt-8">
         <h3 class="mb-2 font-display text-sm font-bold uppercase tracking-wide text-(--ui-text-muted)">Awaiting your review</h3>
         <div class="space-y-2">
           <UCard v-for="c in [...pending, ...hidden]" :key="c.id" class="border-dashed">
@@ -286,12 +286,12 @@ useHead(() => ({ title: art.value ? `${art.value.name} — BRC Map` : 'Art — B
               <span v-if="c.language"> · </span>{{ c.authorName || 'Anonymous' }}
             </p>
             <a v-if="c.mediaUrl" :href="c.mediaUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary underline">attached link ↗</a>
-            <div v-if="art.isOwner" class="mt-2">
+            <div v-if="art?.isOwner" class="mt-2">
               <UButton size="xs" color="neutral" variant="ghost" @click="moderate(c, 'hidden')">Hide</UButton>
             </div>
           </UCard>
         </div>
-        <p v-else class="text-sm text-(--ui-text-muted)">No contributions yet{{ art.call ? ' — be the first.' : '.' }}</p>
+        <p v-else class="text-sm text-(--ui-text-muted)">No contributions yet{{ art?.call ? ' — be the first.' : '.' }}</p>
       </section>
     </template>
   </UContainer>
