@@ -161,9 +161,8 @@ export default defineNuxtConfig({
     // server-only secret, read from DATABASE_URL env (.env / DO secret)
     databaseUrl: process.env.DATABASE_URL,
     // Burning Man Public API key (api.burningman.org). Server-only: their terms
-    // forbid disclosing it, so every call goes through /api/bm/* and the key is
-    // never bundled. Unset until they issue one — the proxies return 503 and the
-    // rest of the site is unaffected.
+    // forbid disclosing it, so it is never bundled. Today only the
+    // scripts/import-bm-* importers use it; the site itself makes no calls.
     bmApiKey: process.env.BM_API_KEY ?? '',
     // Tempest (WeatherFlow) API key, for the local weather stations burners bring
     // out. Server-only: the key reaches every station on the owner's account, so

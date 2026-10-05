@@ -137,6 +137,11 @@ pnpm install
 #   EMAIL_FROM="BRC Map <digit@brcmap.net>"   # default sender
 #   CONTACT_TO=digit@brcmap.net        # where the contact form lands
 
+#
+# Burning Man Public API key, used only by the scripts/import-bm-*.{ts,mjs}
+# importers (never by the running site):
+#   BM_API_KEY=…                          # request at api.burningman.org/api-key-request/
+
 pnpm db:migrate   # apply db/migrations/*.sql (idempotent)
 pnpm dev          # http://localhost:3000
 ```
@@ -192,6 +197,30 @@ instrument.
 Much of the 2026 code was written pairing with
 [Claude](https://claude.com/claude-code); design calls, priorities, and every
 deploy stayed human.
+
+## Burning Man API
+
+The official placement directory, art directory and event schedule come from
+[api.burningman.org](https://api.burningman.org/docs). Three scripts import them, and
+the key stays **server-side, in `.env`**: their terms forbid disclosing it, so nothing
+calls the API from the browser or from the running site.
+
+- `scripts/import-bm-camps.ts` — camps. Their records carry **no coordinates**, only
+  `frontage` + `intersection` (`"7:30" & "E"`), so `lib/brc/bmAddress.ts` maps each one
+  onto our geocoder. Inserts new camps as `source: official`; **never moves or
+  overwrites a camp a person placed**.
+- `scripts/import-bm-art.mjs` — artworks, which do carry GPS. Fills blank fields only.
+- `scripts/import-bm-events.mjs` — events, one row per occurrence, `source: official`.
+
+Every importer takes `--dry` and prints what it *would* do. Run that first, read it, then
+run it for real. The order each year: GIS plan (`scripts/import-gis.py`) → camps → art →
+events.
+
+The address mapper is the part worth reviewing. Their address vocabulary is wider than
+the drawn city: L street, portals, Rte 66, Airport Road. Anything it cannot place returns
+`unplaceable` with a reason instead of a guessed pin, because a camp dropped in the
+wrong block is worse than a camp with no pin. Plazas map onto the surveyed GIS names
+(`"9:00 B Plaza"` → `"9:00 & B Plaza"`).
 
 ## License
 
