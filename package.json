@@ -4,6 +4,9 @@
   "private": true,
   "license": "GPL-3.0-or-later",
   "packageManager": "pnpm@8.6.2",
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
