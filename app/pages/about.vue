@@ -108,11 +108,13 @@ const alumni = [
         </p>
         <p>
           <strong class="text-(--ui-text)">We do not store who you are.</strong> Your address and browser
-          are scrambled together with today's date into a jumble of letters that cannot be turned back
-          into either. Because the date is part of it, the jumble changes at playa midnight — so even we
+          are scrambled together with today's date and a random key into a jumble of letters that cannot
+          be turned back into either. The random key is made up fresh each day and lives only in the
+          server's memory — it is never written down, so once the day is over not even we can rebuild
+          the jumble. Because the date is part of it, the jumble changes at playa midnight — so even we
           cannot tell that today's visitor and tomorrow's are the same person. No cookie, no advertising
           id, nothing kept on your device. There is nothing to opt out of because there is nothing
-          persistent to opt out from.
+          persistent to opt out from. The raw notes are deleted after eight days.
         </p>
         <p class="text-(--ui-text-muted)">
           The honest catch: everyone sharing one connection looks like one visitor, so on playa these

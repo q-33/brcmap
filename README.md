@@ -145,7 +145,9 @@ deploy — apply them with `pnpm db:migrate` (reads `DATABASE_URL`).
 ## Verify
 
 ```bash
-pnpm test         # vitest — geocoder + city-grid
+pnpm test         # vitest — geocoder, city grid, pure server logic
+pnpm test:db      # + the *.db.test.ts files against a throwaway LOCAL Postgres
+                  #   (createdb brcmap_test first; never your real DATABASE_URL)
 pnpm typecheck    # nuxt typecheck
 pnpm build        # production (Nitro Node) build
 pnpm audit:ci     # fail on new high/critical dependency advisories

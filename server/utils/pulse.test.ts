@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { visitorKey } from './pulse'
+import { dailySalt, visitorKey } from './pulse'
 
 // This is the privacy promise in the migration and in lib/pulse.ts. If any of
 // these stop holding, the claim in those comments becomes untrue.
@@ -30,5 +30,23 @@ describe('visitor key', () => {
     expect(k).not.toContain(IP)
     expect(k).not.toContain('iPhone')
     expect(k).toMatch(/^[0-9a-f]{32}$/)
+  })
+})
+
+describe('daily salt', () => {
+  it('is stable within a day and different across days', () => {
+    expect(dailySalt('2026-09-04')).toBe(dailySalt('2026-09-04'))
+    expect(dailySalt('2026-09-04')).not.toBe(dailySalt('2026-09-05'))
+  })
+  it('is random, not derived from anything configured', () => {
+    expect(dailySalt('2026-09-06')).toMatch(/^[0-9a-f]{32}$/)
+    expect(dailySalt('2026-09-06')).not.toBe(dailySalt('2026-09-07'))
+  })
+  it('forgets days older than yesterday', () => {
+    const a = dailySalt('2027-01-01')
+    dailySalt('2027-01-02')
+    dailySalt('2027-01-03')
+    // asking again mints a NEW salt: the old one is gone, so nothing can be replayed
+    expect(dailySalt('2027-01-01')).not.toBe(a)
   })
 })

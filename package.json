@@ -16,7 +16,8 @@
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "audit:ci": "node scripts/audit-ci.mjs",
-    "db:migrate": "node scripts/migrate.mjs"
+    "db:migrate": "node scripts/migrate.mjs",
+    "test:db": "TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgresql://localhost/brcmap_test} vitest run --testNamePattern \"\" server/utils/retention.db.test.ts"
   },
   "dependencies": {
     "@nuxt/ui": "^4.11.3",

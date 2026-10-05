@@ -1,9 +1,8 @@
 import { and, desc, gte } from 'drizzle-orm'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { pacificDateOf } from '~~/lib/burns'
 import { exodusReports } from '../../db/schema'
-import { visitorKey } from '../../utils/pulse'
+import { visitorFromEvent } from '../../utils/pulse'
 
 const schema = z.object({ minutes: z.number().int().min(0).max(720) })
 
@@ -16,10 +15,7 @@ const schema = z.object({ minutes: z.number().int().min(0).max(720) })
 export default defineEventHandler(async (event) => {
   const { minutes } = await readValidatedBody(event, schema.parse)
 
-  const secret = (useRuntimeConfig().session?.password as string) || 'brcmap-pulse'
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
-  const ua = getRequestHeader(event, 'user-agent') ?? 'unknown'
-  const visitor = visitorKey(secret, pacificDateOf(Date.now()), ip, ua)
+  const visitor = visitorFromEvent(event)
 
   const db = useDb()
   const [recent] = await db

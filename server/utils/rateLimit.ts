@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { clientIp } from './clientIp'
 
 // Simple in-memory fixed-window rate limiter, keyed by a label + the client IP
 // (or an explicit id, e.g. a user id or email). DigitalOcean App Platform runs a
@@ -7,7 +8,7 @@ import type { H3Event } from 'h3'
 const buckets = new Map<string, number[]>()
 
 export function rateLimit(event: H3Event, label: string, max: number, windowMs: number, id?: string): void {
-  const who = id ?? getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
+  const who = id ?? clientIp(event)
   const key = `${label}:${who}`
   const now = Date.now()
   const hits = (buckets.get(key) ?? []).filter(t => now - t < windowMs)

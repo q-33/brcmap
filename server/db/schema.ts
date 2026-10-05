@@ -94,7 +94,7 @@ export const auditLog = pgTable('audit_log', {
   targetId: text('target_id'),
   detail: text('detail'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [index('audit_log_created_idx').on(t.createdAt)])
+}, t => [index('audit_log_created_idx').on(t.createdAt), index('audit_log_action_idx').on(t.action)])
 
 // Rideshares — an offer of seats or a request for one. The board only; the
 // actual connecting happens in messages. See db/migrations/0028.
@@ -226,6 +226,7 @@ export const messages = pgTable('messages', {
 }, t => [
   index('messages_recipient_unread_idx').on(t.recipientId, t.readAt),
   index('messages_sender_idx').on(t.senderId, t.createdAt),
+  index('messages_created_idx').on(t.createdAt),
 ])
 
 export const camps = pgTable('camps', {
@@ -317,7 +318,7 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => [index('password_reset_tokens_hash_idx').on(t.tokenHash), index('password_reset_tokens_user_idx').on(t.userId)])
+}, t => [index('password_reset_tokens_hash_idx').on(t.tokenHash), index('password_reset_tokens_user_idx').on(t.userId), index('password_reset_tokens_expires_idx').on(t.expiresAt)])
 
 export const locations = pgTable('locations', {
   id: uuid('id').primaryKey().defaultRandom(),

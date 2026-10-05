@@ -1,14 +1,12 @@
 import { PULSE_BUCKET_MINUTES, bucketOf } from '~~/lib/pulse'
-import { pacificDateOf } from '~~/lib/burns'
 import { usagePulse } from '../db/schema'
-import { visitorKey } from '../utils/pulse'
+import { visitorFromEvent } from '../utils/pulse'
 
 // Record that somebody is out there, without recording who.
 //
-// The visitor key is sha256(session secret + playa date + IP + user agent). The
-// IP never lands in the database, the hash cannot be reversed, and the playa
-// date inside it means the key changes at playa midnight — so the same person
-// tomorrow is a different visitor and nobody can be followed across days.
+// The visitor key is sha256(random daily salt + playa date + IP + user agent);
+// see server/utils/pulse.ts for why the salt lives only in memory. The IP never
+// lands in the database and the key changes at playa midnight.
 //
 // Fails silently on purpose. A metrics write must never be the reason a page
 // errors, and out there half these requests die on a hotspot anyway.
@@ -19,11 +17,7 @@ export default defineEventHandler(async (event) => {
   // database and read back into the admin panel.
   const path = raw.split('?')[0]!.slice(0, 120) || '/'
 
-  const secret = (useRuntimeConfig().session?.password as string) || 'brcmap-pulse'
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
-  const ua = getRequestHeader(event, 'user-agent') ?? 'unknown'
-  const day = pacificDateOf(Date.now())
-  const visitor = visitorKey(secret, day, ip, ua)
+  const visitor = visitorFromEvent(event)
 
   try {
     await useDb()

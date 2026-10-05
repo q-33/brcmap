@@ -30,8 +30,6 @@ export default defineEventHandler(async (event) => {
     .values({ senderId: sender.id, recipientId, body })
     .returning({ id: messages.id, body: messages.body, createdAt: messages.createdAt, senderId: messages.senderId })
 
-  await audit(sender.id, 'message_sent', { targetType: 'user', targetId: recipientId })
-
   // Best-effort "you have a new message" nudge (no-op if email isn't configured).
   if (!existingUnread) {
     const fromName = sender.displayName || sender.email

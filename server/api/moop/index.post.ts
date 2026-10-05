@@ -1,10 +1,9 @@
 import { and, gte, eq, sql as dsql } from 'drizzle-orm'
 import { z } from 'zod'
-import { pacificDateOf } from '~~/lib/burns'
 import { MOOP_KEYS, MOOP_MAX_KM } from '~~/lib/moop'
 import { kmFromCity } from '~~/lib/weather/stations'
 import { moopReports } from '../../db/schema'
-import { visitorKey } from '../../utils/pulse'
+import { visitorFromEvent } from '../../utils/pulse'
 
 const schema = z.object({
   lat: z.number().min(-90).max(90),
@@ -28,10 +27,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const secret = (useRuntimeConfig().session?.password as string) || 'brcmap-pulse'
-  const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
-  const ua = getRequestHeader(event, 'user-agent') ?? 'unknown'
-  const visitor = visitorKey(secret, pacificDateOf(Date.now()), ip, ua)
+  const visitor = visitorFromEvent(event)
 
   const db = useDb()
   const [recent] = await db.select({ n: dsql<number>`count(*)::int` }).from(moopReports)
