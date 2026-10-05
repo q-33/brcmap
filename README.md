@@ -76,11 +76,6 @@ mark your camp's location before you arrive and update it once you have service 
   map is tile-free and the fonts are self-hosted, so it has zero external runtime deps.
 - **Download for the playa** — a one-tap pre-sync (in the footer) that warms the caches
   before you lose service, with a "ready for the playa ✓" status.
-- **Meshtastic mesh** — connect a [Meshtastic](https://meshtastic.org) LoRa radio over
-  **Bluetooth or USB** to see **your people live on the map** and **chat off-grid** with no
-  internet. Peers and messages persist across reloads (a "where I last saw my people"
-  view). Works in desktop/Android Chrome & Edge; on iPhone use the native Meshtastic app.
-  Setup lives in the in-app **Guide → Meshtastic**.
 
 ### Accounts & moderation
 - **Auth** — email/password sessions (`nuxt-auth-utils`) with self-service password reset.
@@ -89,8 +84,7 @@ mark your camp's location before you arrive and update it once you have service 
   `admin`, applied live without re-login.
 - **Admin panel** — people & roles, content management (edit/hide/delete camps, art,
   events), a who's-online view, a recent submissions feed, an audit log, and an
-  **anonymous usage pulse** (active now / 24 h / 7 days, busiest pages, Meshtastic
-  connects) built on a daily-rotating hash — no IPs stored, nobody trackable across
+  **anonymous usage pulse** (active now / 24 h / 7 days, busiest pages) built on a daily-rotating hash — no IPs stored, nobody trackable across
   days; /about explains it in plain words.
 - **Camp moderation from the list** — Hubs/Org/admins can edit a camp's details from the
   public Camps list; admins can delete camps created in error.
@@ -112,7 +106,6 @@ mark your camp's location before you arrive and update it once you have service 
 | Frontend | [Nuxt 4](https://nuxt.com) + [Nuxt UI](https://ui.nuxt.com) (Reka + Tailwind) |
 | Map | [MapLibre GL](https://maplibre.org) — tile-free, self-hosted glyphs |
 | Offline | [@vite-pwa/nuxt](https://vite-pwa-org.netlify.app) — installable PWA, custom Workbox service worker |
-| Mesh | [Meshtastic](https://meshtastic.org) via `@meshtastic/core` (Web Bluetooth / Web Serial); mesh state in IndexedDB |
 | API / auth | Nitro server routes + [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) |
 | Data | [Drizzle ORM](https://orm.drizzle.team) → DigitalOcean **Postgres + PostGIS** |
 | Geocoder | `lib/brc` — parametric BRC address ⇄ lat/lng (pure TS, tested) |
@@ -227,6 +220,6 @@ wrong block is worse than a camp with no pin. Plazas map onto the surveyed GIS n
 BRC Map is Copyright (C) 2026 the BRC Map authors and is licensed under the
 **GNU General Public License v3.0 or later** (`GPL-3.0-or-later`) — see [`LICENSE`](./LICENSE).
 
-The project began from an MIT-licensed Nuxt starter template (MIT is GPL-compatible)
-and the Meshtastic integration builds on the Meshtastic libraries, which are
-themselves GPL-3.0 — hence the copyleft license for the whole app.
+The project began from an MIT-licensed Nuxt starter template (MIT is GPL-compatible).
+The copyleft license dates from the 2026 Meshtastic integration (GPL-3.0 libraries);
+that feature was retired for 2027, and the license stays.

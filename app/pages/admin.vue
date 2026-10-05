@@ -33,7 +33,6 @@ interface Usage {
   peak: { at: number, n: number } | null
   topPaths: { path: string, n: number }[]
   activePaths: { path: string, n: number }[]
-  mesh: { connectedNow: number, last24h: number, last7d: number, heardPeers7d: number }
 }
 const { data: usage, refresh: refreshUsage } = await useFetch<Usage>('/api/admin/usage', { immediate: false, default: () => ({ available: false, activeNow: 0, last24h: 0, last7d: 0, hours: [], peak: null, topPaths: [], activePaths: [], mesh: { connectedNow: 0, last24h: 0, last7d: 0, heardPeers7d: 0 } }) })
 const { data: recent, refresh: refreshRecent } = await useFetch<Recent[]>('/api/admin/recent', { immediate: false, default: () => [] })
@@ -448,8 +447,7 @@ useHead({ title: 'Admin — BRC Map' })
           {{ t.label }}<span v-if="t.n" class="ml-1 opacity-70">{{ t.n }}</span>
         </UButton>
       </div>
-      <!-- Anyone out there? Site pulse, then the mesh. Same anonymous
-           daily-rotating visitor hash for both; admin-only by the endpoint. -->
+      <!-- Anyone out there? Anonymous daily-rotating visitor hash; admin-only by the endpoint. -->
       <div v-if="usage?.available" class="mt-3 space-y-1.5 text-xs text-(--ui-text-muted)">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span class="flex items-center gap-1.5">
@@ -475,19 +473,6 @@ useHead({ title: 'Admin — BRC Map' })
         </div>
         <div v-if="usage.topPaths.length" class="text-(--ui-text-muted)/70">
           busiest 24h: {{ usage.topPaths.slice(0, 5).map(p => `${p.path} (${p.n})`).join(' · ') }}
-        </div>
-        <!-- the mesh: radios attached through the map's Meshtastic panel -->
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span class="flex items-center gap-1.5">
-            <UIcon name="i-lucide-radio-tower" class="size-3.5" :class="usage.mesh.connectedNow ? 'text-emerald-500' : 'text-(--ui-text-muted)/50'" />
-            <span class="font-medium text-(--ui-text)">{{ usage.mesh.connectedNow }}</span>
-            radio{{ usage.mesh.connectedNow === 1 ? '' : 's' }} on the mesh now
-          </span>
-          <span class="text-(--ui-text-muted)/50">·</span>
-          <span><span class="font-medium text-(--ui-text)">{{ usage.mesh.last24h }}</span> in 24h</span>
-          <span class="text-(--ui-text-muted)/50">·</span>
-          <span><span class="font-medium text-(--ui-text)">{{ usage.mesh.last7d }}</span> in 7 days</span>
-          <span class="text-(--ui-text-muted)/70">· {{ usage.mesh.heardPeers7d }} heard another radio</span>
         </div>
       </div>
       <p v-if="msg" class="mt-2 text-xs text-(--ui-text-muted)">{{ msg }}</p>

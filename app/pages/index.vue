@@ -118,17 +118,6 @@ const pins = computed<CampPin[]>(() => {
 })
 const artPins = computed<CampPin[]>(() => toPins(artData.value, undefined, 'art'))
 
-// Live Meshtastic peers (LoRa mesh) → map dots. Shared singleton state, also
-// driven by <MeshControl>; here we just plot the ones with a position fix.
-const { locatedPeers } = useMeshtastic()
-const meshPeers = computed(() => locatedPeers.value.map(n => ({
-  num: n.num,
-  lat: n.lat!,
-  lng: n.lng!,
-  label: n.shortName || n.longName || `!${n.num.toString(16)}`,
-  isSelf: n.isSelf,
-})))
-
 // --- admin: place/move any camp from the map (deep-linked from /admin) -------
 const adminPlaceSaved = ref(false)
 const adminPlaceCamp = computed(() => {
@@ -871,7 +860,7 @@ const itemOptions = computed(() => [
   <div class="relative size-full overflow-hidden">
     <div class="absolute inset-0">
       <ClientOnly>
-        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :mesh-peers="meshPeers" :focus="focus" :wind="windInfo" :rain="rainInfo" :exodus="exodusInfo" :gate-status="gateStatus" :moop="layers.moop ? moopPins : []" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
+        <PlayaMap ref="mapRef" :camps="pins" :art-pins="artPins" :focus="focus" :wind="windInfo" :rain="rainInfo" :exodus="exodusInfo" :gate-status="gateStatus" :moop="layers.moop ? moopPins : []" :layers="layers" :basemap="basemap" :drop-mode="!!dropMode || !!adminPlaceCamp" :sun-time="sunInstant" :edit-camp="editCamp" :edit-footprint="editFootprint" class="size-full" @position="onPosition" @pick="onPick" @edit-change="onEditChange" :can-move-landmarks="isAdmin" :landmark-overrides="landmarkOverrides ?? []"
           @footprint-draw="onFootprintDraw" @landmark-move="onLandmarkMove" @pin-move="onPinMove" @pin-edit="onPinEdit" />
       </ClientOnly>
     </div>
@@ -1066,14 +1055,10 @@ const itemOptions = computed(() => [
       </div>
     </div>
 
-    <!-- bottom-right stack: compass rose · Meshtastic mesh.
-         Anchored at bottom-4 to line up with the bottom-left layers stack. -->
+    <!-- bottom-right: compass rose. Anchored at bottom-4 to line up with the
+         bottom-left layers stack. -->
     <div class="pointer-events-none absolute bottom-4 right-3 flex flex-col items-end gap-2">
       <CompassRose />
-      <!-- Meshtastic mesh radio -->
-      <ClientOnly>
-        <MeshControl />
-      </ClientOnly>
     </div>
 
     <!-- sun & shade time control -->

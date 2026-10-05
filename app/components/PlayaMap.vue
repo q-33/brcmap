@@ -11,21 +11,8 @@ import { cityGridGeoJson, civicLandmarksGeoJson, getCenterCampPoint, getManPoint
 interface CampPin { id?: string, kind?: 'camp' | 'art', canMove?: 0 | 1, name: string, lat: number, lng: number, address: string, description?: string | null, website?: string | null, hometown?: string | null, frontageFt?: number | null, depthFt?: number | null, heightFt?: number | null, footprint?: [number, number][] | null }
 // A camp whose boundary is being edited live on the map (admin/owner tool).
 export interface EditCamp { id: string, name: string, lat: number, lng: number, frontageFt: number, depthFt: number }
-// A live Meshtastic peer (or self) plotted from a LoRa-mesh position broadcast.
-export interface MeshPeer { num: number, lat: number, lng: number, label: string, isSelf?: boolean }
 
-const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], meshPeers?: MeshPeer[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, exodus?: { openRides: number, wait: number | null } | null, gateStatus?: { color: string, label: string, grade: string } | null, moop?: { id: string, lat: number, lng: number, category: string }[], layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
-
-function meshPeersGeoJson(peers: MeshPeer[] = []): GeoJSON.FeatureCollection {
-  return {
-    type: 'FeatureCollection',
-    features: peers.map(p => ({
-      type: 'Feature',
-      properties: { num: p.num, label: p.label, self: p.isSelf ? 1 : 0 },
-      geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-    })),
-  }
-}
+const props = defineProps<{ camps: CampPin[], artPins?: CampPin[], focus?: { lat: number, lng: number } | null, rain?: { level: number } | null, exodus?: { openRides: number, wait: number | null } | null, gateStatus?: { color: string, label: string, grade: string } | null, moop?: { id: string, lat: number, lng: number, category: string }[], layers?: Record<string, boolean>, basemap?: 'blocks' | 'lines', dropMode?: boolean, sunTime?: number | null, wind?: { dir: number, gusts: number, color: string } | null, editCamp?: EditCamp | null, editFootprint?: { lng: number, lat: number, offsets: [number, number][] } | null, canMoveLandmarks?: boolean, landmarkOverrides?: { name: string, lat: number, lng: number }[] }>()
 
 // Swap between the real street-line geometry (default) and the filled-block plan.
 function applyBasemap() {
@@ -1370,38 +1357,6 @@ onMounted(async () => {
       emit('pick', { lat, lng })
     })
 
-    // Meshtastic mesh peers — live LoRa-mesh positions of your people. Kept
-    // visually distinct from camp/art pins: emerald dots (amber for yourself),
-    // drawn last so they sit on top.
-    map.addSource('mesh-peers', { type: 'geojson', data: meshPeersGeoJson(props.meshPeers) })
-    map.addLayer({
-      id: 'mesh-peers',
-      type: 'circle',
-      source: 'mesh-peers',
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 5, 16, 8],
-        'circle-color': ['case', ['==', ['get', 'self'], 1], '#f59e0b', '#10b981'],
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 2,
-      },
-    })
-    map.addLayer({
-      id: 'mesh-peers-labels',
-      type: 'symbol',
-      source: 'mesh-peers',
-      layout: { 'text-field': ['get', 'label'], 'text-size': 11, 'text-offset': [0, 1.1], 'text-anchor': 'top' },
-      paint: { 'text-color': '#065f46', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
-    })
-    map.on('click', 'mesh-peers', (e) => {
-      const f = e.features?.[0]
-      if (f && map) {
-        new maplibregl.Popup()
-          .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<b>${esc(f.properties?.label)}</b><br>Meshtastic peer`)
-          .addTo(map)
-      }
-    })
-
     // Point every label layer at our self-hosted glyphs (public/fonts/OpenSans,
     // no spaces/commas in the name so the offline SW precache-match is exact).
     // Done once here rather than repeating text-font on each addLayer above.
@@ -1773,9 +1728,6 @@ watch(() => props.gateStatus, () => drawWeather(), { deep: true })
 watch(() => props.moop, () => drawWeather(), { deep: true })
 
 // keep art pins in sync
-watch(() => props.meshPeers, () => {
-  ;(map?.getSource('mesh-peers') as GeoJSONSource | undefined)?.setData(meshPeersGeoJson(props.meshPeers))
-}, { deep: true })
 watch(() => props.artPins, () => {
   const src = map?.getSource('art') as GeoJSONSource | undefined
   src?.setData(pinsGeoJson(props.artPins ?? []))

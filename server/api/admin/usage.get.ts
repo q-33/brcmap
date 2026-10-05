@@ -2,14 +2,11 @@ import { gte } from 'drizzle-orm'
 import { ACTIVE_WINDOW_MINUTES, hourSeries, hourSlot } from '~~/lib/pulse'
 import { usagePulse } from '../../db/schema'
 
-// Admin: is anyone using the site — and is anyone using the mesh?
+// Admin: is anyone using the site?
 //
 // Counts DISTINCT visitors, never rows. Rows whose "path" starts with `mesh:`
-// are not pages: they are the anonymous mesh-radio pings from useMeshtastic
-// ('mesh:connected' while a radio is attached, 'mesh:peers' the first time a
-// session hears another radio). Same daily-rotating visitor hash as page
-// traffic, so mesh numbers carry exactly the same privacy properties — and the
-// same NAT undercount.
+// are the 2026 Meshtastic radio pings (feature removed for 2027); they are
+// skipped so they never show up as pages.
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
   const db = useDb()
@@ -33,28 +30,13 @@ export default defineEventHandler(async (event) => {
       paths: new Map<string, Set<string>>(),
       activePaths: new Map<string, Set<string>>(),
     }
-    const mesh = {
-      connectedNow: new Set<string>(),
-      day: new Set<string>(),
-      week: new Set<string>(),
-      heardPeersWeek: new Set<string>(),
-    }
-
     for (const r of rows) {
       const ms = r.bucket.getTime()
       const isNow = ms >= activeCut
       const isDay = ms >= since24h
 
-      if (r.path.startsWith('mesh:')) {
-        mesh.week.add(r.visitor)
-        if (isDay)
-          mesh.day.add(r.visitor)
-        if (isNow && r.path === 'mesh:connected')
-          mesh.connectedNow.add(r.visitor)
-        if (r.path === 'mesh:peers')
-          mesh.heardPeersWeek.add(r.visitor)
+      if (r.path.startsWith('mesh:'))
         continue
-      }
 
       site.week.add(r.visitor)
       if (isDay) {
@@ -93,15 +75,9 @@ export default defineEventHandler(async (event) => {
         .map(([path, s]) => ({ path, n: s.size }))
         .sort((a, b) => b.n - a.n)
         .slice(0, 6),
-      mesh: {
-        connectedNow: mesh.connectedNow.size,
-        last24h: mesh.day.size,
-        last7d: mesh.week.size,
-        heardPeers7d: mesh.heardPeersWeek.size,
-      },
     }
   }
   catch {
-    return { available: false, activeNow: 0, last24h: 0, last7d: 0, hours: [], peak: null, topPaths: [], activePaths: [], mesh: { connectedNow: 0, last24h: 0, last7d: 0, heardPeers7d: 0 } }
+    return { available: false, activeNow: 0, last24h: 0, last7d: 0, hours: [], peak: null, topPaths: [], activePaths: [] }
   }
 })
