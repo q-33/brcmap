@@ -5,8 +5,8 @@ export type Role = 'user' | 'admin' | 'org' | 'tco' | 'hubs'
 
 // Order shown in the admin role picker (broadest reach last).
 export const ROLES: { value: Role, label: string, hint: string }[] = [
-  { value: 'user', label: 'User', hint: 'Browse the map' },
-  { value: 'tco', label: 'Theme Camp Org', hint: 'Create & manage their own camp' },
+  { value: 'user', label: 'User', hint: 'Browse the map · drop and edit one camp' },
+  { value: 'tco', label: 'Theme Camp Org', hint: 'Same as User; a label for camp organizers' },
   { value: 'hubs', label: 'Hub', hint: 'Create & place/edit any camp' },
   { value: 'org', label: 'BM Org', hint: 'Place any camp' },
   { value: 'admin', label: 'Admin', hint: 'Full access' },
@@ -24,10 +24,10 @@ export function canManageAnyCamp(role?: string | null): boolean {
   return role === 'hubs' || role === 'org' || role === 'admin'
 }
 
-/** Create a new camp: Theme Camp Organizers, BM Org, or admins. */
-export function canCreateCamp(role?: string | null): boolean {
-  return role === 'tco' || role === 'org' || role === 'admin'
-}
+// Creating and editing YOUR OWN camp needs no role: any signed-in user may drop
+// one camp and edit it (decision 2026-10-05; the one-camp cap and ownership
+// checks on the server are the guard, abuse is handled by hand). Only the
+// capabilities below are role-gated.
 
 /**
  * Own MORE THAN ONE camp (create/edit/move several camps you own): Hubs, plus
